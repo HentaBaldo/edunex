@@ -2,11 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
 const OgrenciIlgiAlani = sequelize.define('OgrenciIlgiAlani', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
-    },
+    
     ogrenci_id: {
         type: DataTypes.STRING(36),
         allowNull: false,

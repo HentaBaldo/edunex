@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
 // --- KAYIT OLMA ---
-exports.register = async (req, res) => {
+exports.kayitOl = async (req, res) => {
     try {
         const { ad, soyad, eposta, sifre, rol } = req.body;
 
@@ -45,7 +45,7 @@ exports.register = async (req, res) => {
 };
 
 // --- GIRIS YAPMA ---
-exports.login = async (req, res) => {
+exports.girisYap = async (req, res) => {
     try {
         const { eposta, sifre } = req.body;
 

@@ -2,19 +2,12 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
 const EgitmenDetay = sequelize.define('EgitmenDetay', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
-    },
+    
     kullanici_id: {
         type: DataTypes.STRING(36),
+        primaryKey: true,
         allowNull: false,
-        unique: true,
-        references: {
-            model: 'profiller',
-            key: 'id'
-        }
+        
     },
     baslik: {
         type: DataTypes.STRING,

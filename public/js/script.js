@@ -42,7 +42,7 @@ if(document.getElementById('kayitFormu')){
         };
 
         try {
-            const res = await fetch('/api/kayit', {
+            const res = await fetch('/api/auth/kayit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(veriler)
@@ -64,7 +64,7 @@ if(document.getElementById('girisFormu')){
     document.getElementById('girisFormu').onsubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/giris', {
+            const res = await fetch('/api/auth/giris', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
