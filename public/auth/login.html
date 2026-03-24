@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="auth-page-wrapper">
+
+    <div class="auth-container">
+        <div class="auth-header">
+            <a href="/main/index.html" class="logo" style="color: var(--primary-color); text-decoration: none; font-size: 24px; font-weight: bold; display: block; text-align: center; margin-bottom: 20px;">EduNex</a>
+            <h2 style="text-align: center; color: #1e293b; margin-top: 0; font-size: 20px;">Platforma Devam Et</h2>
+        </div>
+        
+        <div class="auth-tabs">
+            <button id="tabGiris" class="active" onclick="authSekmeDegistir('giris')">Giriş Yap</button>
+            <button id="tabKayit" onclick="authSekmeDegistir('kayit')">Kayıt Ol</button>
+        </div>
+
+        <div id="formGiris" class="auth-form-area">
+            <form id="girisFormu">
+                <div class="form-group">
+                    <label>E-Posta</label>
+                    <input type="email" id="eposta_giris" placeholder="ornek@mail.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Şifre</label>
+                    <input type="password" id="sifre_giris" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="action-btn" style="width: 100%; margin-top: 10px;">Giriş Yap</button>
+            </form>
+        </div>
+
+        <div id="formKayit" class="auth-form-area" style="display: none;">
+            <form id="kayitFormu">
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Ad</label>
+                        <input type="text" id="regAd" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Soyad</label>
+                        <input type="text" id="regSoyad" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>E-Posta</label>
+                    <input type="email" id="regEposta" required>
+                </div>
+                <div class="form-group">
+                    <label>Şifre</label>
+                    <input type="password" id="regSifre" required>
+                </div>
+                <div class="form-group">
+                    <label>Platformu Kullanım Amacınız</label>
+                    <select id="regRol" required>
+                        <option value="ogrenci">Kendimi geliştirmek (Öğrenci)</option>
+                        <option value="egitmen">Eğitim vermek (Eğitmen)</option>
+                    </select>
+                </div>
+                <button type="submit" class="action-btn" style="width: 100%; margin-top: 10px;">Kayıt Ol ve Başla</button>
+            </form>
+        </div>
+        
+        <div id="authSonuc" class="sonuc" style="margin-top: 15px; text-align: center; font-size: 14px; font-weight: 500;"></div>
+    </div>
+    
+    <script src="/assets/js/common.js"></script>
+    <script src="/assets/js/auth.js"></script>
+</body>
+</html>

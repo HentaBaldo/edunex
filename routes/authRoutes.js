@@ -1,15 +1,14 @@
 const express = require('express');
 const router = express.Router();
-
-// Controller dosyamızı çağırıyoruz
 const authController = require('../controllers/authController');
 
 // --- KİMLİK DOĞRULAMA ROTALARI ---
 
-// POST isteği ile '/register' adresine gelinirse, authController'daki kayitOl çalışsın
-router.post('/kayit', authController.kayitOl);
+// NOT: Eğer controller dosyasında fonksiyon adları hala register ve login ise böyle kalmalı.
+// Eğer kayitOl ve girisYap yaptıysan, noktadan sonrasını ona göre düzelt.
+router.post('/kayit', authController.kayitOl); 
 
-// POST isteği ile '/login' adresine gelinirse, authController'daki girisYap çalışsın
-router.post('/giris', authController.girisYap);
+// '/auth' yazmıştın, bunu frontend'in beklediği gibi '/giris' yapıyoruz.
+router.post('/giris', authController.girisYap); 
 
 module.exports = router;

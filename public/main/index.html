@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Ana Sayfa</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">EduNex</a>
+        
+        <div class="nav-item">
+            <span>Kategoriler <small style="opacity: 0.5;">▼</small></span>
+            <div class="mega-menu" id="megaMenu">
+                <div class="menu-col"><h4>Keşfet</h4><div id="parentList"></div></div>
+                <div class="menu-col" id="childCol"><h4>Alt Kategoriler</h4><div id="childList"></div></div>
+                <div class="menu-col" id="grandChildCol"><h4>Konular</h4><div id="grandChildList"></div></div>
+            </div>
+        </div>
+
+        <div class="user-nav">
+            <div id="ziyaretciMenu">
+                <button class="action-btn" style="width: auto; padding: 10px 25px;" onclick="window.location.href='/auth/login.html'">Giriş Yap</button>
+            </div>
+            
+            <div id="uyeMenu" class="dropdown" style="display: none;">
+                <span id="navIsim" style="cursor: pointer; padding: 10px 0; display: inline-block; font-weight: 600; color: var(--primary-color);">Merhaba ▼</span>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" onclick="profilSayfasinaGit()" style="cursor: pointer;">Profil</a>
+                    <a class="dropdown-item" onclick="ogrenimIcerigineGit()">Öğrenim İçeriğim</a>
+                    <hr style="border: 0; border-top: 1px solid var(--surface-border); margin: 10px 0;">
+                    <a class="dropdown-item" style="color: #ff4757;" onclick="cikisYap()">Çıkış</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="content-section">
+        <div id="anaPanel">
+            <div class="page-header">
+                <h2>Keşfetmeye Başla</h2>
+                <p style="color: var(--text-muted);">Sana en uygun kursu seç ve öğrenmeye başla.</p>
+            </div>
+            <div id="kursVitrinGrid" class="course-grid">
+                <p style="text-align:center; padding:20px;">Kurslar yükleniyor...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/assets/js/common.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

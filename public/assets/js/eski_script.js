@@ -42,7 +42,7 @@ if(document.getElementById('kayitFormu')){
         };
 
         try {
-            const res = await fetch('/api/auth/kayit', {
+            const res = await fetch('/api/kayit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(veriler)
@@ -64,7 +64,7 @@ if(document.getElementById('girisFormu')){
     document.getElementById('girisFormu').onsubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/auth/giris', {
+            const res = await fetch('/api/giris', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -469,7 +469,51 @@ async function profilModalAc() {
 
 function cikisYap() { localStorage.clear(); location.reload(); }
 function kursDetayGit(id) { alert("Kurs detayları yakında! Kurs ID: " + id); }
+// ==========================================
+//           7. PROFİL GÜNCELLEME İŞLEMİ
+// ==========================================
+async function profilKaydet(event) {
+    // Formun sayfa yenilemesini engelle
+    if (event) event.preventDefault();
 
+    // Formdaki güncel verileri topla
+    const guncelVeriler = {
+        ad: document.getElementById('profAd') ? document.getElementById('profAd').value : undefined,
+        soyad: document.getElementById('profSoyad') ? document.getElementById('profSoyad').value : undefined,
+        biyografi: document.getElementById('profBiyo') ? document.getElementById('profBiyo').value : undefined,
+        unvan: document.getElementById('profUnvan') ? document.getElementById('profUnvan').value : undefined,
+        iban_no: document.getElementById('profIban') ? document.getElementById('profIban').value : undefined,
+    };
+
+    try {
+        const res = await fetch('/api/profil/guncelle', {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}` 
+            },
+            body: JSON.stringify(guncelVeriler)
+        });
+
+        const veri = await res.json();
+
+        if (res.ok) {
+            alert("Profiliniz başarıyla güncellendi!");
+            modalKapat('profilModal');
+            arayuzuGuncelle(); // İsim değişmişse arayüze yansısın
+        } else {
+            alert("Güncelleme Hatası: " + (veri.hata || "Bilinmeyen bir hata oluştu."));
+        }
+    } catch (err) {
+        console.error("Profil Kaydetme Hatası:", err);
+        alert("Sunucuya bağlanılamadı.");
+    }
+}
+
+// Profil formunun (varsa) submit olayını dinle
+if(document.getElementById('profilFormu')) {
+    document.getElementById('profilFormu').onsubmit = profilKaydet;
+}
 // BAŞLAT
 kategorileriYukle();
 arayuzuGuncelle();

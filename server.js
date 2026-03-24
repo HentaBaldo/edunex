@@ -33,12 +33,12 @@ const PORT = process.env.PORT || 3000;
 
 sequelize.sync()
     .then(() => {
-        console.log('✅ Veritabanı senkronize edildi (Eksik tablolar oluşturuldu).');
+        console.log('Veritabanı senkronize edildi (Eksik tablolar oluşturuldu).');
         app.listen(PORT, () => {
-            console.log(`🚀 EduNex Backend Yayında: http://localhost:${PORT}`);
-            console.log(`🛡️ Güvenlik: JWT ve Rol Kontrolü Devrede\n======================================`);
+            console.log(`EduNex Backend Yayında: http://localhost:${PORT}`);
+            console.log(`Güvenlik: JWT ve Rol Kontrolü Devrede\n======================================`);
         });
     })
     .catch((err) => {
-        console.error('❌ Veritabanı senkronizasyon hatası:', err);
+        console.error('Veritabanı senkronizasyon hatası:', err);
     });

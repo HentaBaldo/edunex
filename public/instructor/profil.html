@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eğitmen Profili - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <style>
+        .profile-container { max-width: 800px; margin: 50px auto; background: var(--surface-color); padding: 40px; border-radius: var(--radius-lg); border: 1px solid var(--surface-border); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/main/index.html" class="logo">EduNex Stüdyo</a>
+        <div class="user-nav">
+            <div id="uyeMenu" class="dropdown">
+                <span id="navIsim" style="cursor: pointer; padding: 10px 0; display: inline-block; font-weight: 600; color: var(--primary-color);">Merhaba ▼</span>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" onclick="profilSayfasinaGit()" style="cursor: pointer;">Profil</a>
+                    <a class="dropdown-item" onclick="ogrenimIcerigineGit()">Eğitmen Paneli</a>
+                    <hr style="border: 0; border-top: 1px solid var(--surface-border); margin: 10px 0;">
+                    <a class="dropdown-item" style="color: #ff4757;" onclick="cikisYap()">Çıkış</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="content-section">
+        <div class="profile-container">
+            <h2 style="margin-top:0; border-bottom: 2px solid var(--secondary-color); padding-bottom: 15px; margin-bottom: 30px;">Eğitmen Bilgileri ve Ödeme Ayarları</h2>
+            
+            <form id="profilFormuTamSayfa">
+                <div style="display: flex; gap: 20px;">
+                    <div class="form-group" style="flex:1;"><label>Ad</label><input type="text" id="profAd" required></div>
+                    <div class="form-group" style="flex:1;"><label>Soyad</label><input type="text" id="profSoyad" required></div>
+                </div>
+                <div class="form-group"><label>Telefon Numarası</label><input type="text" id="profTel" placeholder="05XX XXX XX XX"></div>
+                <div class="form-group"><label>Eğitmen Özgeçmişi</label><textarea id="profBiyo" rows="4" placeholder="Öğrenciler sizi neden seçmeli? Uzmanlığınızdan bahsedin..."></textarea></div>
+                
+                <div id="panelEgitmenExtra" style="background: rgba(177, 75, 244, 0.05); padding: 20px; border-radius: var(--radius-md); border: 1px solid rgba(177, 75, 244, 0.3); margin-bottom: 25px;">
+                    <h4 style="margin-top:0; color: var(--secondary-color);">Resmi Bilgiler</h4>
+                    <div class="form-group"><label>Ünvan / Uzmanlık Alanı</label><input type="text" id="profUnvan" placeholder="Örn: Kıdemli Veri Bilimci" required></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>IBAN Numarası</label><input type="text" id="profIban" placeholder="TRXX XXXX XXXX XXXX XXXX XXXX XX" required></div>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 15px;">
+                    <button type="button" class="action-btn" style="background: transparent !important; color: var(--text-main) !important; border: 1px solid var(--surface-border) !important;" onclick="window.location.href='/instructor/course-editor.html'">İptal</button>
+                    <button type="submit" class="action-btn">Eğitmen Profilini Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/assets/js/common.js"></script>
+    <script src="/assets/js/profil.js"></script>
+</body>
+</html>
