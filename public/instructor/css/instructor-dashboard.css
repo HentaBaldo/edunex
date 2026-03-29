@@ -1,0 +1,153 @@
+/* ==========================================
+   EDUNEX INSTRUCTOR DASHBOARD - MASTER CSS
+   ========================================== */
+
+/* 1. Sayfa Temeli ve Konteyner */
+.dashboard-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    font-family: 'Inter', sans-serif;
+}
+
+/* 2. Sayfa Başlığı ve "Yeni Kurs" Butonu Alanı */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.header-text h1 {
+    font-size: 2rem;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 1rem;
+}
+
+/* 3. Kurslarım Başlığı */
+.section-header-alt {
+    margin-bottom: 25px;
+}
+
+.section-title {
+    font-size: 1.4rem;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 4. KURS GRID SİSTEMİ (En Önemli Kısım) */
+.course-management-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 30px;
+    width: 100%;
+}
+
+/* 5. Kurs Kartı Tasarımı */
+.course-card-alt {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    height: 100%;
+}
+
+.course-card-alt:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.course-card-body {
+    padding: 24px;
+    flex-grow: 1;
+}
+
+/* Kart İçindeki Durum Rozeti (Badge) */
+.course-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.badge-published { background: #dcfce7; color: #166534; }
+.badge-draft { background: #fef3c7; color: #92400e; }
+
+.course-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.course-card-info {
+    font-size: 0.9rem;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* 6. Kart Altı İşlem Butonları */
+.course-card-actions {
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 12px;
+    border-radius: 0 0 12px 12px;
+}
+
+.course-card-actions a {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-edit-link {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #d1d5db;
+}
+
+.btn-edit-link:hover {
+    background: #f1f5f9;
+}
+
+.btn-view-link {
+    background: #2563eb;
+    color: #ffffff !important;
+}
+
+.btn-view-link:hover {
+    background: #1d4ed8;
+}
+
+/* 7. Boş Durum ve Yükleniyor */
+.loading-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 100px 0;
+    color: #94a3b8;
+}

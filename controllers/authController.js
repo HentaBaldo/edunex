@@ -1,89 +1,141 @@
-const { Profil } = require('../models');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
+const { sequelize, Profile, StudentDetail, InstructorDetail } = require('../models');
 
-// --- KAYIT OLMA ---
-exports.kayitOl = async (req, res) => {
+/**
+ * Kullanıcı Kayıt (Register)
+ * @route POST /api/auth/register
+ */
+exports.register = async (req, res, next) => {
+    const t = await sequelize.transaction();
+
     try {
         const { ad, soyad, eposta, sifre, rol } = req.body;
 
-        // 1. Gelen veri kontrolu (Undefined hatasini engellemek icin)
-        if (!ad || !soyad || !eposta || !sifre || !rol) {
-            return res.status(400).json({ hata: 'Lutfen tum zorunlu alanlari doldurun.' });
+        // 1. Veri Doğrulama (Validation)
+        if (!ad || !soyad || !eposta || !sifre) {
+            const error = new Error('All required fields must be filled.');
+            error.statusCode = 400;
+            throw error;
         }
 
-        // 2. Kullanici zaten var mi?
-        const existing = await Profil.findOne({ where: { eposta } });
-        if (existing) {
-            return res.status(400).json({ hata: 'Bu e-posta adresi zaten kayitli.' });
+        // 2. E-posta Kontrolü
+        const existingUser = await Profile.findOne({ where: { eposta } });
+        if (existingUser) {
+            const error = new Error('This email address is already registered.');
+            error.statusCode = 409;
+            throw error;
         }
 
-        // 3. Sifreyi Hashle
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(sifre, salt);
-        const userId = uuidv4();
+        // 3. Şifre Hashleme
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(sifre, saltRounds);
 
-        // 4. Veritabanina Ekle
-        await Profil.create({
-            id: userId,
-            ad,
-            soyad,
-            eposta,
-            sifre: hashedPassword,
-            rol,
-            sehir: ''
+        // 4. Ana Profil Oluşturma
+        const userRol = rol === 'egitmen' ? 'egitmen' : 'ogrenci';
+        const newUser = await Profile.create(
+            {
+                ad,
+                soyad,
+                eposta,
+                sifre: hashedPassword,
+                rol: userRol,
+            },
+            { transaction: t }
+        );
+
+        // 5. Role Dayalı Detay Kaydı
+        if (userRol === 'egitmen') {
+            await InstructorDetail.create(
+                { kullanici_id: newUser.id },
+                { transaction: t }
+            );
+        } else {
+            await StudentDetail.create(
+                { kullanici_id: newUser.id },
+                { transaction: t }
+            );
+        }
+
+        // 6. Transaction Onaylama
+        await t.commit();
+
+        // 7. Başarılı Yanıt
+        return res.status(201).json({
+            status: 'success',
+            message: 'Registration completed successfully.',
+            data: {
+                id: newUser.id,
+                ad: newUser.ad,
+                soyad: newUser.soyad,
+                eposta: newUser.eposta,
+                rol: newUser.rol
+            }
         });
 
-        console.log(`Yeni kullanici kaydedildi: ${eposta}`);
-        res.status(201).json({ mesaj: 'Kayit basariyla tamamlandi!' });
-
     } catch (error) {
-        console.error("Kayit Hatasi:", error);
-        res.status(500).json({ hata: 'Sunucu hatasi: ' + error.message });
+        // Hata durumunda transaction geri alma
+        if (t) await t.rollback();
+        next(error); // Global Error Handler'a pasla
     }
 };
 
-// --- GIRIS YAPMA ---
-exports.girisYap = async (req, res) => {
+/**
+ * Kullanıcı Giriş (Login)
+ * @route POST /api/auth/login
+ */
+exports.login = async (req, res, next) => {
     try {
         const { eposta, sifre } = req.body;
 
-        // 1. Kullaniciyi getir
-        const user = await Profil.findOne({ where: { eposta } });
+        // 1. Girdi Kontrolü
+        if (!eposta || !sifre) {
+            const error = new Error('Email and password are required.');
+            error.statusCode = 400;
+            throw error;
+        }
 
+        // 2. Kullanıcı Sorgulama
+        const user = await Profile.findOne({ where: { eposta } });
+        
+        // Güvenlik gerekçesiyle hata mesajı her iki durumda da aynıdır
         if (!user) {
-            console.log(`Kullanici bulunamadi: ${eposta}`);
-            return res.status(401).json({ hata: 'E-posta veya sifre hatali.' });
+            const error = new Error('Invalid email or password.');
+            error.statusCode = 401;
+            throw error;
         }
 
-        // 2. Sifreyi Karsilastir
-        const match = await bcrypt.compare(sifre, user.sifre);
-
-        if (!match) {
-            console.log(`Sifre eslesmedi: ${eposta}`);
-            return res.status(401).json({ hata: 'E-posta veya sifre hatali.' });
+        // 3. Şifre Doğrulama
+        const isPasswordMatch = await bcrypt.compare(sifre, user.sifre);
+        if (!isPasswordMatch) {
+            const error = new Error('Invalid email or password.');
+            error.statusCode = 401;
+            throw error;
         }
 
-        // 3. Token Olustur
+        // 4. Token Üretimi
         const token = jwt.sign(
             { id: user.id, rol: user.rol },
-            process.env.JWT_SECRET || 'gizli_anahtar_buraya',
-            { expiresIn: '24h' }
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
         );
 
-        console.log(`Giris Basarili: ${user.ad} ${user.soyad} (${user.rol})`);
-
-        // 4. Yanit Gonder
-        res.status(200).json({
-            token,
-            kullaniciAdSoyad: `${user.ad} ${user.soyad}`,
-            rol: user.rol,
-            mesaj: 'Hos geldiniz!'
+        // 5. Başarılı Yanıt
+        return res.status(200).json({
+            status: 'success',
+            message: 'Login successful.',
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    ad: user.ad,
+                    soyad: user.soyad,
+                    rol: user.rol
+                }
+            }
         });
 
     } catch (error) {
-        console.error("Giris Hatasi:", error);
-        res.status(500).json({ hata: 'Giris yapilirken bir hata olustu.' });
+        next(error); // Global Error Handler'a pasla
     }
 };

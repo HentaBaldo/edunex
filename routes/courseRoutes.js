@@ -1,59 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-
-// Modelleri ve Middleware'leri çağırıyoruz
-const { Kurs, KursBolum, Ders } = require('../models');
 const courseController = require('../controllers/courseController');
-const auth = require('../middleware/authMiddleware');
+const { verifyToken, isInstructor } = require('../middleware/authMiddleware');
 
-// === KURS ROTALARI ===
-router.post('/kurslar', auth.verifyToken, auth.isEgitmen, courseController.kursEkle);
-router.get('/kurslarim', auth.verifyToken, courseController.getEgitmenKurslari);
-router.get('/kurslar/hepsi', courseController.getAllKurslar);
+// --- 1. PUBLISHED ROTASI (En Üstte ve Herkese Açık Olmalı) ---
+// Not: Bunu en üste aldık çünkü parametreli rotalarla çakışmasını istemiyoruz.
+router.get('/published', courseController.getAllPublishedCourses);
 
-// Arkadaşının server.js içine yazdığı detay güncelleme fonksiyonu
-router.put('/kurslar/:kursId/detay-guncelle', auth.verifyToken, auth.isEgitmen, async (req, res) => {
-    const { kazanimlar, gereksinimler } = req.body;
-    try {
-        await Kurs.update(
-            { kazanimlar, gereksinimler },
-            { where: { id: req.params.kursId } }
-        );
-        res.json({ mesaj: 'Kurs detayları başarıyla güncellendi.' });
-    } catch (err) {
-        console.error("Detay Güncelleme Hatası:", err);
-        res.status(500).json({ hata: "Veritabanı güncellenemedi." });
-    }
-});
+// --- 2. EĞİTMEN ÖZEL ROTALARI ---
+router.get('/my-courses', verifyToken, isInstructor, courseController.getMyCourses);
+router.post('/', verifyToken, isInstructor, courseController.createCourse);
 
-// === MÜFREDAT (BÖLÜM VE DERS) ROTALARI ===
+// --- 3. PARAMETRELİ ROTALAR (ID İçerenler Her Zaman En Altta) ---
+router.put('/:id/status', verifyToken, isInstructor, courseController.updateCourseStatus);
 
-// Bölümleri Getir
-router.get('/kurslar/:kursId/bolumler', auth.verifyToken, async (req, res) => {
-    try {
-        const bolumler = await KursBolum.findAll({
-            where: { kurs_id: req.params.kursId },
-            order: [['sira_numarasi', 'ASC']]
-        });
-        res.json(bolumler);
-    } catch (err) {
-        res.status(500).json({ hata: "Bölümler getirilemedi." });
-    }
-});
-
-// Yeni Bölüm Ekle
-router.post('/bolumler/ekle', auth.verifyToken, auth.isEgitmen, async (req, res) => {
-    const { kurs_id, baslik } = req.body;
-    const yeniId = uuidv4();
-    try {
-        const toplam = await KursBolum.count({ where: { kurs_id } });
-        const yeniSira = toplam + 1;
-        await KursBolum.create({ id: yeniId, kurs_id, baslik, sira_numarasi: yeniSira });
-        res.json({ ok: true, mesaj: 'Bölüm sırasıyla eklendi!' });
-    } catch (err) {
-        res.status(500).json({ hata: err.message });
-    }
-});
+// routes/courseRoutes.js
+router.get('/details/:id', courseController.getCourseDetails);
 
 module.exports = router;

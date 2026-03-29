@@ -1,0 +1,106 @@
+/* ==========================================================================
+   EDUNEX - KURS DETAY SAYFASI STİLLERİ
+   ========================================================================== */
+
+   .detail-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 40px;
+    margin-top: 40px;
+    margin-bottom: 60px;
+    align-items: start;
+}
+
+@media (max-width: 992px) {
+    .detail-layout { grid-template-columns: 1fr; }
+}
+
+/* --- Sol Kısım: Başlık ve Müfredat --- */
+.course-header {
+    background: #0f172a;
+    color: #ffffff;
+    padding: 40px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.course-header h1 { font-size: 2.2rem; margin-bottom: 10px; line-height: 1.3; }
+.course-subtitle { font-size: 1.1rem; color: #cbd5e1; margin-bottom: 20px; }
+.instructor-badge { font-size: 0.95rem; color: #94a3b8; font-weight: 500; }
+
+.section-heading { font-size: 1.5rem; margin-bottom: 20px; color: #1e293b; }
+
+/* Müfredat Listesi */
+.curriculum-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    overflow: hidden;
+}
+
+.section-title-box {
+    background: #f8fafc;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 1.05rem;
+}
+
+.lesson-row {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    background: #ffffff;
+    transition: background 0.2s;
+}
+
+.lesson-row:last-child { border-bottom: none; }
+.lesson-row:hover { background: #f8fafc; }
+
+.lesson-left { display: flex; align-items: center; gap: 12px; }
+.lesson-icon { color: #64748b; font-size: 1.1rem; }
+.lesson-name { font-size: 0.95rem; color: #1e293b; }
+
+.lesson-right { display: flex; align-items: center; gap: 15px; }
+.lesson-time { font-size: 0.85rem; color: #64748b; }
+
+/* --- Sağ Kısım: Satın Alma Kartı --- */
+.sidebar { position: sticky; top: 100px; }
+
+.enroll-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.enroll-card-img {
+    height: 180px;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: #ffffff;
+}
+
+.enroll-card-content { padding: 25px; }
+
+.price-display { font-size: 2rem; font-weight: 800; color: #0f172a; margin-bottom: 20px; }
+
+.btn-primary-full {
+    width: 100%; padding: 15px; background: var(--primary-color); color: #ffffff;
+    border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+    transition: background 0.3s; margin-bottom: 15px;
+}
+
+.btn-primary-full:hover { background: #1d4ed8; }
+
+.guarantee-text { text-align: center; font-size: 0.85rem; color: #64748b; margin-bottom: 20px; }
+
+.course-includes { list-style: none; padding: 0; margin: 0; }
+.course-includes li { font-size: 0.9rem; color: #475569; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.course-includes li i { color: #64748b; width: 16px; text-align: center; }

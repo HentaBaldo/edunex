@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Giriş ve Kayıt</title>
+
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/auth/css/auth.css">
+</head>
+<body>
+
+<main class="auth-wrapper">
+    <article class="auth-card">
+        <nav class="auth-tabs">
+            <button class="tab-btn active" id="tabLogin">Giriş Yap</button>
+            <button class="tab-btn" id="tabRegister">Kayıt Ol</button>
+        </nav>
+
+        <section class="auth-section active" id="loginSection">
+            <header>
+                <h2>Hoş Geldiniz</h2>
+                <p class="subtitle">Hesabınıza erişmek için giriş bilgilerinizi doldurun.</p>
+            </header>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="logEposta">E-posta Adresi</label>
+                    <input type="email" id="logEposta" class="form-control" placeholder="ornek@eposta.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="logSifre">Şifre</label>
+                    <input type="password" id="logSifre" class="form-control" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-primary" id="loginSubmitBtn">Giriş Yap</button>
+            </form>
+            <div id="logMessage" class="message-box"></div>
+        </section>
+
+        <section class="auth-section" id="registerSection">
+            <header>
+                <h2>Hesap Oluştur</h2>
+                <p class="subtitle">EduNex öğrenme topluluğuna bugün katılın.</p>
+            </header>
+
+            <form id="registerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="regAd">Ad</label>
+                        <input type="text" id="regAd" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regSoyad">Soyad</label>
+                        <input type="text" id="regSoyad" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="regEposta">E-posta Adresi</label>
+                    <input type="email" id="regEposta" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="regSifre">Şifre</label>
+                    <input type="password" id="regSifre" class="form-control" placeholder="En az 6 karakter" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="regRol">Hesap Türü</label>
+                    <select id="regRol" class="form-control">
+                        <option value="ogrenci">Öğrenci</option>
+                        <option value="egitmen">Eğitmen</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary" id="regSubmitBtn">Hemen Kayıt Ol</button>
+            </form>
+            <div id="regMessage" class="message-box"></div>
+        </section>
+    </article>
+</main>
+
+<script src="/assets/js/api.js"></script>
+<script src="/auth/js/auth.js"></script>
+
+</body>
+</html>

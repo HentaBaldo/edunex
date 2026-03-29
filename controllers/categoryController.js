@@ -1,17 +1,24 @@
-const { Kategori } = require('../models');
+const { Category } = require('../models');
 
-exports.getKategoriler = async (req, res) => {
+/**
+ * Tüm Kategorileri Listele
+ * @route GET /api/categories
+ */
+exports.getAllCategories = async (req, res, next) => {
     try {
-        // Tüm kategorileri veritabanından çekiyoruz
-        // ust_kategori_id NULL olanlar Ana Kategori sayılır
-        const kategoriler = await Kategori.findAll({
-            attributes: ['id', 'ad', 'ust_kategori_id'],
-            order: [['ust_kategori_id', 'ASC'], ['ad', 'ASC']]
+        // KISITLAMA KALDIRILDI: Artık 'ust_kategori_id' dahil tüm kolonlar gelecek
+        const categories = await Category.findAll({
+            order: [['ad', 'ASC']] // Alfabetik sıralama devam ediyor
         });
 
-        res.status(200).json(kategoriler);
+        // Standart Başarılı Yanıt Formatı
+        return res.status(200).json({
+            status: 'success',
+            message: 'Categories retrieved successfully.',
+            data: categories
+        });
+
     } catch (error) {
-        console.error("Kategoriler cekilirken hata:", error.message);
-        res.status(500).json({ hata: 'Kategoriler yuklenemedi. Lutfen daha sonra tekrar deneyin.' });
+        next(error);
     }
 };

@@ -1,42 +1,35 @@
 const jwt = require('jsonwebtoken');
 
-// 1. Sisteme giriş yapmış mı kontrolü (Token Doğrulama)
+// 1. Token Doğrulama (Kullanıcı giriş yapmış mı?)
 exports.verifyToken = (req, res, next) => {
-    // Frontend'den gelen header içindeki token'ı alıyoruz
-    const token = req.header('Authorization');
+  // Frontend'den gelen token genellikle header içinde "Bearer <token>" formatında gelir
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) {
-        return res.status(401).json({ hata: 'Erişim reddedildi. Token bulunamadı.' });
-    }
+  if (!token) {
+    return res.status(403).json({ mesaj: 'Erişim reddedildi. Geçerli bir token bulunamadı.' });
+  }
 
-    try {
-        // "Bearer " kısmını atıp sadece token kodunu alıyoruz
-        const ayrilmisToken = token.split(" ")[1];
-        
-        // Token'ı gizli anahtarımızla çözüyoruz
-        const verified = jwt.verify(ayrilmisToken, process.env.JWT_SECRET);
-        
-        // Çözülen kullanıcı bilgilerini (id, eposta, rol) req.user içine ekliyoruz
-        req.user = verified; 
-        
-        // İşlemin devam etmesine izin veriyoruz
-        next();
-    } catch (error) {
-        res.status(400).json({ hata: 'Geçersiz token.' });
-    }
+  try {
+    // Token'ı .env içindeki gizli anahtarımızla çözüyoruz
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Çözülen veriyi (kullanici id ve rol) req nesnesine ekliyoruz ki sonraki adımlarda kullanabilelim
+    req.kullanici = decoded; 
+    
+    next(); // Her şey yolundaysa kapıyı aç ve asıl işleme (controller'a) geç
+  } catch (error) {
+    return res.status(401).json({ mesaj: 'Geçersiz veya süresi dolmuş token.' });
+  }
 };
-// 2. Sadece Eğitmenler girebilsin kontrolü
-exports.isEgitmen = (req, res, next) => {
-    if (req.user.rol !== 'egitmen') {
-        return res.status(403).json({ hata: 'Erişim reddedildi. Sadece eğitmenler bu işlemi yapabilir.' });
-    }
+
+// 2. Eğitmen Yetkisi Kontrolü (Sadece eğitmenlerin yapabileceği işlemler için)
+exports.isInstructor = (req, res, next) => {
+  if (req.kullanici && req.kullanici.rol === 'egitmen') {
     next();
+  } else {
+    return res.status(403).json({ mesaj: 'Bu işlem için eğitmen yetkisine sahip olmalısınız.' });
+  }
 };
 
-// 3. Sadece Öğrenciler girebilsin kontrolü
-exports.isOgrenci = (req, res, next) => {
-    if (req.user.rol !== 'ogrenci') {
-        return res.status(403).json({ hata: 'Erişim reddedildi. Sadece öğrenciler bu alanı görebilir.' });
-    }
-    next();
-};
+// İhtiyaç duyarsan ileride buraya isAdmin veya isStudent kontrolleri de ekleyebilirsin.

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurs Detayları - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css"> <link rel="stylesheet" href="/main/css/course-detail.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="logo">EduNex</a>
+            <nav class="nav-actions">
+                <a href="/auth/index.html" class="btn-auth-blue">Giriş Yap</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="detail-layout">
+            
+            <section class="main-info">
+                <header class="course-header">
+                    <h1 id="courseTitle">Yükleniyor...</h1>
+                    <p id="courseSubTitle" class="course-subtitle"></p>
+                    <div class="course-meta-info">
+                        <span id="courseInstructor" class="instructor-badge"></span>
+                    </div>
+                </header>
+
+                <article class="curriculum-container">
+                    <h3 class="section-heading">Kurs Müfredatı</h3>
+                    <div id="curriculumList" class="curriculum-accordion">
+                        <p class="loading-message">Müfredat yükleniyor...</p>
+                    </div>
+                </article>
+            </section>
+
+            <aside class="sidebar">
+                <div class="enroll-card">
+                    <div class="enroll-card-img">
+                        <i class="fas fa-play-circle"></i>
+                    </div>
+                    <div class="enroll-card-content">
+                        <div id="coursePrice" class="price-display">0 ₺</div>
+                        <button id="enrollBtn" class="btn-primary-full">Kursa Kaydol</button>
+                        <p class="guarantee-text"><i class="fas fa-shield-alt"></i> 30 gün iade garantisi.</p>
+                        <ul class="course-includes">
+                            <li><i class="fas fa-video"></i> İsteğe bağlı video</li>
+                            <li><i class="fas fa-infinity"></i> Ömür boyu erişim</li>
+                            <li><i class="fas fa-mobile-alt"></i> Mobil ve TV'den erişim</li>
+                            <li><i class="fas fa-trophy"></i> Bitirme sertifikası</li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+            
+        </div>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/main/js/course-detail.js"></script>
+</body>
+</html>

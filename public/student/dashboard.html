@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Öğrenci Paneli</title>
+    
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/student/css/student.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="logo">EduNex</a>
+            
+            <nav class="user-navigation" id="authNavContainer">
+                <span id="studentGreeting" class="user-greeting" style="font-weight:600; margin-right:15px;">Yükleniyor...</span>
+                <button onclick="logout()" class="btn-logout-alt">Çıkış Yap</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container dashboard-container">
+        <header class="page-header">
+            <div class="header-text">
+                <h1>Öğrenim Panelim</h1>
+                <p class="subtitle">İlerlemenizi takip edin ve kaldığınız yerden devam edin.</p>
+            </div>
+            
+            <div class="header-actions">
+                <a href="/main/index.html#courses" class="btn-primary-lg-alt">Yeni Kursları Keşfet</a>
+            </div>
+        </header>
+
+        <section class="courses-section">
+            <div class="section-header">
+                <h2 class="section-title">Kayıtlı Olduğum Kurslar</h2>
+            </div>
+
+            <div id="enrolledCourses" class="student-course-grid">
+                <div class="loading-state">
+                    <p>Kurslarınız yükleniyor, lütfen bekleyin...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/student/js/student.js"></script>
+</body>
+</html>

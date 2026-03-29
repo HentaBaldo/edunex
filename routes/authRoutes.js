@@ -1,15 +1,11 @@
 const express = require('express');
 const router = express.Router();
-
-// Controller dosyamızı çağırıyoruz
 const authController = require('../controllers/authController');
 
-// --- KİMLİK DOĞRULAMA ROTALARI ---
+// Kullanıcı Kayıt (Register) Rotası
+router.post('/register', authController.register);
 
-// POST isteği ile '/register' adresine gelinirse, authController'daki kayitOl çalışsın
-router.post('/kayit', authController.kayitOl);
-
-// POST isteği ile '/login' adresine gelinirse, authController'daki girisYap çalışsın
-router.post('/giris', authController.girisYap);
+// Kullanıcı Giriş (Login) Rotası
+router.post('/login', authController.login);
 
 module.exports = router;
