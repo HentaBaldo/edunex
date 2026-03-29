@@ -1,0 +1,36 @@
+/* --- Kurs Form Kartı --- */
+.form-card {
+    background: var(--white); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 45px; box-shadow: var(--shadow-sm);
+    width: 100%; max-width: 1100px; margin: 0 auto;
+}
+
+.form-section-title {
+    font-size: 1.3rem; color: var(--primary-color); margin-bottom: 25px;
+    padding-bottom: 12px; border-bottom: 2px solid #f1f5f9;
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* --- Düzenleme Sayfası Sidebar Yapısı --- */
+.edit-layout { display: grid; grid-template-columns: 280px 1fr; gap: 30px; }
+
+.sidebar-menu {
+    background: var(--white); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 10px 0;
+}
+.sidebar-menu button {
+    display: block; width: 100%; text-align: left; padding: 14px 20px;
+    background: none; border: none; border-left: 4px solid transparent;
+    font-weight: 600; cursor: pointer;
+}
+.sidebar-menu button.active {
+    border-left-color: var(--primary-color); background-color: #f0f7ff; color: var(--primary-color);
+}
+
+/* --- Müfredat (Curriculum) Öğeleri --- */
+.section-card { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px; }
+.lesson-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 15px; border: 1px solid var(--border-color); margin-top: 10px; border-radius: 6px;
+}

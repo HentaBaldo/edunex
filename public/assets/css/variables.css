@@ -1,0 +1,16 @@
+:root {
+    /* Renkler */
+    --primary-color: #0056b3;
+    --secondary-color: #28a745;
+    --text-color: #24292e;
+    --text-muted: #586069;
+    --bg-light: #f8f9fa;
+    --white: #ffffff;
+    --border-color: #e1e4e8;
+    --danger-color: #dc3545;
+
+    /* Standartlar */
+    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --border-radius: 6px;
+}

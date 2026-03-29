@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Eğitmen Panosu</title>
+    
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-common.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="logo">EduNex</a>
+            
+            <nav class="user-navigation" id="authNavContainer">
+                <div class="user-info-wrapper">
+                    <i class="fas fa-user-circle user-icon"></i>
+                    <span id="userName" class="user-greeting">Eğitmen Paneli</span>
+                </div>
+                <button onclick="logout()" class="btn-logout-alt">
+                    <i class="fas fa-sign-out-alt"></i> Çıkış Yap
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container dashboard-container">
+        
+        <header class="page-header">
+            <div class="header-text">
+                <h1>Eğitmen Panosu</h1>
+                <p class="subtitle">Kurslarınızı, içeriklerinizi ve öğrenci istatistiklerinizi buradan yönetebilirsiniz.</p>
+            </div>
+            
+            <div class="header-actions">
+                <a href="/instructor/create-course.html" class="btn-primary-lg-alt">
+                    <i class="fas fa-plus"></i> Yeni Kurs Oluştur
+                </a>
+            </div>
+        </header>
+
+        <section class="courses-section">
+            <div class="section-header-alt">
+                <h2 class="section-title"><i class="fas fa-book-open"></i> Yayındaki ve Taslak Kurslarım</h2>
+                <div class="section-line"></div>
+            </div>
+
+            <div id="courseList" class="course-management-grid">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Kurslarınız hazırlanıyor...</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/instructor/js/instructor.js"></script>
+    
+    <script>
+        // Çıkış Fonksiyonu
+        function logout() {
+            if (typeof ApiService !== 'undefined' && ApiService.logout) {
+                ApiService.logout();
+            } else {
+                localStorage.clear();
+                window.location.href = '/auth/index.html';
+            }
+        }
+
+        // Sayfa yüklendiğinde kullanıcı adını yazdır (LocalStorage'dan)
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(localStorage.getItem('edunex_user'));
+            if (user && user.ad) {
+                document.getElementById('userName').textContent = `${user.ad} ${user.soyad}`;
+            }
+        });
+    </script>
+</body>
+</html>

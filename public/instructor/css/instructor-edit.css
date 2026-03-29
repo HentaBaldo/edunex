@@ -1,0 +1,141 @@
+/* --- Edit Layout (Yan Menü + İçerik) --- */
+.edit-course-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 30px;
+    align-items: start;
+    margin-top: 30px;
+}
+
+/* --- Müfredat (Section & Lesson) Yönetimi --- */
+.curriculum-container {
+    background: #ffffff;
+    padding: 0;
+    border-radius: 12px;
+}
+
+/* Bölüm (Section) Kartı */
+.section-item {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+.section-header {
+    background: #ffffff;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    cursor: grab; /* Taşıma hissi için */
+}
+
+.section-title-group h4 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text-color);
+}
+
+/* Ders (Lesson) Satırı */
+.lesson-item {
+    background: #ffffff;
+    border: 1px dotted #cbd5e1;
+    margin: 10px 20px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.lesson-item:hover {
+    border-color: var(--primary-color);
+    background-color: #f0f7ff;
+}
+
+.lesson-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.lesson-info i {
+    color: #64748b;
+}
+
+/* Aksiyon Butonları (Düzenle/Sil) */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: color 0.2s;
+}
+
+.btn-icon:hover { color: var(--primary-color); }
+.btn-icon.delete:hover { color: #dc3545; }
+
+/* Yeni Ekleme Butonları */
+.add-lesson-trigger {
+    margin: 15px 20px;
+    padding: 10px;
+    border: 2px dashed #e2e8f0;
+    border-radius: 8px;
+    text-align: center;
+    color: var(--primary-color);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.add-lesson-trigger:hover {
+    background: #f1f5f9;
+    border-color: var(--primary-color);
+}
+
+/* --- Sekme (Tab) Sistemi --- */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* --- Açılır Pencere (Modal) Sistemi --- */
+.modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    z-index: 1000; align-items: center; justify-content: center;
+}
+.modal-box {
+    background: var(--white); padding: 30px; border-radius: 12px;
+    width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: modalSlideUp 0.3s ease-out;
+}
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 25px; }
+
+/* Buton Tipi Sınıf Eşleştirmesi */
+.btn-primary-sm {
+    background: var(--primary-color); color: white; border: none; padding: 6px 12px;
+    border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+}
+.btn-primary-sm:hover { background: #1d4ed8; }
+.btn-delete-icon {
+    background: none; border: none; color: #dc3545; cursor: pointer; padding: 5px; font-size: 1.1rem;
+}
+.btn-delete-sm {
+    background: none; border: none; cursor: pointer; opacity: 0.5; transition: opacity 0.2s;
+}
+.btn-delete-sm:hover { opacity: 1; }

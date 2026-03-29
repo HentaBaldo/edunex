@@ -3,52 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Ana Sayfa</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <title>EduNex - Geleceğin Eğitim Platformu</title>
+    
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <nav class="navbar">
-        <a href="/" class="logo">EduNex</a>
-        
-        <div class="nav-item">
-            <span>Kategoriler <small style="opacity: 0.5;">▼</small></span>
-            <div class="mega-menu" id="megaMenu">
-                <div class="menu-col"><h4>Keşfet</h4><div id="parentList"></div></div>
-                <div class="menu-col" id="childCol"><h4>Alt Kategoriler</h4><div id="childList"></div></div>
-                <div class="menu-col" id="grandChildCol"><h4>Konular</h4><div id="grandChildList"></div></div>
-            </div>
-        </div>
 
-        <div class="user-nav">
-            <div id="ziyaretciMenu">
-                <button class="action-btn" style="width: auto; padding: 10px 25px;" onclick="window.location.href='/auth/login.html'">Giriş Yap</button>
-            </div>
+    <header class="navbar">
+        <div class="container navbar-content">
             
-            <div id="uyeMenu" class="dropdown" style="display: none;">
-                <span id="navIsim" style="cursor: pointer; padding: 10px 0; display: inline-block; font-weight: 600; color: var(--primary-color);">Merhaba ▼</span>
-                <div class="dropdown-menu">
-                    <a class="dropdown-item" onclick="profilSayfasinaGit()" style="cursor: pointer;">Profil</a>
-                    <a class="dropdown-item" onclick="ogrenimIcerigineGit()">Öğrenim İçeriğim</a>
-                    <hr style="border: 0; border-top: 1px solid var(--surface-border); margin: 10px 0;">
-                    <a class="dropdown-item" style="color: #ff4757;" onclick="cikisYap()">Çıkış</a>
+            <div class="nav-left">
+                <a href="/" class="logo">EduNex</a>
+                
+                <div class="nav-item mega-menu-trigger">
+                    <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></span>
+                    
+                    <div class="mega-menu" id="megaMenu">
+                        <div class="menu-col">
+                            <h4>Kategoriler</h4>
+                            <div id="parentList" class="menu-list">
+                                <p style="padding: 10px 20px; color: #64748b;">Yükleniyor...</p>
+                            </div>
+                        </div>
+                        <div class="menu-col" id="childCol" style="display: none;">
+                            <h4>Alt Kategoriler</h4>
+                            <div id="childList" class="menu-list"></div>
+                        </div>
+                        <div class="menu-col" id="grandChildCol" style="display: none;">
+                            <h4>Popüler Konular</h4>
+                            <div id="grandChildList" class="menu-list"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </nav>
 
-    <div class="content-section">
-        <div id="anaPanel">
-            <div class="page-header">
-                <h2>Keşfetmeye Başla</h2>
-                <p style="color: var(--text-muted);">Sana en uygun kursu seç ve öğrenmeye başla.</p>
+            <div class="nav-middle">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Geleceğinizi şekillendirecek kursu arayın...">
+                </div>
+                <span class="nav-text-link"><i class="fas fa-filter"></i> Filtrele</span>
             </div>
-            <div id="kursVitrinGrid" class="course-grid">
-                <p style="text-align:center; padding:20px;">Kurslar yükleniyor...</p>
+
+            <div class="nav-right">
+                <a href="#courses" class="nav-text-link">Kurslar</a>
+                <div id="authNavContainer">
+                    </div>
+            </div>
+
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container hero-grid">
+                <div class="hero-content">
+                    <h1>Uzmanlığınızı Paylaşın, Geleceği Şekillendirin</h1>
+                    <p>EduNex, uzman eğitmenler ile öğrenmeye istekli bireyleri bir araya getiren yeni nesil eğitim pazaryeridir.</p>
+                    <div class="hero-actions">
+                        <a href="#courses" class="btn-primary">Eğitimleri Keşfet</a>
+                        <a href="/auth/index.html" class="btn-secondary" style="background:transparent; border:2px solid white; color:white; padding:12px 24px; border-radius:8px; text-decoration:none; margin-left:10px;">Eğitmen Ol</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="courses" class="courses-section">
+            <div class="container">
+                <header class="section-header">
+                    <h2>Öne Çıkan Eğitimler</h2>
+                    <p>Dünyanın her yerinden uzmanlarca hazırlanan kursları keşfedin.</p>
+                </header>
+                
+                <div id="courseGrid" class="course-grid">
+                    <div class="loading-state">
+                        <p>Kurslar hazırlanıyor...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="container features-grid">
+                <div class="feature-card">
+                    <div class="icon-box"><i class="fas fa-clock"></i></div>
+                    <h3>Esnek Öğrenme</h3>
+                    <p>Zaman ve mekandan bağımsız, kendi hızınızda öğrenin.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="fas fa-chalkboard-teacher"></i></div>
+                    <h3>Uzman Eğitmenler</h3>
+                    <p>Sektörde deneyimli profesyonellerden doğrudan eğitim alın.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="fas fa-certificate"></i></div>
+                    <h3>Sertifikasyon</h3>
+                    <p>Tamamladığınız kurslar için doğrulanabilir başarı sertifikası edinin.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-info">
+                <div class="footer-logo">EduNex</div>
+                <p>&copy; 2026 EduNex Eğitim Platformu. Tüm hakları saklıdır.</p>
             </div>
         </div>
-    </div>
-    
-    <script src="/assets/js/common.js"></script>
-    <script src="/assets/js/main.js"></script>
+    </footer>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/main/js/main.js"></script>
 </body>
 </html>

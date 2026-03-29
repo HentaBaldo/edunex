@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Yeni Kurs Oluştur</title>
+    
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-common.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-forms.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="logo">EduNex</a>
+            <nav class="nav-actions">
+                <a href="/instructor/dashboard.html" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Panoya Dön
+                </a>
+                <button onclick="logout()" class="btn-logout-alt">Çıkış Yap</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container dashboard-container">
+        <header class="page-header-section">
+            <h1>Yeni Kurs Oluştur</h1>
+            <p class="subtitle">Uzmanlığınızı dünyayla paylaşmak için kursunuzun temel bilgilerini eksiksiz doldurun.</p>
+        </header>
+
+        <section class="form-card">
+            <form id="createCourseForm" class="course-form">
+                
+                <div class="form-section-header">
+                    <h2 class="form-section-title">Genel Bilgiler</h2>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="baslik" class="form-label">Kurs Başlığı *</label>
+                    <input type="text" id="baslik" class="form-control" placeholder="Örn: Sıfırdan İleri Seviye Node.js Eğitimi" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="alt_baslik" class="form-label">Alt Başlık / Kısa Tanıtım</label>
+                    <input type="text" id="alt_baslik" class="form-control" placeholder="Kurs içeriğini özetleyen çarpıcı bir cümle yazın">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="kategori_id" class="form-label">Kategori *</label>
+                        <select id="kategori_id" class="form-control" required>
+                            <option value="">Kategori Seçin...</option>
+                            </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fiyat" class="form-label">Fiyat (TL) *</label>
+                        <input type="number" id="fiyat" class="form-control" placeholder="Ücretsiz için 0 girin" min="0" required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="dil" class="form-label">Eğitim Dili *</label>
+                        <select id="dil" class="form-control" required>
+                            <option value="Turkish">Türkçe</option>
+                            <option value="English">İngilizce</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="seviye" class="form-label">Zorluk Seviyesi *</label>
+                        <select id="seviye" class="form-control" required>
+                            <option value="Beginner">Başlangıç</option>
+                            <option value="Intermediate">Orta Seviye</option>
+                            <option value="Advanced">İleri Seviye</option>
+                            <option value="All Levels">Tüm Seviyeler</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-section-header" style="margin-top: 30px;">
+                    <h2 class="form-section-title">Detaylar ve Müfredat Hazırlığı</h2>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="gereksinimler" class="form-label">Gereksinimler</label>
+                    <textarea id="gereksinimler" class="form-control" rows="3" placeholder="Öğrenciler bu kursa başlamadan önce neyi bilmeli? (Her satıra bir tane)"></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="kazanimlar" class="form-label">Öğrenci Bu Kursun Sonunda Ne Kazanacak?</label>
+                    <textarea id="kazanimlar" class="form-control" rows="3" placeholder="Kurs tamamlandığında elde edilecek becerileri listeleyin."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary-lg-alt">
+                        <i class="fas fa-save"></i> Kursu Taslak Olarak Kaydet
+                    </button>
+                </div>
+            </form>
+
+            <div id="courseMessage" class="message-box"></div>
+        </section>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/instructor/js/create-course.js"></script>
+    
+    <script>
+        function logout() {
+            if (typeof ApiService !== 'undefined' && ApiService.logout) {
+                ApiService.logout();
+            } else {
+                localStorage.clear();
+                window.location.href = '/auth/index.html';
+            }
+        }
+    </script>
+</body>
+</html>
