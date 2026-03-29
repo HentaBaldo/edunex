@@ -1,0 +1,138 @@
+/**
+ * EduNex Admin - Master Layout CSS
+ * Sidebar, Header ve genel sayfa yapısını yönetir.
+ */
+
+ @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+ :root {
+     --sidebar-width: 280px;
+     --sidebar-bg: #0f172a;
+     --bg-color: #f8fafc;
+     --admin-primary: #3b82f6;
+     --admin-primary-dark: #2563eb;
+     --text-main: #1e293b;
+     --text-muted: #64748b;
+     --border: #e2e8f0;
+     --white: #ffffff;
+     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+ }
+ 
+ * { 
+     margin: 0; 
+     padding: 0; 
+     box-sizing: border-box; 
+     font-family: 'Inter', sans-serif; 
+ }
+ 
+ body { 
+     background-color: var(--bg-color); 
+     color: var(--text-main); 
+     display: flex; 
+     min-height: 100vh; 
+     overflow-x: hidden;
+ }
+ 
+ /* --- Admin Sidebar --- */
+ .admin-sidebar {
+     width: var(--sidebar-width);
+     background: var(--sidebar-bg);
+     color: #cbd5e1;
+     display: flex;
+     flex-direction: column;
+     position: fixed;
+     height: 100vh;
+     z-index: 100;
+     transition: var(--transition);
+ }
+ 
+ .sidebar-brand {
+     padding: 30px 24px;
+     font-size: 1.4rem;
+     font-weight: 800;
+     color: #fff;
+     letter-spacing: -0.5px;
+     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+ }
+ 
+ .sidebar-nav {
+     flex-grow: 1;
+     padding: 20px 0;
+ }
+ 
+ .nav-item { 
+     display: flex;
+     align-items: center;
+     gap: 15px;
+     padding: 14px 24px;
+     color: #94a3b8;
+     text-decoration: none;
+     font-weight: 500;
+     font-size: 0.95rem;
+     transition: var(--transition);
+     border-left: 4px solid transparent;
+ }
+ 
+ .nav-item i { width: 20px; text-align: center; font-size: 1.1rem; }
+ 
+ .nav-item:hover, 
+ .nav-item.active { 
+     background: rgba(255, 255, 255, 0.05);
+     color: #fff;
+     border-left-color: var(--admin-primary);
+ }
+ 
+ .sidebar-footer {
+     padding: 20px;
+     border-top: 1px solid rgba(255, 255, 255, 0.05);
+ }
+ 
+ .btn-logout {
+     width: 100%;
+     padding: 12px;
+     background: rgba(239, 68, 68, 0.1);
+     color: #f87171;
+     border: 1px solid rgba(239, 68, 68, 0.2);
+     border-radius: 8px;
+     cursor: pointer;
+     font-weight: 600;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     gap: 10px;
+     transition: var(--transition);
+ }
+ 
+ .btn-logout:hover {
+     background: #ef4444;
+     color: #fff;
+ }
+ 
+ /* --- Main Content --- */
+ .admin-main { 
+     flex-grow: 1; 
+     margin-left: var(--sidebar-width); 
+     display: flex; 
+     flex-direction: column; 
+     min-width: 0; /* Flex-box taşmalarını önlemek için */
+ }
+ 
+ .admin-header {
+     background: var(--white);
+     height: 75px;
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 0 40px;
+     border-bottom: 1px solid var(--border);
+     position: sticky;
+     top: 0;
+     z-index: 90;
+ }
+ 
+ .admin-content { 
+     padding: 40px; 
+     max-width: 1400px; 
+     width: 100%; 
+     margin: 0 auto; 
+ }

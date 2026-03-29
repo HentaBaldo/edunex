@@ -45,8 +45,8 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 0,
       },
       durum: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
+        type: DataTypes.ENUM('taslak', 'onay_bekliyor', 'onaylandi', 'yayinda'),
+        allowNull: false,
         defaultValue: 'taslak',
       },
       olusturulma_tarihi: {

@@ -1,105 +1,138 @@
 /**
- * EduNex Authentication Logic
- * Handles Login, Registration, and Tab Switching
+ * EduNex Authentication Module
+ * Handles user login, registration, and UI state management.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    initTabSystem();
+    initAuthTabs();
+    initRegistration();
+    initLogin();
 });
 
-// --- Tab Switching Logic ---
-function initTabSystem() {
-    const tabLogin = document.getElementById("tabLogin");
-    const tabRegister = document.getElementById("tabRegister");
-    const loginSection = document.getElementById("loginSection");
-    const registerSection = document.getElementById("registerSection");
+// --- UI State Management Helpers ---
+function setFormMessage(elementId, message, type = 'info') {
+    const messageDiv = document.getElementById(elementId);
+    if (!messageDiv) return;
+
+    messageDiv.textContent = message;
+    messageDiv.className = `message-box ${type} active`;
+}
+
+function toggleSubmitButton(buttonId, isDisabled, loadingText = '') {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+
+    button.disabled = isDisabled;
+    if (isDisabled && loadingText) {
+        button.dataset.originalText = button.textContent;
+        button.textContent = loadingText;
+    } else if (!isDisabled && button.dataset.originalText) {
+        button.textContent = button.dataset.originalText;
+    }
+}
+
+// --- Tab Navigation Logic ---
+function initAuthTabs() {
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    const loginSection = document.getElementById('loginSection');
+    const registerSection = document.getElementById('registerSection');
+
+    if (!tabLogin || !tabRegister || !loginSection || !registerSection) return;
 
     tabLogin.addEventListener('click', () => {
-        tabLogin.classList.add("active");
-        tabRegister.classList.remove("active");
-        loginSection.classList.add("active");
-        registerSection.classList.remove("active");
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        loginSection.classList.add('active');
+        registerSection.classList.remove('active');
     });
 
     tabRegister.addEventListener('click', () => {
-        tabRegister.classList.add("active");
-        tabLogin.classList.remove("active");
-        registerSection.classList.add("active");
-        loginSection.classList.remove("active");
+        tabRegister.classList.add('active');
+        tabLogin.classList.remove('active');
+        registerSection.classList.add('active');
+        loginSection.classList.remove('active');
     });
 }
 
 // --- Registration Logic ---
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const messageDiv = document.getElementById('regMessage');
-    const submitBtn = document.getElementById('regSubmitBtn');
+function initRegistration() {
+    const registerForm = document.getElementById('registerForm');
+    if (!registerForm) return;
 
-    // Kullanıcıya gösterilen yükleme mesajı Türkçeleştirildi
-    messageDiv.textContent = "Hesap oluşturuluyor, lütfen bekleyin...";
-    messageDiv.className = "message-box active";
-    submitBtn.disabled = true;
-
-    const payload = {
-        ad: document.getElementById('regAd').value.trim(),
-        soyad: document.getElementById('regSoyad').value.trim(),
-        eposta: document.getElementById('regEposta').value.trim(),
-        sifre: document.getElementById('regSifre').value,
-        rol: document.getElementById('regRol').value
-    };
-
-    try {
-        const result = await ApiService.post('/auth/register', payload);
-        messageDiv.textContent = result.message;
-        messageDiv.className = "message-box success active";
-        document.getElementById('registerForm').reset();
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        // Success: Switch to login after 2 seconds
-        setTimeout(() => document.getElementById("tabLogin").click(), 2000);
-    } catch (error) {
-        messageDiv.textContent = error.message;
-        messageDiv.className = "message-box error active";
-    } finally {
-        submitBtn.disabled = false;
-    }
-});
+        setFormMessage('regMessage', 'Hesap olusturuluyor, lutfen bekleyin...', 'info');
+        toggleSubmitButton('regSubmitBtn', true, 'Islem Yapiliyor...');
+
+        const payload = {
+            ad: document.getElementById('regAd').value.trim(),
+            soyad: document.getElementById('regSoyad').value.trim(),
+            eposta: document.getElementById('regEposta').value.trim(),
+            sifre: document.getElementById('regSifre').value,
+            rol: document.getElementById('regRol').value
+        };
+
+        try {
+            const result = await ApiService.post('/auth/register', payload);
+            
+            setFormMessage('regMessage', result.message || 'Kayit islemi basarili.', 'success');
+            registerForm.reset();
+            
+            setTimeout(() => {
+                const tabLogin = document.getElementById('tabLogin');
+                if (tabLogin) tabLogin.click();
+            }, 2000);
+        } catch (error) {
+            console.error('[AUTH MODULE] Registration error:', error.message);
+            setFormMessage('regMessage', error.message || 'Kayit sirasinda bir hata olustu.', 'error');
+        } finally {
+            toggleSubmitButton('regSubmitBtn', false);
+        }
+    });
+}
 
 // --- Login Logic ---
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const messageDiv = document.getElementById('logMessage');
-    const submitBtn = document.getElementById('loginSubmitBtn');
+function initLogin() {
+    const loginForm = document.getElementById('loginForm');
+    if (!loginForm) return;
 
-    // Kullanıcıya gösterilen yükleme mesajı Türkçeleştirildi
-    messageDiv.textContent = "Kimlik doğrulanıyor...";
-    messageDiv.className = "message-box active";
-    submitBtn.disabled = true;
-
-    const payload = {
-        eposta: document.getElementById('logEposta').value.trim(),
-        sifre: document.getElementById('logSifre').value
-    };
-
-    try {
-        const result = await ApiService.post('/auth/login', payload);
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        messageDiv.textContent = "Giriş başarılı! Yönlendiriliyorsunuz...";
-        messageDiv.className = "message-box success active";
-        
-        localStorage.setItem('edunex_token', result.data.token);
-        localStorage.setItem('edunex_user', JSON.stringify(result.data.user));
-        
-        setTimeout(() => {
-            const role = result.data.user.rol;
-            window.location.href = (role === 'egitmen') 
-                ? '/instructor/dashboard.html' 
-                : '/main/index.html';
-        }, 1000);
+        setFormMessage('logMessage', 'Kimlik dogrulaniyor...', 'info');
+        toggleSubmitButton('loginSubmitBtn', true, 'Giris Yapiliyor...');
 
-    } catch (error) {
-        messageDiv.textContent = error.message;
-        messageDiv.className = "message-box error active";
-    } finally {
-        submitBtn.disabled = false;
-    }
-});
+        const payload = {
+            eposta: document.getElementById('logEposta').value.trim(),
+            sifre: document.getElementById('logSifre').value
+        };
+
+        try {
+            const result = await ApiService.post('/auth/login', payload);
+            
+            setFormMessage('logMessage', 'Giris basarili. Yonlendiriliyorsunuz...', 'success');
+            
+            localStorage.setItem('edunex_token', result.data.token);
+            localStorage.setItem('edunex_user', JSON.stringify(result.data.user));
+            
+            // Rol bazli dinamik yonlendirme
+            setTimeout(() => {
+                const role = result.data.user.rol;
+                const redirectMap = {
+                    'admin': '/admin/dashboard.html',
+                    'egitmen': '/instructor/dashboard.html'
+                };
+                
+                window.location.href = redirectMap[role] || '/main/index.html';
+            }, 1000);
+
+        } catch (error) {
+            console.error('[AUTH MODULE] Login error:', error.message);
+            setFormMessage('logMessage', error.message || 'Giris basarisiz. Bilgilerinizi kontrol edin.', 'error');
+        } finally {
+            toggleSubmitButton('loginSubmitBtn', false);
+        }
+    });
+}

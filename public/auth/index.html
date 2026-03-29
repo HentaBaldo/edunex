@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Giriş ve Kayıt</title>
+    <title>EduNex - Giris ve Kayit</title>
 
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
@@ -13,72 +13,72 @@
 
 <main class="auth-wrapper">
     <article class="auth-card">
-        <nav class="auth-tabs">
-            <button class="tab-btn active" id="tabLogin">Giriş Yap</button>
-            <button class="tab-btn" id="tabRegister">Kayıt Ol</button>
+        <nav class="auth-tabs" role="tablist">
+            <button class="tab-btn active" id="tabLogin" role="tab" aria-selected="true" aria-controls="loginSection">Giris Yap</button>
+            <button class="tab-btn" id="tabRegister" role="tab" aria-selected="false" aria-controls="registerSection">Kayit Ol</button>
         </nav>
 
-        <section class="auth-section active" id="loginSection">
-            <header>
-                <h2>Hoş Geldiniz</h2>
-                <p class="subtitle">Hesabınıza erişmek için giriş bilgilerinizi doldurun.</p>
+        <section class="auth-section active" id="loginSection" role="tabpanel">
+            <header class="auth-header">
+                <h2>Hos Geldiniz</h2>
+                <p class="subtitle">Hesabiniza erismek icin giris bilgilerinizi doldurun.</p>
             </header>
 
             <form id="loginForm">
                 <div class="form-group">
                     <label for="logEposta">E-posta Adresi</label>
-                    <input type="email" id="logEposta" class="form-control" placeholder="ornek@eposta.com" required>
+                    <input type="email" id="logEposta" class="form-control" placeholder="name@domain.com" required autocomplete="email">
                 </div>
 
                 <div class="form-group">
-                    <label for="logSifre">Şifre</label>
-                    <input type="password" id="logSifre" class="form-control" placeholder="••••••••" required>
+                    <label for="logSifre">Sifre</label>
+                    <input type="password" id="logSifre" class="form-control" placeholder="••••••••" required autocomplete="current-password">
                 </div>
 
-                <button type="submit" class="btn-primary" id="loginSubmitBtn">Giriş Yap</button>
+                <button type="submit" class="btn-primary" id="loginSubmitBtn">Giris Yap</button>
             </form>
-            <div id="logMessage" class="message-box"></div>
+            <div id="logMessage" class="message-box" role="alert" aria-live="polite"></div>
         </section>
 
-        <section class="auth-section" id="registerSection">
-            <header>
-                <h2>Hesap Oluştur</h2>
-                <p class="subtitle">EduNex öğrenme topluluğuna bugün katılın.</p>
+        <section class="auth-section" id="registerSection" role="tabpanel">
+            <header class="auth-header">
+                <h2>Hesap Olustur</h2>
+                <p class="subtitle">EduNex ogrenme topluluguna bugun katilin.</p>
             </header>
 
             <form id="registerForm">
-                <div class="form-row">
-                    <div class="form-group">
+                <div class="form-row" style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
                         <label for="regAd">Ad</label>
-                        <input type="text" id="regAd" class="form-control" required>
+                        <input type="text" id="regAd" class="form-control" required placeholder="Adiniz">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1;">
                         <label for="regSoyad">Soyad</label>
-                        <input type="text" id="regSoyad" class="form-control" required>
+                        <input type="text" id="regSoyad" class="form-control" required placeholder="Soyadiniz">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="regEposta">E-posta Adresi</label>
-                    <input type="email" id="regEposta" class="form-control" required>
+                    <input type="email" id="regEposta" class="form-control" required placeholder="name@domain.com" autocomplete="username">
                 </div>
 
                 <div class="form-group">
-                    <label for="regSifre">Şifre</label>
-                    <input type="password" id="regSifre" class="form-control" placeholder="En az 6 karakter" required>
+                    <label for="regSifre">Sifre</label>
+                    <input type="password" id="regSifre" class="form-control" placeholder="En az 6 karakter" required autocomplete="new-password">
                 </div>
 
                 <div class="form-group">
-                    <label for="regRol">Hesap Türü</label>
+                    <label for="regRol">Hesap Turu</label>
                     <select id="regRol" class="form-control">
-                        <option value="ogrenci">Öğrenci</option>
-                        <option value="egitmen">Eğitmen</option>
+                        <option value="ogrenci">Ogrenci</option>
+                        <option value="egitmen">Egitmen</option>
                     </select>
                 </div>
 
-                <button type="submit" class="btn-primary" id="regSubmitBtn">Hemen Kayıt Ol</button>
+                <button type="submit" class="btn-primary" id="regSubmitBtn">Hemen Kayit Ol</button>
             </form>
-            <div id="regMessage" class="message-box"></div>
+            <div id="regMessage" class="message-box" role="alert" aria-live="polite"></div>
         </section>
     </article>
 </main>

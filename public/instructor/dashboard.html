@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Eğitmen Panosu</title>
+    <title>EduNex - Egitmen Panosu</title>
     
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
@@ -14,15 +14,15 @@
 <body>
     <header class="navbar">
         <div class="container navbar-content">
-            <a href="/" class="logo">EduNex</a>
+            <a href="/" class="logo" aria-label="EduNex Ana Sayfa">EduNex</a>
             
-            <nav class="user-navigation" id="authNavContainer">
+            <nav class="user-navigation" id="authNavContainer" aria-label="Kullanici Menusu">
                 <div class="user-info-wrapper">
-                    <i class="fas fa-user-circle user-icon"></i>
-                    <span id="userName" class="user-greeting">Eğitmen Paneli</span>
+                    <i class="fas fa-user-circle user-icon" aria-hidden="true"></i>
+                    <span id="userName" class="user-greeting">Egitmen Paneli</span>
                 </div>
-                <button onclick="logout()" class="btn-logout-alt">
-                    <i class="fas fa-sign-out-alt"></i> Çıkış Yap
+                <button type="button" onclick="handleLogout()" class="btn-logout-alt" aria-label="Cikis Yap">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Cikis Yap
                 </button>
             </nav>
         </div>
@@ -32,27 +32,29 @@
         
         <header class="page-header">
             <div class="header-text">
-                <h1>Eğitmen Panosu</h1>
-                <p class="subtitle">Kurslarınızı, içeriklerinizi ve öğrenci istatistiklerinizi buradan yönetebilirsiniz.</p>
+                <h1>Egitmen Panosu</h1>
+                <p class="subtitle">Kurslarinizi, iceriklerinizi ve ogrenci istatistiklerinizi buradan yonetebilirsiniz.</p>
             </div>
             
             <div class="header-actions">
-                <a href="/instructor/create-course.html" class="btn-primary-lg-alt">
-                    <i class="fas fa-plus"></i> Yeni Kurs Oluştur
+                <a href="/instructor/create-course.html" class="btn-primary-lg-alt" aria-label="Yeni Kurs Olustur">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Yeni Kurs Olustur
                 </a>
             </div>
         </header>
 
-        <section class="courses-section">
+        <section class="courses-section" aria-labelledby="courses-title">
             <div class="section-header-alt">
-                <h2 class="section-title"><i class="fas fa-book-open"></i> Yayındaki ve Taslak Kurslarım</h2>
+                <h2 id="courses-title" class="section-title">
+                    <i class="fas fa-book-open" aria-hidden="true"></i> Yayindaki ve Taslak Kurslarim
+                </h2>
                 <div class="section-line"></div>
             </div>
 
             <div id="courseList" class="course-management-grid">
                 <div class="loading-state">
-                    <div class="spinner"></div>
-                    <p>Kurslarınız hazırlanıyor...</p>
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p>Kurslariniz hazirlaniyor...</p>
                 </div>
             </div>
         </section>
@@ -63,9 +65,13 @@
     <script src="/instructor/js/instructor.js"></script>
     
     <script>
-        // Çıkış Fonksiyonu
-        function logout() {
-            if (typeof ApiService !== 'undefined' && ApiService.logout) {
+        /**
+         * Egitmen Panosu - Sayfa ici temel islevler
+         */
+
+        // Cikis islemini yonetir
+        function handleLogout() {
+            if (typeof ApiService !== 'undefined' && typeof ApiService.logout === 'function') {
                 ApiService.logout();
             } else {
                 localStorage.clear();
@@ -73,11 +79,23 @@
             }
         }
 
-        // Sayfa yüklendiğinde kullanıcı adını yazdır (LocalStorage'dan)
+        // Sayfa yuklendiginde kullanici bilgilerini arayuze yansitir
         document.addEventListener('DOMContentLoaded', () => {
-            const user = JSON.parse(localStorage.getItem('edunex_user'));
-            if (user && user.ad) {
-                document.getElementById('userName').textContent = `${user.ad} ${user.soyad}`;
+            const userNameElement = document.getElementById('userName');
+            const userJson = localStorage.getItem('edunex_user');
+            
+            if (userJson && userNameElement) {
+                try {
+                    const user = JSON.parse(userJson);
+                    if (user && user.ad) {
+                        // XSS korumasi icin textContent kullanilmaktadir
+                        userNameElement.textContent = `${user.ad} ${user.soyad || ''}`.trim();
+                    }
+                } catch (error) {
+                    console.error('[DASHBOARD] Kullanici verisi okunurken hata olustu:', error.message);
+                    // Hatali veriyi temizle
+                    localStorage.removeItem('edunex_user');
+                }
             }
         });
     </script>

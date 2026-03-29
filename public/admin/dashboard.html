@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex Admin - Kontrol Merkezi</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+</head>
+<body>
+
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
+            <a href="/admin/dashboard.html" class="nav-item active">
+                <i class="fas fa-chart-pie" aria-hidden="true"></i> Ozet Tablo
+            </a>
+            <a href="/admin/courses.html" class="nav-item">
+                <i class="fas fa-video" aria-hidden="true"></i> Kurs Onaylari
+            </a>
+            <a href="/admin/users.html" class="nav-item">
+                <i class="fas fa-users" aria-hidden="true"></i> Kullanici Yonetimi
+            </a>
+            <a href="/admin/categories.html" class="nav-item">
+                <i class="fas fa-tags" aria-hidden="true"></i> Kategoriler
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h1>Sistem Ozeti</h1>
+                <p class="subtitle">Platformun genel durumunu ve bekleyen islemleri buradan takip edebilirsiniz.</p>
+            </div>
+            <div class="header-user">
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yonetici Yukleniyor...</span>
+                    <small>Full Access</small>
+                </div>
+                <div class="admin-avatar-circle">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content">
+            
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <h3 id="totalUsers">--</h3>
+                        <p>Toplam Kullanici</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <h3 id="activeCourses">--</h3>
+                        <p>Yayindaki Kurslar</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="stat-info">
+                        <h3 id="pendingCourses">--</h3>
+                        <p>Onay Bekleyenler</p>
+                    </div>
+                </div>
+            </div>
+
+            <article class="admin-card activity-card">
+                <div class="card-header-flex">
+                    <h2>Son Sistem Aktiviteleri</h2>
+                    <a href="/admin/courses.html" class="btn-text-link">Tumunu Gor <i class="fas fa-external-link-alt"></i></a>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="activity-table" id="recentActivityTable">
+                        <thead>
+                            <tr>
+                                <th>Kurs / Baslik</th>
+                                <th>Egitmen</th>
+                                <th>Tarih</th>
+                                <th>Durum</th>
+                                <th style="text-align: right;">Islem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityList">
+                            <tr>
+                                <td colspan="5" class="table-empty-state">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Henuz yeni bir aktivite bulunmuyor.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+        </section>
+    </main>
+
+    <script src="/admin/js/dashboard.js"></script>
+</body>
+</html>

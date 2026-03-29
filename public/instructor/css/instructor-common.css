@@ -1,43 +1,162 @@
-/* --- Ortak Düzen ve Konteyner --- */
+/**
+ * EduNex Egitmen - Ortak CSS (Instructor Common Styles)
+ * Uygulama genelindeki egitmen paneli, formlar ve butonlarin temel stilleri.
+ */
+
+/* --- Ortak Duzen ve Konteyner --- */
 .dashboard-container {
-    margin-top: 40px;
-    margin-bottom: 60px;
+    width: 100%;
     max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 40px auto 60px auto;
     padding: 0 20px;
+    box-sizing: border-box;
 }
 
 /* --- Navigasyon ve Linkler --- */
-.nav-actions { display: flex; align-items: center; gap: 25px; }
-.nav-link { text-decoration: none; color: var(--text-color); font-weight: 600; transition: color 0.2s; }
-.nav-link:hover { color: var(--primary-color); }
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.nav-link {
+    color: var(--text-color, #334155);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible {
+    color: var(--primary-color, #2563eb);
+    outline: none;
+}
 
 /* --- Temel Buton Stilleri --- */
 .btn-primary-lg-alt {
-    display: inline-block; padding: 12px 24px; background-color: var(--primary-color);
-    color: #ffffff !important; border-radius: 8px; font-weight: 600; transition: all 0.3s ease;
-    border: none; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background-color: var(--primary-color, #2563eb);
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
-.btn-primary-lg-alt:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); }
+
+.btn-primary-lg-alt:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Yüklenme veya deaktif olma durumu */
+.btn-primary-lg-alt:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
 
 .btn-logout-alt {
-    background: none; border: 1px solid #dc3545; color: #dc3545;
-    padding: 6px 14px; border-radius: 4px; cursor: pointer; font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: transparent;
+    color: #dc3545;
+    font-weight: 600;
+    border: 1px solid #dc3545;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
-.btn-logout-alt:hover { background: #dc3545; color: white; }
+
+.btn-logout-alt:hover,
+.btn-logout-alt:focus-visible {
+    background-color: #dc3545;
+    color: #ffffff;
+    outline: none;
+}
 
 /* --- Form Temelleri --- */
-.form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.form-label { font-weight: 600; font-size: 0.9rem; color: var(--text-color); }
-.form-control {
-    padding: 12px 15px; border: 1px solid #d1d5db; border-radius: 8px;
-    outline: none; transition: all 0.2s;
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
 }
-.form-control:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
 
-/* --- Mesajlar ve Yükleme --- */
-.message-box { padding: 15px; border-radius: 8px; display: none; text-align: center; margin-top: 20px; }
-.message-box.active { display: block; }
-.message-box.success { background: #dcfce7; color: #166534; }
-.message-box.error { background: #fee2e2; color: #991b1b; }
+.form-label {
+    color: var(--text-color, #334155);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text-color, #0f172a);
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color, #2563eb);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
+}
+
+/* --- Mesajlar ve Yukleme --- */
+.message-box {
+    display: none;
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.message-box.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.message-box.success {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.message-box.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.message-box.info {
+    background-color: #e0f2fe;
+    color: #075985;
+    border: 1px solid #bae6fd;
+}
+
+/* Temel Animasyonlar */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}

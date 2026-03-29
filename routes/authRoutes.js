@@ -1,11 +1,14 @@
+/**
+ * EduNex Authentication Routes
+ * Kullanici kimlik dogrulama (kayit ve giris) islemlerini barindirir.
+ */
+
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 
-// Kullanıcı Kayıt (Register) Rotası
+// --- Authentication Endpoints ---
 router.post('/register', authController.register);
-
-// Kullanıcı Giriş (Login) Rotası
 router.post('/login', authController.login);
 
 module.exports = router;
