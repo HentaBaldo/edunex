@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Yeni Kurs Oluştur</title>
+    <title>EduNex - Yeni Kurs Olustur</title>
     
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
@@ -14,20 +14,20 @@
 <body>
     <header class="navbar">
         <div class="container navbar-content">
-            <a href="/" class="logo">EduNex</a>
-            <nav class="nav-actions">
+            <a href="/" class="logo" aria-label="EduNex Ana Sayfa">EduNex</a>
+            <nav class="nav-actions" aria-label="Egitmen Navigasyonu">
                 <a href="/instructor/dashboard.html" class="nav-link">
-                    <i class="fas fa-arrow-left"></i> Panoya Dön
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i> Panoya Don
                 </a>
-                <button onclick="logout()" class="btn-logout-alt">Çıkış Yap</button>
+                <button type="button" onclick="handleLogout()" class="btn-logout-alt">Cikis Yap</button>
             </nav>
         </div>
     </header>
 
     <main class="container dashboard-container">
         <header class="page-header-section">
-            <h1>Yeni Kurs Oluştur</h1>
-            <p class="subtitle">Uzmanlığınızı dünyayla paylaşmak için kursunuzun temel bilgilerini eksiksiz doldurun.</p>
+            <h1>Yeni Kurs Olustur</h1>
+            <p class="subtitle">Uzmanliginizi dunyayla paylasmak icin kursunuzun temel bilgilerini eksiksiz doldurun.</p>
         </header>
 
         <section class="form-card">
@@ -38,69 +38,71 @@
                 </div>
                 
                 <div class="form-group full-width">
-                    <label for="baslik" class="form-label">Kurs Başlığı *</label>
-                    <input type="text" id="baslik" class="form-control" placeholder="Örn: Sıfırdan İleri Seviye Node.js Eğitimi" required>
+                    <label for="baslik" class="form-label">Kurs Basligi <span aria-hidden="true">*</span></label>
+                    <input type="text" id="baslik" class="form-control" placeholder="Orn: Sifirdan Ileri Seviye Node.js Egitimi" required>
                 </div>
 
                 <div class="form-group full-width">
-                    <label for="alt_baslik" class="form-label">Alt Başlık / Kısa Tanıtım</label>
-                    <input type="text" id="alt_baslik" class="form-control" placeholder="Kurs içeriğini özetleyen çarpıcı bir cümle yazın">
+                    <label for="alt_baslik" class="form-label">Alt Baslik / Kisa Tanitim</label>
+                    <input type="text" id="alt_baslik" class="form-control" placeholder="Kurs icerigini ozetleyen carpici bir cumle yazin">
                 </div>
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="kategori_id" class="form-label">Kategori *</label>
+                        <label for="kategori_id" class="form-label">Kategori <span aria-hidden="true">*</span></label>
                         <select id="kategori_id" class="form-control" required>
-                            <option value="">Kategori Seçin...</option>
+                            <option value="" disabled selected>Kategori Secin...</option>
                             </select>
                     </div>
+                    
                     <div class="form-group">
-                        <label for="fiyat" class="form-label">Fiyat (TL) *</label>
-                        <input type="number" id="fiyat" class="form-control" placeholder="Ücretsiz için 0 girin" min="0" required>
+                        <label for="fiyat" class="form-label">Fiyat (TL) <span aria-hidden="true">*</span></label>
+                        <input type="number" id="fiyat" class="form-control" placeholder="Ucretsiz icin 0 girin" min="0" step="0.01" required>
                     </div>
                 </div>
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="dil" class="form-label">Eğitim Dili *</label>
+                        <label for="dil" class="form-label">Egitim Dili <span aria-hidden="true">*</span></label>
                         <select id="dil" class="form-control" required>
-                            <option value="Turkish">Türkçe</option>
-                            <option value="English">İngilizce</option>
+                            <option value="Turkish" selected>Turkce</option>
+                            <option value="English">Ingilizce</option>
                         </select>
                     </div>
+                    
                     <div class="form-group">
-                        <label for="seviye" class="form-label">Zorluk Seviyesi *</label>
+                        <label for="seviye" class="form-label">Zorluk Seviyesi <span aria-hidden="true">*</span></label>
                         <select id="seviye" class="form-control" required>
-                            <option value="Beginner">Başlangıç</option>
+                            <option value="Beginner">Baslangic</option>
                             <option value="Intermediate">Orta Seviye</option>
-                            <option value="Advanced">İleri Seviye</option>
-                            <option value="All Levels">Tüm Seviyeler</option>
+                            <option value="Advanced">Ileri Seviye</option>
+                            <option value="All Levels" selected>Tum Seviyeler</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-section-header" style="margin-top: 30px;">
-                    <h2 class="form-section-title">Detaylar ve Müfredat Hazırlığı</h2>
+                    <h2 class="form-section-title">Detaylar ve Mufredat Hazirligi</h2>
                 </div>
 
                 <div class="form-group full-width">
                     <label for="gereksinimler" class="form-label">Gereksinimler</label>
-                    <textarea id="gereksinimler" class="form-control" rows="3" placeholder="Öğrenciler bu kursa başlamadan önce neyi bilmeli? (Her satıra bir tane)"></textarea>
+                    <textarea id="gereksinimler" class="form-control" rows="3" placeholder="Ogrenciler bu kursa baslamadan once neyi bilmeli? (Her satira bir tane)"></textarea>
                 </div>
 
                 <div class="form-group full-width">
-                    <label for="kazanimlar" class="form-label">Öğrenci Bu Kursun Sonunda Ne Kazanacak?</label>
-                    <textarea id="kazanimlar" class="form-control" rows="3" placeholder="Kurs tamamlandığında elde edilecek becerileri listeleyin."></textarea>
+                    <label for="kazanimlar" class="form-label">Ogrenci Bu Kursun Sonunda Ne Kazanacak?</label>
+                    <textarea id="kazanimlar" class="form-control" rows="3" placeholder="Kurs tamamlandiginda elde edilecek becerileri listeleyin."></textarea>
                 </div>
 
                 <div class="form-actions">
                     <button type="submit" class="btn-primary-lg-alt">
-                        <i class="fas fa-save"></i> Kursu Taslak Olarak Kaydet
+                        <i class="fas fa-save" aria-hidden="true"></i> Kursu Taslak Olarak Kaydet
                     </button>
                 </div>
             </form>
 
-            <div id="courseMessage" class="message-box"></div>
+            <div id="courseMessage" class="message-box" role="alert" aria-live="polite"></div>
         </section>
     </main>
 
@@ -108,8 +110,11 @@
     <script src="/instructor/js/create-course.js"></script>
     
     <script>
-        function logout() {
-            if (typeof ApiService !== 'undefined' && ApiService.logout) {
+        /**
+         * Global Cikis Islemi (Inline Modul)
+         */
+        function handleLogout() {
+            if (typeof ApiService !== 'undefined' && typeof ApiService.logout === 'function') {
                 ApiService.logout();
             } else {
                 localStorage.clear();

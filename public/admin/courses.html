@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurs Onay Merkezi | EduNex Admin</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/courses.css">
+</head>
+<body>
+
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-graduation-cap"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard.html" class="nav-item">
+                <i class="fas fa-chart-pie"></i> Ozet Tablo
+            </a>
+            <a href="/admin/courses.html" class="nav-item active">
+                <i class="fas fa-video"></i> Kurs Onaylari
+            </a>
+            <a href="/admin/users.html" class="nav-item">
+                <i class="fas fa-users"></i> Kullanici Yonetimi
+            </a>
+            <a href="/admin/categories.html" class="nav-item">
+                <i class="fas fa-tags"></i> Kategoriler
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-breadcrumb">
+                <span class="muted">Panel /</span> Kurs Onay Merkezi
+            </div>
+            <div class="header-user">
+                <div class="user-info">
+                    <span id="adminName" class="admin-username">Yonetici</span>
+                    <small>Sistem Yoneticisi</small>
+                </div>
+                <div class="admin-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content">
+            <article class="admin-card">
+                <div class="card-header">
+                    <div class="header-left">
+                        <h2>Inceleme Bekleyen Basvurular</h2>
+                        <p class="subtitle">Egitmenler tarafindan onaya gonderilen yeni kurslari buradan yonetebilirsiniz.</p>
+                    </div>
+                    <div class="header-right">
+                        <span class="badge badge-pending-total" id="pendingCount">0 Kurs Bekliyor</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="admin-table" id="pendingTable">
+                        <thead>
+                            <tr>
+                                <th>Kurs Basligi</th>
+                                <th>Egitmen</th>
+                                <th>Kategori</th>
+                                <th>Fiyat</th>
+                                <th>Durum</th>
+                                <th style="text-align: right;">Islemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingCoursesList">
+                            <tr>
+                                <td colspan="6" class="table-loading">
+                                    <div class="spinner-container">
+                                        <i class="fas fa-circle-notch fa-spin"></i>
+                                        <p>Veriler yukleniyor, lutfen bekleyin...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <div id="courseModal" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="header-title-group">
+                    <span class="modal-label">KURS INCELEME</span>
+                    <h2 id="modalTitle">Kurs Icerigi</h2>
+                </div>
+                <button type="button" onclick="closeModal()" class="close-btn" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="modal-meta-grid">
+                    <div class="meta-item">
+                        <label>Egitmen Bilgisi</label>
+                        <p id="detayEgitmen"><i class="fas fa-user-circle"></i> --</p>
+                    </div>
+                    <div class="meta-item">
+                        <label>Basvuru Durumu</label>
+                        <span class="badge badge-status-pending">Inceleme Asamasinda</span>
+                    </div>
+                </div>
+                
+                <div class="modal-section">
+                    <label class="section-label"><i class="fas fa-align-left"></i> Kurs Tanitimi</label>
+                    <div id="detayAciklama" class="desc-box"></div>
+                </div>
+
+                <div class="modal-section">
+                    <label class="section-label"><i class="fas fa-stream"></i> Ders Mufredati (Bolumler & Dersler)</label>
+                    <div class="curriculum-preview-list">
+                        <ul id="detayMufredat">
+                            </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal()" class="btn-secondary">Kapat</button>
+                <button type="button" id="modalApproveBtn" class="btn-primary-approve">
+                    <i class="fas fa-check-circle"></i> Kursu Onayla ve Yayina Al
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/courses.js"></script>
+</body>
+</html>

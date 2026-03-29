@@ -1,18 +1,21 @@
 /**
- * EduNex Instructor - Course Creation Logic
- * Standardized for API version 1.0
+ * EduNex Egitmen - Kurs Olusturma Isleyisi (Course Creation Logic)
+ * API versiyon 1.0 standartlarina uygundur.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Session and Role Verification
+    // 1. Oturum ve Rol Dogrulamasi
     if (!checkInstructorAccess()) return;
 
-    // 2. Initial Data Loading
+    // 2. Baslangic Verilerinin Yuklenmesi (Kategoriler)
     await loadCategories();
+    
+    // 3. Form Dinleyicisinin Baslatilmasi
+    initCreateCourseForm();
 });
 
 /**
- * Verifies if the user is logged in and has the 'egitmen' role
+ * Kullanicinin giris yapip yapmadigini ve 'egitmen' rolune sahip olup olmadigini dogrular.
  */
 function checkInstructorAccess() {
     const token = localStorage.getItem('edunex_token');
@@ -26,13 +29,13 @@ function checkInstructorAccess() {
     try {
         const user = JSON.parse(userJson);
         if (user.rol !== 'egitmen') {
-            alert('Access denied. This area is for instructors only.');
+            alert('Erisim reddedildi. Bu alan sadece egitmenler icindir.');
             window.location.href = '/main/index.html';
             return false;
         }
         return true;
     } catch (error) {
-        console.error('[AUTH ERROR] Invalid user data.');
+        console.error('[AUTH ERROR] Gecersiz kullanici verisi:', error.message);
         localStorage.clear();
         window.location.href = '/auth/index.html';
         return false;
@@ -40,19 +43,20 @@ function checkInstructorAccess() {
 }
 
 /**
- * Fetches categories from the API and populates the select dropdown
+ * API'den kategorileri ceker ve secim (select) kutusunu dinamik olarak doldurur.
  */
 async function loadCategories() {
     const categorySelect = document.getElementById('kategori_id');
     const messageDiv = document.getElementById('courseMessage');
+    
+    if (!categorySelect) return;
 
     try {
-        // Backend returns: { status: 'success', message: '...', data: [...] }
         const result = await ApiService.get('/categories');
         const categories = result.data || [];
 
         if (categories.length === 0) {
-            console.warn('[INFO] No categories found on the server.');
+            console.warn('[CREATE COURSE] Sunucuda kayitli kategori bulunamadi.');
         }
 
         categories.forEach(category => {
@@ -63,55 +67,69 @@ async function loadCategories() {
         });
 
     } catch (error) {
-        console.error("[FETCH ERROR] Could not load categories:", error.message);
-        messageDiv.textContent = "Warning: Failed to load categories from the server.";
-        messageDiv.className = "message-box error active";
+        console.error('[CREATE COURSE] Kategoriler yuklenemedi:', error.message);
+        if (messageDiv) {
+            messageDiv.textContent = "Uyari: Kategoriler sunucudan yuklenemedi.";
+            messageDiv.className = "message-box error active";
+        }
     }
 }
 
 /**
- * Handles the course creation form submission
+ * Kurs olusturma formunun gonderim (submit) islemini yonetir ve veriyi API'ye iletir.
  */
-document.getElementById('createCourseForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const messageDiv = document.getElementById('courseMessage');
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+function initCreateCourseForm() {
+    const form = document.getElementById('createCourseForm');
+    if (!form) return;
 
-    // UI Feedback: Start processing
-    messageDiv.textContent = "Saving course, please wait...";
-    messageDiv.className = "message-box active";
-    submitBtn.disabled = true;
-
-    // Data Preparation
-    const payload = {
-        baslik: document.getElementById('baslik').value,
-        alt_baslik: document.getElementById('alt_baslik').value,
-        kategori_id: document.getElementById('kategori_id').value,
-        dil: document.getElementById('dil').value,
-        seviye: document.getElementById('seviye').value,
-        fiyat: parseFloat(document.getElementById('fiyat').value) || 0,
-        gereksinimler: document.getElementById('gereksinimler').value,
-        kazanimlar: document.getElementById('kazanimlar').value
-    };
-
-    try {
-        // API Call
-        const result = await ApiService.post('/courses', payload);
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        // Success Handling
-        messageDiv.textContent = result.message || "Course created successfully! Redirecting...";
-        messageDiv.className = "message-box success active";
-        
-        setTimeout(() => {
-            window.location.href = '/instructor/dashboard.html';
-        }, 1500);
+        const messageDiv = document.getElementById('courseMessage');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    } catch (error) {
-        // Error Handling
-        console.error("[POST ERROR] Course creation failed:", error.message);
-        messageDiv.textContent = `Error: ${error.message}`;
-        messageDiv.className = "message-box error active";
-        submitBtn.disabled = false;
-    }
-});
+        // Kullanici Arayuzu Geri Bildirimi: Islemi baslat
+        if (messageDiv) {
+            messageDiv.textContent = "Kurs kaydediliyor, lutfen bekleyin...";
+            messageDiv.className = "message-box active";
+        }
+        if (submitBtn) submitBtn.disabled = true;
+
+        // Veri Hazirligi ve Temizligi (Trim)
+        const payload = {
+            baslik: document.getElementById('baslik')?.value.trim() || '',
+            alt_baslik: document.getElementById('alt_baslik')?.value.trim() || '',
+            kategori_id: document.getElementById('kategori_id')?.value || '',
+            dil: document.getElementById('dil')?.value || '',
+            seviye: document.getElementById('seviye')?.value || '',
+            fiyat: parseFloat(document.getElementById('fiyat')?.value) || 0,
+            gereksinimler: document.getElementById('gereksinimler')?.value.trim() || '',
+            kazanimlar: document.getElementById('kazanimlar')?.value.trim() || ''
+        };
+
+        try {
+            // API Cagrisi
+            const result = await ApiService.post('/courses', payload);
+            
+            // Basarili Islem Yonetimi
+            if (messageDiv) {
+                messageDiv.textContent = result.message || "Kurs basariyla olusturuldu! Yonlendiriliyorsunuz...";
+                messageDiv.className = "message-box success active";
+            }
+            
+            // Yonlendirme Bekleme Suresi
+            setTimeout(() => {
+                window.location.href = '/instructor/dashboard.html';
+            }, 1500);
+
+        } catch (error) {
+            // Hata Yonetimi
+            console.error("[CREATE COURSE] Kurs olusturma isleminde hata:", error.message);
+            if (messageDiv) {
+                messageDiv.textContent = `Hata: ${error.message}`;
+                messageDiv.className = "message-box error active";
+            }
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    });
+}

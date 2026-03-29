@@ -1,72 +1,87 @@
-/* ==========================================
-   EDUNEX INSTRUCTOR DASHBOARD - MASTER CSS
-   ========================================== */
+/**
+ * EduNex Egitmen - Dashboard Master CSS
+ * Kurs listeleme, kart tasarimlari ve ana pano yerlesimi.
+ */
 
-/* 1. Sayfa Temeli ve Konteyner */
+/* --- Sayfa Temeli ve Konteyner --- */
 .dashboard-container {
     max-width: 1200px;
     margin: 40px auto;
     padding: 0 20px;
-    font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
 }
 
-/* 2. Sayfa Başlığı ve "Yeni Kurs" Butonu Alanı */
+/* --- Sayfa Basligi ve Aksiyon Alani --- */
 .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center; /* Merkeze hizalama iyilestirildi */
     margin-bottom: 40px;
-    padding-bottom: 20px;
+    padding-bottom: 25px;
     border-bottom: 1px solid #e2e8f0;
+    flex-wrap: wrap; /* Mobil uyum icin eklendi */
+    gap: 20px;
 }
 
 .header-text h1 {
-    font-size: 2rem;
+    font-size: 2.25rem;
     color: #1e293b;
-    margin-bottom: 8px;
+    margin: 0 0 8px 0;
+    font-weight: 800;
 }
 
 .subtitle {
     color: #64748b;
-    font-size: 1rem;
+    font-size: 1.1rem;
+    margin: 0;
 }
 
-/* 3. Kurslarım Başlığı */
+/* --- Bolum Basliklari --- */
 .section-header-alt {
-    margin-bottom: 25px;
+    margin-bottom: 30px;
 }
 
 .section-title {
-    font-size: 1.4rem;
-    color: #1e293b;
+    font-size: 1.5rem;
+    color: #0f172a;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    font-weight: 700;
 }
 
-/* 4. KURS GRID SİSTEMİ (En Önemli Kısım) */
+.section-line {
+    height: 3px;
+    width: 60px;
+    background-color: var(--primary-color, #2563eb);
+    margin-top: 8px;
+    border-radius: 99px;
+}
+
+/* --- Kurs Grid Sistemi --- */
 .course-management-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 30px;
+    gap: 25px;
     width: 100%;
 }
 
-/* 5. Kurs Kartı Tasarımı */
+/* --- Kurs Karti Tasarimi --- */
 .course-card-alt {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 16px; /* Daha yumusak koseler */
     display: flex;
     flex-direction: column;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     height: 100%;
+    overflow: hidden; /* Kenar tasmasini onler */
 }
 
 .course-card-alt:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
 }
 
 .course-card-body {
@@ -74,26 +89,32 @@
     flex-grow: 1;
 }
 
-/* Kart İçindeki Durum Rozeti (Badge) */
+/* Kart Durum Rozeti (Badge) */
 .course-badge {
     display: inline-block;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.7rem;
+    font-weight: 800;
     text-transform: uppercase;
-    margin-bottom: 15px;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
 }
 
-.badge-published { background: #dcfce7; color: #166534; }
-.badge-draft { background: #fef3c7; color: #92400e; }
+.badge-published { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.badge-draft { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 
 .course-card-title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #1e293b;
     margin-bottom: 12px;
-    line-height: 1.4;
+    line-height: 1.5;
+    /* Uzun basliklari 2 satirda sinirla */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .course-card-info {
@@ -101,38 +122,47 @@
     color: #64748b;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
-/* 6. Kart Altı İşlem Butonları */
+.course-card-info span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* --- Kart Alti Islem Butonlari --- */
 .course-card-actions {
     padding: 16px 24px;
     background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #f1f5f9;
     display: flex;
     gap: 12px;
-    border-radius: 0 0 12px 12px;
 }
 
 .course-card-actions a {
     flex: 1;
-    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 10px;
     border-radius: 8px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
     text-decoration: none;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 }
 
 .btn-edit-link {
     background: #ffffff;
     color: #475569;
-    border: 1px solid #d1d5db;
+    border: 1px solid #e2e8f0;
 }
 
 .btn-edit-link:hover {
     background: #f1f5f9;
+    border-color: #cbd5e1;
 }
 
 .btn-view-link {
@@ -142,12 +172,48 @@
 
 .btn-view-link:hover {
     background: #1d4ed8;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
 }
 
-/* 7. Boş Durum ve Yükleniyor */
+/* --- Yukleniyor Durumu (Spinner) --- */
 .loading-state {
     grid-column: 1 / -1;
-    text-align: center;
-    padding: 100px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 0;
     color: #94a3b8;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #2563eb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Responsive Ayarlar --- */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .header-actions {
+        width: 100%;
+    }
+    
+    .header-actions a {
+        width: 100%;
+        text-align: center;
+    }
 }

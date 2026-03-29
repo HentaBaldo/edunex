@@ -1,72 +1,92 @@
+/**
+ * EduNex Application Configuration (app.js)
+ * Express.js uygulamasinin temel middleware (ara katman), guvenlik, 
+ * statik dosya sunumu ve ana rota (routing) baglantilarini yonetir.
+ */
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
 const app = express();
 
-// --- 1. GÜVENLİK VE YAPILANDIRMA ---
-app.use(helmet({
-    contentSecurityPolicy: false, // Geliştirme aşamasında statik dosyalar için esneklik sağlar
-}));
+// --- 1. File System Initialization ---
+// Multer vb. dosya isleme modullerinin calisabilmesi icin gerekli dizinlerin kontrolu
+const uploadDir = path.join(__dirname, 'uploads/temp');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log('[APP CONFIG] Gecici yukleme dizini (uploads/temp) basariyla olusturuldu/dogrulandi.');
+}
 
+// --- 2. Security & Core Middleware ---
+// Kapsamli guvenlik basliklari (Gelistirme asamasinda CSP esnekligi saglanmistir)
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Cross-Origin Resource Sharing
 app.use(cors());
 
-// HTTP isteklerini standart Apache log formatında kaydeder
+// HTTP istek loglama (Endustri standardi 'combined' formatinda)
 app.use(morgan('combined'));
 
+// Body Parser yapilandirmasi (JSON ve URL Encoded veriler icin)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- 2. STATİK DOSYALAR ---
+// --- 3. Static File Serving ---
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- 3. API ROTALARI ---
+// --- 4. API Routes Registration ---
 const authRoutes = require('./routes/authRoutes');
+const instructorRoutes = require('./routes/instructorRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const curriculumRoutes = require('./routes/curriculumRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
+// Rota Baglamalari (Parametre ezilmelerini onlemek icin ozel rotalar ustte tanimlanabilir)
+app.use('/api/instructor', instructorRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/curriculum', curriculumRoutes);
+app.use('/api/admin', adminRoutes);
 
-// --- 4. ANA YÖNLENDİRME ---
+// --- 5. Root Redirection ---
+// Kok dizine gelen istekleri varsayilan ana sayfaya yonlendirir
 app.get('/', (req, res) => {
     res.redirect('/main/index.html');
 });
 
-// --- 5. 404 API YÖNETİMİ ---
-// Node v24 ve modern Express sürümleri için Regex tabanlı 404 yakalayıcı
+// --- 6. 404 Not Found Handler (API) ---
+// Tanimsiz bir API uc noktasina (endpoint) istek atildiginda standart hata objesi doner
 app.all(/\/api\/.*/, (req, res) => {
-    res.status(404).json({
-        status: 'error',
+    return res.status(404).json({
+        success: false,
         code: 404,
-        message: 'Talep edilen API uç noktası bulunamadı.'
+        message: 'Talep edilen API uc noktasi bulunamadi.'
     });
 });
 
-// --- 6. GLOBAL HATA YÖNETİMİ (MERKEZİ) ---
+// --- 7. Global Error Handler ---
+// Uygulama genelinde firlatilan (throw) veya yakalanamayan hatalari merkezi olarak yonetir
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const environment = process.env.NODE_ENV || 'development';
 
-    // Standart log formatı: [SEVIYE] [ZAMAN] MESAJ
-    console.error(`[HATA] [${new Date().toISOString()}] ${err.name}: ${err.message}`);
+    console.error(`[GLOBAL ERROR] ${err.name}: ${err.message}`);
     
     if (environment === 'development') {
         console.error(err.stack);
     }
 
-    res.status(statusCode).json({
-        status: 'error',
-        message: err.message || 'Sunucu İçi Hata',
-        // Geliştirme modunda hata detayını (stack trace) gönderir
+    return res.status(statusCode).json({
+        success: false,
+        message: err.message || 'Sunucu Ici Hata (Internal Server Error)',
         ...(environment === 'development' && { stack: err.stack })
     });
 });
 
-// Uygulamayı dışa aktar (Dinleme işlemi burada yapılmaz)
 module.exports = app;

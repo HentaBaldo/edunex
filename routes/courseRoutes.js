@@ -1,20 +1,21 @@
+/**
+ * EduNex Course Routes
+ * Kurs listeleme, olusturma, detay goruntuleme ve durum guncelleme isleyislerini barindirir.
+ * Not: Express routing cakismalarini (parametre ezilmelerini) onlemek amaciyla statik rotalar ustte tanimlanmistir.
+ */
+
 const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/courseController');
 const { verifyToken, isInstructor } = require('../middleware/authMiddleware');
 
-// --- 1. PUBLISHED ROTASI (En Üstte ve Herkese Açık Olmalı) ---
-// Not: Bunu en üste aldık çünkü parametreli rotalarla çakışmasını istemiyoruz.
+// --- Public Endpoints (Herkese Acik) ---
 router.get('/published', courseController.getAllPublishedCourses);
+router.get('/details/:id', courseController.getCourseDetails);
 
-// --- 2. EĞİTMEN ÖZEL ROTALARI ---
+// --- Protected Endpoints (Sadece Yetkili Egitmenler) ---
 router.get('/my-courses', verifyToken, isInstructor, courseController.getMyCourses);
 router.post('/', verifyToken, isInstructor, courseController.createCourse);
-
-// --- 3. PARAMETRELİ ROTALAR (ID İçerenler Her Zaman En Altta) ---
 router.put('/:id/status', verifyToken, isInstructor, courseController.updateCourseStatus);
-
-// routes/courseRoutes.js
-router.get('/details/:id', courseController.getCourseDetails);
 
 module.exports = router;

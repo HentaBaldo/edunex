@@ -1,0 +1,121 @@
+/**
+ * EduNex Admin - Courses Approval CSS
+ * Onay bekleyen kurs tablosu ve detaylı inceleme modal stilleri.
+ */
+
+ .admin-card { 
+    background: var(--white); 
+    border-radius: 16px; 
+    border: 1px solid var(--border); 
+    padding: 30px; 
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+/* --- Admin Table --- */
+.table-responsive { overflow-x: auto; }
+
+.admin-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 10px;
+}
+
+.admin-table th { 
+    text-align: left; 
+    padding: 15px; 
+    color: var(--text-muted); 
+    font-size: 0.75rem; 
+    text-transform: uppercase; 
+    border-bottom: 2px solid var(--border); 
+    letter-spacing: 1px;
+}
+
+.admin-table td { 
+    padding: 20px 15px; 
+    border-bottom: 1px solid var(--border); 
+    vertical-align: middle;
+    font-size: 0.95rem;
+}
+
+.admin-table tr:hover { background: #f8fafc; }
+
+/* --- Badges --- */
+.badge { 
+    padding: 6px 12px; 
+    border-radius: 20px; 
+    font-size: 0.75rem; 
+    font-weight: 700; 
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-pending { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.badge-approved { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+
+/* --- Modal System --- */
+.modal-backdrop {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.75); 
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; 
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--white); 
+    width: 95%; max-width: 800px; 
+    max-height: 90vh;
+    border-radius: 24px; 
+    overflow-y: auto; 
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+    padding: 25px 35px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; background: var(--white); z-index: 10;
+}
+
+.modal-body { padding: 35px; }
+
+/* Inceleme Ekranı Özel Elemanlar */
+.desc-box { 
+    background: #f1f5f9; 
+    padding: 20px; 
+    border-radius: 12px; 
+    margin: 15px 0; 
+    border-left: 4px solid var(--admin-primary);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #334155;
+}
+
+.curriculum-preview-list {
+    list-style: none;
+    margin-top: 15px;
+}
+
+.curriculum-preview-list li {
+    padding: 14px 18px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.curriculum-preview-list li:hover { border-color: var(--admin-primary); }
+.curriculum-preview-list i { color: var(--admin-primary); }
+
+/* Animasyonlar */
+@keyframes modalSlideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
