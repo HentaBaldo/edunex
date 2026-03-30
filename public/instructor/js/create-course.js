@@ -1,3 +1,4 @@
+import { UIHelper } from './modules/ui-helper.js';
 /**
  * EduNex Egitmen - Kurs Olusturma Isleyisi (Course Creation Logic)
  * API versiyon 1.0 standartlarina uygundur.
@@ -5,7 +6,7 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Oturum ve Rol Dogrulamasi
-    if (!checkInstructorAccess()) return;
+    if (!UIHelper.checkInstructorAccess()) return;
 
     // 2. Baslangic Verilerinin Yuklenmesi (Kategoriler)
     await loadCategories();
@@ -13,34 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Form Dinleyicisinin Baslatilmasi
     initCreateCourseForm();
 });
-
-/**
- * Kullanicinin giris yapip yapmadigini ve 'egitmen' rolune sahip olup olmadigini dogrular.
- */
-function checkInstructorAccess() {
-    const token = localStorage.getItem('edunex_token');
-    const userJson = localStorage.getItem('edunex_user');
-
-    if (!token || !userJson) {
-        window.location.href = '/auth/index.html';
-        return false;
-    }
-
-    try {
-        const user = JSON.parse(userJson);
-        if (user.rol !== 'egitmen') {
-            alert('Erisim reddedildi. Bu alan sadece egitmenler icindir.');
-            window.location.href = '/main/index.html';
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('[AUTH ERROR] Gecersiz kullanici verisi:', error.message);
-        localStorage.clear();
-        window.location.href = '/auth/index.html';
-        return false;
-    }
-}
 
 /**
  * API'den kategorileri ceker ve secim (select) kutusunu dinamik olarak doldurur.

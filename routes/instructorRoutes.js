@@ -21,7 +21,8 @@ router.get('/test', (req, res) => {
 });
 
 // --- Media Upload Endpoints ---
-// Not: Geriye donuk uyumluluk ve esneklik saglamak adina coklu rota tanimi kullanilmistir.
-router.post(['/upload', '/lessons/upload'], upload.single('video'), instructorController.createLessonWithVideo);
+// Bu satır gidip Controller'daki fonksiyonu bulacak
+router.post('/upload', upload.single('video'), instructorController.createLessonWithVideo);
+router.post('/lessons/upload', upload.single('video'), instructorController.createLessonWithVideo);
 
 module.exports = router;

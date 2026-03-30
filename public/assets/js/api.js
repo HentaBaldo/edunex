@@ -4,16 +4,16 @@ const ApiService = {
     baseUrl: '/api',
 
     async request(endpoint, options = {}) {
-        const token = localStorage.getItem('edunex_token');
+        const isAdminPath = window.location.pathname.startsWith('/admin');
+        const tokenKey = isAdminPath ? 'edunex_admin_token' : 'edunex_token';
+        const token = localStorage.getItem(tokenKey);
         
         const headers = {
             'Content-Type': 'application/json',
             ...(options.headers || {})
         };
 
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
+        if (token) headers['Authorization'] = `Bearer ${token}`;
 
         const config = {
             ...options,
@@ -24,16 +24,14 @@ const ApiService = {
             const response = await fetch(`${this.baseUrl}${endpoint}`, config);
             const result = await response.json();
 
-            // Backend 'status: error' dönüyorsa veya HTTP kodu hatalıysa
             if (!response.ok || result.status === 'error') {
-                if (response.status === 401 && localStorage.getItem('edunex_token')) {
+                if (response.status === 401 && token) {
                     this.logout();
                 }
-                // Artık 'mesaj' değil 'message' kullanıyoruz
                 throw new Error(result.message || 'An unexpected error occurred.');
             }
 
-            return result; // { status, message, data } objesini döner
+            return result;
         } catch (error) {
             console.error(`[API Error] [${endpoint}]:`, error.message);
             throw error;
@@ -46,8 +44,15 @@ const ApiService = {
     async delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
 
     logout() {
-        localStorage.removeItem('edunex_token');
-        localStorage.removeItem('edunex_user');
-        window.location.href = '/auth/index.html';
+        const isAdminPath = window.location.pathname.startsWith('/admin');
+        if (isAdminPath) {
+            localStorage.removeItem('edunex_admin_token');
+            localStorage.removeItem('edunex_admin_user');
+            window.location.replace('/admin/login.html');
+        } else {
+            localStorage.removeItem('edunex_token');
+            localStorage.removeItem('edunex_user');
+            window.location.replace('/auth/index.html');
+        }
     }
 };

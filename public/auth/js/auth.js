@@ -1,6 +1,7 @@
 /**
  * EduNex Authentication Module
  * Handles user login, registration, and UI state management.
+ * (Admin login logic has been strictly isolated to the admin portal).
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -121,10 +122,11 @@ function initLogin() {
             setTimeout(() => {
                 const role = result.data.user.rol;
                 const redirectMap = {
-                    'admin': '/admin/dashboard.html',
-                    'egitmen': '/instructor/dashboard.html'
+                    'egitmen': '/instructor/dashboard.html',
+                    'ogrenci': '/main/index.html' // İleride öğrenci paneli yaparsan burayı '/student/dashboard.html' olarak güncelleyebilirsin.
                 };
                 
+                // Eğer rol redirectMap'te yoksa (admin dahil) varsayılan olarak ana sayfaya atar.
                 window.location.href = redirectMap[role] || '/main/index.html';
             }, 1000);
 

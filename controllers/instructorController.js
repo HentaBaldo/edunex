@@ -1,115 +1,66 @@
-const { Profile, Course, CourseSection, Lesson } = require('../models');
+/**
+ * EduNex - Instructor Controller
+ * Eğitmenlerin kurs ve ders (video) işlemlerini yönetir.
+ */
 
-exports.getDashboardStats = async (req, res) => {
+// Veritabanı modellerini içeri aktarıyoruz
+const { Lesson } = require('../models');
+
+/**
+ * Yeni Ders Oluşturma ve Video Yükleme İşlemi
+ * @route POST /api/instructor/upload
+ */
+exports.createLessonWithVideo = async (req, res, next) => {
     try {
-        // İstatistikleri eşzamanlı (paralel) çekerek performansı artırıyoruz
-        const [totalUsers, activeCourses, pendingCourses] = await Promise.all([
-            Profile.count(),
-            Course.count({ where: { durum: 'yayinda' } }),
-            Course.count({ where: { durum: 'onay_bekliyor' } })
-        ]);
+        const file = req.file;
+        // FormData üzerinden gelen ders bilgilerini alıyoruz
+        const { bolum_id, baslik, sure_saniye, onizleme_mi } = req.body;
 
-        return res.status(200).json({
-            success: true,
-            data: {
-                totalUsers,
-                activeCourses,
-                pendingCourses
-            }
-        });
-    } catch (error) {
-        console.error('[ADMIN CONTROLLER] getDashboardStats error:', error.message);
-        return res.status(500).json({
-            success: false,
-            message: 'Istatistikler alinirken sunucu hatasi olustu.'
-        });
-    }
-};
-
-exports.getPendingCourses = async (req, res) => {
-    try {
-        const pendingCourses = await Course.findAll({
-            where: { durum: 'onay_bekliyor' },
-            include: [{
-                model: Profile,
-                as: 'Egitmen',
-                attributes: ['ad', 'soyad']
-            }]
-        });
-
-        return res.status(200).json({
-            success: true,
-            data: pendingCourses
-        });
-    } catch (error) {
-        console.error('[ADMIN CONTROLLER] getPendingCourses error:', error.message);
-        return res.status(500).json({
-            success: false,
-            message: 'Onay bekleyen kurslar listelenirken sunucu hatasi olustu.'
-        });
-    }
-};
-
-exports.getCourseDetail = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const course = await Course.findByPk(id, {
-            include: [
-                { model: Profile, as: 'Egitmen' },
-                {
-                    model: CourseSection,
-                    as: 'Sections',
-                    include: [{ model: Lesson, as: 'Lessons' }]
-                }
-            ]
-        });
-
-        if (!course) {
-            return res.status(404).json({
+        // 1. Dosya kontrolü
+        if (!file) {
+            return res.status(400).json({
                 success: false,
-                message: 'Talep edilen kurs bulunamadi.'
+                message: 'Lütfen bir video dosyası yükleyin.'
             });
         }
 
-        return res.status(200).json({
-            success: true,
-            data: course
-        });
-    } catch (error) {
-        console.error('[ADMIN CONTROLLER] getCourseDetail error:', error.message);
-        return res.status(500).json({
-            success: false,
-            message: 'Kurs detaylari alinirken sunucu hatasi olustu.'
-        });
-    }
-};
-
-exports.approveCourse = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const [updatedRows] = await Course.update(
-            { durum: 'onaylandi' },
-            { where: { id } }
-        );
-
-        if (updatedRows === 0) {
-            return res.status(404).json({
+        // 2. Eksik bilgi kontrolü (Veritabanı tutarlılığı için)
+        if (!bolum_id || !baslik) {
+            return res.status(400).json({
                 success: false,
-                message: 'Onaylanacak kurs bulunamadi veya zaten onayli durumunda.'
+                message: 'Bölüm bilgisi ve ders başlığı eksik.'
             });
         }
 
+        // 3. Sıra numarasını belirle (Bölümdeki mevcut en yüksek sırayı bulup 1 ekler)
+        const maxSira = await Lesson.max('sira_numarasi', {
+            where: { bolum_id }
+        });
+        const nextOrder = (maxSira || 0) + 1;
+
+        // 4. Dersi Veritabanına Kaydet
+        const newLesson = await Lesson.create({
+            bolum_id,
+            baslik,
+            video_saglayici_id: file.filename, // Multer'ın oluşturduğu dosya adı
+            sure_saniye: parseInt(sure_saniye) || 0,
+            onizleme_mi: onizleme_mi === 'true' || onizleme_mi === true,
+            sira_numarasi: nextOrder,
+            icerik_tipi: 'video'
+        });
+
+        // 5. Başarılı yanıt dön
         return res.status(200).json({
             success: true,
-            message: 'Kurs basariyla onaylandi.'
+            message: 'Video başarıyla yüklendi ve ders müfredata eklendi.',
+            data: newLesson
         });
+
     } catch (error) {
-        console.error('[ADMIN CONTROLLER] approveCourse error:', error.message);
+        console.error('[INSTRUCTOR CONTROLLER] Video yükleme hatası:', error.message);
         return res.status(500).json({
             success: false,
-            message: 'Kurs onaylanirken sunucu hatasi olustu.'
+            message: 'Video işlenirken sunucu tarafında bir hata oluştu.'
         });
     }
 };
