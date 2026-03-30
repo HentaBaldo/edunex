@@ -31,7 +31,7 @@ exports.register = async (req, res, next) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(sifre, saltRounds);
 
-        // 4. Ana Profil Oluşturma
+        // 4. Ana Profil Oluşturma (Admin rolü ile kayıt olunması imkansızlaştırıldı)
         const userRol = rol === 'egitmen' ? 'egitmen' : 'ogrenci';
         const newUser = await Profile.create(
             {
@@ -113,14 +113,21 @@ exports.login = async (req, res, next) => {
             throw error;
         }
 
-        // 4. Token Üretimi
+        // 🚨 4. GÜVENLİK DUVARI: Yöneticilerin genel portaldan girmesi engellendi
+        if (user.rol === 'admin') {
+            const error = new Error('Unauthorized access. Admins must use the secure admin portal.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // 5. Token Üretimi
         const token = jwt.sign(
             { id: user.id, rol: user.rol },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
         );
 
-        // 5. Başarılı Yanıt
+        // 6. Başarılı Yanıt
         return res.status(200).json({
             status: 'success',
             message: 'Login successful.',

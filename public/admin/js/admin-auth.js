@@ -1,17 +1,18 @@
 /**
  * EduNex Admin - Güvenlik ve Yetki Kontrolü
  */
-
 document.addEventListener('DOMContentLoaded', () => {
     checkAdminAccess();
 });
 
 function checkAdminAccess() {
-    const token = localStorage.getItem('edunex_token');
-    const userJson = localStorage.getItem('edunex_user');
+    // DOĞRU ANAHTARLAR: Admin portalında 'admin' takısı olanları kullanmalıyız
+    const token = localStorage.getItem('edunex_admin_token');
+    const userJson = localStorage.getItem('edunex_admin_user');
 
     if (!token || !userJson) {
-        window.location.replace('/auth/index.html');
+        // Eğer admin token'ı yoksa direkt admin girişine yönlendir
+        window.location.replace('/admin/login.html');
         return;
     }
 
@@ -25,7 +26,6 @@ function checkAdminAccess() {
             return;
         }
 
-        // Adminin adını arayüze yazdır (Eğer ilgili element varsa)
         const adminNameEl = document.getElementById('adminName');
         if (adminNameEl) {
             adminNameEl.innerText = `${user.ad} ${user.soyad}`;
@@ -33,13 +33,12 @@ function checkAdminAccess() {
 
     } catch (error) {
         console.error('[YETKİ HATASI] Kullanıcı verisi doğrulanamadı.');
-        localStorage.clear();
-        window.location.replace('/auth/index.html');
+        adminLogout();
     }
 }
 
 function adminLogout() {
-    localStorage.removeItem('edunex_token');
-    localStorage.removeItem('edunex_user');
-    window.location.replace('/auth/index.html');
+    localStorage.removeItem('edunex_admin_token');
+    localStorage.removeItem('edunex_admin_user');
+    window.location.replace('/admin/login.html');
 }
