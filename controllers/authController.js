@@ -113,7 +113,6 @@ exports.login = async (req, res, next) => {
             throw error;
         }
 
-        // 🚨 4. GÜVENLİK DUVARI: Yöneticilerin genel portaldan girmesi engellendi
         if (user.rol === 'admin') {
             const error = new Error('Unauthorized access. Admins must use the secure admin portal.');
             error.statusCode = 403;

@@ -1,5 +1,3 @@
-// public/instructor/js/modules/ui-helper.js
-
 export const UIHelper = {
     checkInstructorAccess() {
         const token = localStorage.getItem('edunex_token');
@@ -20,7 +18,9 @@ export const UIHelper = {
             return true;
         } catch (error) {
             console.error('[AUTH ERROR] Yetki kontrolü başarısız:', error.message);
-            localStorage.clear();
+            // KESİN ÇÖZÜM: Tüm hafızayı değil, sadece EduNex oturumunu siler
+            localStorage.removeItem('edunex_token');
+            localStorage.removeItem('edunex_user');
             window.location.href = '/auth/index.html';
             return false;
         }

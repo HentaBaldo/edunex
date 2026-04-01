@@ -8,8 +8,6 @@ const { Course, CourseSection, Lesson, Profile, Category } = db;
 exports.createCourse = async (req, res, next) => {
     try {
         const { baslik, alt_baslik, kategori_id, dil, seviye, fiyat, gereksinimler, kazanimlar } = req.body;
-        
-        // 🚨 KRİTİK DÜZELTME: req.kullanici yerine req.user.id kullanıldı
         const egitmen_id = req.user.id; 
 
         const newCourse = await Course.create({
@@ -70,7 +68,6 @@ exports.updateCourseStatus = async (req, res, next) => {
         const { id } = req.params;
         const { durum } = req.body;
         
-        // 🚨 KRİTİK DÜZELTME: req.kullanici yerine req.user.id kullanıldı
         const egitmen_id = req.user.id;
 
         const course = await Course.findOne({ where: { id, egitmen_id } });

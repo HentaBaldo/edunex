@@ -40,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       fiyat: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: true,
         defaultValue: 0,
       },

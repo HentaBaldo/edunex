@@ -14,41 +14,49 @@ function checkAuth() {
     
     // 1. Durum: Kullanıcı Giriş Yapmış
     if (token && userJson) {
+        let user;
+        
+        // Sadece JSON parse işlemini try-catch içine alıyoruz ki DOM hataları bizi sistemden atmasın
         try {
-            const user = JSON.parse(userJson);
-            
-            // Kişinin rolüne göre doğru paneli belirle
-            const dashboardLink = user.rol === 'egitmen' 
-                ? '/instructor/dashboard.html' 
-                : '/student/dashboard.html';
-
-            // YENİ: Hover ile açılan profil menüsü (Dropdown)
-            authContainer.innerHTML = `
-                <div class="user-dropdown">
-                    <button class="dropdown-trigger">
-                        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i> 
-                        ${user.ad} 
-                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 5px;"></i>
-                    </button>
-                    
-                    <div class="dropdown-content">
-                        <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
-                        <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
-                        <hr>
-                        <button onclick="logout()" class="text-danger"><i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap</button>
-                    </div>
-                </div>
-            `;
+            user = JSON.parse(userJson);
         } catch (error) {
             console.error('[HATA] Kullanıcı verisi okunamadı.');
             logout(); 
+            return;
         }
+        
+        // KRİTİK ÇÖZÜM: Navbar o sayfada yoksa veya henüz yüklenmediyse işlemi durdur, hata verme!
+        if (!authContainer) return;
+
+        // Kişinin rolüne göre doğru paneli belirle
+        const dashboardLink = user.rol === 'egitmen' 
+            ? '/instructor/dashboard.html' 
+            : '/student/dashboard.html';
+
+        authContainer.innerHTML = `
+            <div class="user-dropdown">
+                <button class="dropdown-trigger">
+                    <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i> 
+                    ${user.ad} 
+                    <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 5px;"></i>
+                </button>
+                
+                <div class="dropdown-content">
+                    <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
+                    <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
+                    <hr>
+                    <button onclick="logout()" class="text-danger"><i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap</button>
+                </div>
+            </div>
+        `;
     } 
     // 2. Durum: Kullanıcı Giriş YAPMAMIŞ (Ziyaretçi)
     else {
-        authContainer.innerHTML = `
-            <a href="/auth/index.html" class="btn-auth-blue">Giriş Yap / Kayıt Ol</a>
-        `;
+        if (authContainer) {
+            authContainer.innerHTML = `
+                <a href="/auth/index.html" class="btn-auth-blue">Giriş Yap / Kayıt Ol</a>
+            `;
+        }
     }
 }
 
@@ -57,6 +65,10 @@ function checkAuth() {
  */
 async function loadPublishedCourses() {
     const grid = document.getElementById('courseGrid');
+    
+    // KRİTİK ÇÖZÜM 2: Profil sayfası gibi kurs grid'i olmayan sayfalarda hata vermesini engeller
+    if (!grid) return; 
+
     grid.innerHTML = '<div class="loading-state"><p>Kurslar yükleniyor, lütfen bekleyin...</p></div>';
     
     try {
@@ -119,11 +131,15 @@ function logout() {
 window.allCategories = [];
 
 async function loadCategoriesForMenu() {
+    const parentList = document.getElementById('parentList');
+    
+    // KRİTİK ÇÖZÜM 3: Mega menü o an sayfada yoksa kod hata vermeden dursun
+    if (!parentList) return;
+
     try {
         const result = await ApiService.get('/categories');
         const categories = result.data || [];
         window.allCategories = categories;
-        const parentList = document.getElementById('parentList');
         
         const mainCategories = categories.filter(k => {
             const parentId = k.ust_kategori_id || k.ustKategoriId || k.KategoriId || k.parentId || k.parent_id || null;

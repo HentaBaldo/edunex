@@ -1,6 +1,6 @@
 /**
  * EduNex - Öğrenci Paneli (Student Dashboard Logic)
- * Version: 1.2
+ * Version: 1.3 (Universal Navbar Uyumlu)
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -25,13 +25,15 @@ function checkStudentAccess() {
             return false;
         }
         
-        // Arayüzdeki selamlamayı güncelle
-        document.getElementById('studentGreeting').innerHTML = `Merhaba, <strong>${user.ad}</strong>`;
+        // HATA VEREN SATIR SİLİNDİ. 
+        // Kullanıcı adını sağ üste yazdırma işini artık main.js ortak navbar üzerinden yapıyor.
+        
         return true;
 
     } catch (error) {
-        console.error('[AUTH ERROR] Geçersiz kullanıcı oturumu.');
-        localStorage.clear();
+        console.error('[AUTH ERROR] Geçersiz kullanıcı oturumu:', error);
+        localStorage.removeItem('edunex_token');
+        localStorage.removeItem('edunex_user');
         window.location.href = '/auth/index.html';
         return false;
     }
@@ -39,6 +41,7 @@ function checkStudentAccess() {
 
 async function loadEnrolledCourses() {
     const grid = document.getElementById('enrolledCourses');
+    if (!grid) return;
     
     try {
         // GELECEK PLAN: Backend hazır olduğunda bu satırı açacağız
@@ -93,7 +96,8 @@ function logout() {
     if (typeof ApiService !== 'undefined' && ApiService.logout) {
         ApiService.logout();
     } else {
-        localStorage.clear();
+        localStorage.removeItem('edunex_token');
+        localStorage.removeItem('edunex_user');
         window.location.href = '/auth/index.html';
     }
 }

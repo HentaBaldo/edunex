@@ -6,9 +6,8 @@ const { Category } = require('../models');
  */
 exports.getAllCategories = async (req, res, next) => {
     try {
-        // KISITLAMA KALDIRILDI: Artık 'ust_kategori_id' dahil tüm kolonlar gelecek
         const categories = await Category.findAll({
-            order: [['ad', 'ASC']] // Alfabetik sıralama devam ediyor
+            order: [['ad', 'ASC']]
         });
 
         // Standart Başarılı Yanıt Formatı
