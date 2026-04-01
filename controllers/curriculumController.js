@@ -1,24 +1,23 @@
-const { CourseSection, Lesson } = require('../models');
+const { CourseSection, Lesson, Course } = require('../models');
 
-/**
- * Yeni Bölüm Oluşturma
- * @route POST /api/curriculum/sections
- */
 exports.createSection = async (req, res, next) => {
     try {
         const { kurs_id, baslik, aciklama } = req.body;
+        const egitmen_id = req.user.id;
 
         if (!kurs_id || !baslik) {
-            const error = new Error('Course ID and title are required.');
+            const error = new Error('Kurs ID ve başlık zorunludur.');
             error.statusCode = 400;
             throw error;
         }
+        const course = await Course.findOne({ where: { id: kurs_id, egitmen_id } });
+        if (!course) {
+            const error = new Error('Bu kursa bölüm ekleme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
 
-        // Mevcut en yüksek sıra numarasını bul (Daha akıcı bir mantık)
-        const maxSira = await CourseSection.max('sira_numarasi', {
-            where: { kurs_id }
-        });
-
+        const maxSira = await CourseSection.max('sira_numarasi', { where: { kurs_id } });
         const nextOrder = (maxSira || 0) + 1;
 
         const section = await CourseSection.create({
@@ -29,8 +28,8 @@ exports.createSection = async (req, res, next) => {
         });
 
         return res.status(201).json({
-            status: 'success',
-            message: 'Section created successfully.',
+            success: true,
+            message: 'Bölüm başarıyla oluşturuldu.',
             data: section
         });
     } catch (error) {
@@ -38,24 +37,28 @@ exports.createSection = async (req, res, next) => {
     }
 };
 
-/**
- * Yeni Ders Oluşturma
- * @route POST /api/curriculum/lessons
- */
 exports.createLesson = async (req, res, next) => {
     try {
         const { bolum_id, baslik, icerik_tipi, kaynak_url, sure_saniye, onizleme_mi, aciklama } = req.body;
+        const egitmen_id = req.user.id;
 
         if (!bolum_id || !baslik) {
-            const error = new Error('Section ID and title are required.');
+            const error = new Error('Bölüm ID ve başlık zorunludur.');
             error.statusCode = 400;
             throw error;
         }
-
-        const maxSira = await Lesson.max('sira_numarasi', {
-            where: { bolum_id }
+        const section = await CourseSection.findOne({
+            where: { id: bolum_id },
+            include: [{ model: Course, where: { egitmen_id } }]
         });
 
+        if (!section) {
+            const error = new Error('Bu bölüme ders ekleme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        const maxSira = await Lesson.max('sira_numarasi', { where: { bolum_id } });
         const nextOrder = (maxSira || 0) + 1;
 
         const lesson = await Lesson.create({
@@ -70,8 +73,8 @@ exports.createLesson = async (req, res, next) => {
         });
 
         return res.status(201).json({
-            status: 'success',
-            message: 'Lesson added successfully.',
+            success: true,
+            message: 'Ders başarıyla eklendi.',
             data: lesson
         });
     } catch (error) {
@@ -79,64 +82,63 @@ exports.createLesson = async (req, res, next) => {
     }
 };
 
-/**
- * Bölüm Silme
- * @route DELETE /api/curriculum/sections/:id
- */
 exports.deleteSection = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const egitmen_id = req.user.id;
+        const section = await CourseSection.findOne({
+            where: { id },
+            include: [{ model: Course, where: { egitmen_id } }]
+        });
 
-        const deleted = await CourseSection.destroy({ where: { id } });
-
-        if (!deleted) {
-            const error = new Error('Section not found.');
+        if (!section) {
+            const error = new Error('Bölüm bulunamadı veya silme yetkiniz yok.');
             error.statusCode = 404;
             throw error;
         }
 
+        await section.destroy();
         return res.status(200).json({
-            status: 'success',
-            message: 'Section and its lessons deleted successfully.'
+            success: true,
+            message: 'Bölüm ve içindeki dersler başarıyla silindi.'
         });
     } catch (error) {
         next(error);
     }
 };
 
-/**
- * Ders Silme
- * @route DELETE /api/curriculum/lessons/:id
- */
 exports.deleteLesson = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const egitmen_id = req.user.id;
+        const lesson = await Lesson.findOne({
+            where: { id },
+            include: [{
+                model: CourseSection,
+                include: [{ model: Course, where: { egitmen_id } }]
+            }]
+        });
 
-        const deleted = await Lesson.destroy({ where: { id } });
-
-        if (!deleted) {
-            const error = new Error('Lesson not found.');
+        if (!lesson) {
+            const error = new Error('Ders bulunamadı veya silme yetkiniz yok.');
             error.statusCode = 404;
             throw error;
         }
 
+        await lesson.destroy();
+
         return res.status(200).json({
-            status: 'success',
-            message: 'Lesson deleted successfully.'
+            success: true,
+            message: 'Ders başarıyla silindi.'
         });
     } catch (error) {
         next(error);
     }
 };
 
-/**
- * Tüm Müfredatı Getir (Bölümler + Dersler)
- * @route GET /api/curriculum/:courseId
- */
 exports.getFullCurriculum = async (req, res, next) => {
     try {
         const { courseId } = req.params;
-
         const curriculum = await CourseSection.findAll({
             where: { kurs_id: courseId },
             include: [{
@@ -151,8 +153,8 @@ exports.getFullCurriculum = async (req, res, next) => {
         });
 
         return res.status(200).json({
-            status: 'success',
-            message: 'Full curriculum retrieved successfully.',
+            success: true,
+            message: 'Müfredat başarıyla getirildi.',
             data: curriculum
         });
     } catch (error) {

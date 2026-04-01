@@ -10,11 +10,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       egitmen_id: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
       },
       kategori_id: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
       },
       baslik: {
         type: DataTypes.STRING(255),
@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: '',
       },
       dil: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.ENUM('Turkce', 'Ingilizce'),
         allowNull: true,
         defaultValue: 'Turkce',
       },
@@ -69,4 +69,3 @@ module.exports = (sequelize, DataTypes) => {
 
   return Course;
 };
-

@@ -1,16 +1,9 @@
-const db = require('../models');
-const { Course, CourseSection, Lesson, Profile, Category } = db;
+const { Course, CourseSection, Lesson, Profile, Category } = require('../models');
 
-/**
- * Yeni Kurs Oluşturma (Taslak)
- * @route POST /api/courses
- */
 exports.createCourse = async (req, res, next) => {
     try {
         const { baslik, alt_baslik, kategori_id, dil, seviye, fiyat, gereksinimler, kazanimlar } = req.body;
-        
-        // 🚨 KRİTİK DÜZELTME: req.kullanici yerine req.user.id kullanıldı
-        const egitmen_id = req.user.id; 
+        const egitmen_id = req.user.id;
 
         const newCourse = await Course.create({
             egitmen_id,
@@ -27,21 +20,15 @@ exports.createCourse = async (req, res, next) => {
         });
 
         return res.status(201).json({
-            status: 'success',
-            message: 'Course created as draft successfully.',
-            data: {
-                id: newCourse.id
-            }
+            success: true,
+            message: 'Kurs taslak olarak oluşturuldu.',
+            data: { id: newCourse.id }
         });
     } catch (error) {
         next(error);
     }
 };
 
-/**
- * Eğitmenin Kendi Kurslarını Listelemesi
- * @route GET /api/courses/my-courses
- */
 exports.getMyCourses = async (req, res, next) => {
     try {
         const egitmen_id = req.user.id;
@@ -52,8 +39,8 @@ exports.getMyCourses = async (req, res, next) => {
         });
 
         return res.status(200).json({
-            status: 'success',
-            message: 'Instructor courses retrieved successfully.',
+            success: true,
+            message: 'Kurslarınız başarıyla getirildi.',
             data: courses
         });
     } catch (error) {
@@ -61,22 +48,15 @@ exports.getMyCourses = async (req, res, next) => {
     }
 };
 
-/**
- * Kurs Durumunu Güncelleme (Yayına al/Taslağa çek)
- * @route PATCH /api/courses/:id/status
- */
 exports.updateCourseStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { durum } = req.body;
-        
-        // 🚨 KRİTİK DÜZELTME: req.kullanici yerine req.user.id kullanıldı
         const egitmen_id = req.user.id;
 
         const course = await Course.findOne({ where: { id, egitmen_id } });
-
         if (!course) {
-            const error = new Error('Course not found or unauthorized.');
+            const error = new Error('Kurs bulunamadı veya bu işlem için yetkiniz yok.');
             error.statusCode = 404;
             throw error;
         }
@@ -85,18 +65,14 @@ exports.updateCourseStatus = async (req, res, next) => {
         await course.save();
 
         return res.status(200).json({
-            status: 'success',
-            message: `Course status updated to '${durum}' successfully.`
+            success: true,
+            message: `Kurs durumu '${durum}' olarak güncellendi.`
         });
     } catch (error) {
         next(error);
     }
 };
 
-/**
- * Tüm Yayınlanmış Kursları Getir (Ana Sayfa İçin)
- * @route GET /api/courses
- */
 exports.getAllPublishedCourses = async (req, res, next) => {
     try {
         const courses = await Course.findAll({
@@ -109,8 +85,8 @@ exports.getAllPublishedCourses = async (req, res, next) => {
         });
 
         return res.status(200).json({
-            status: 'success',
-            message: 'Published courses retrieved successfully.',
+            success: true,
+            message: 'Yayındaki kurslar başarıyla getirildi.',
             data: courses
         });
     } catch (error) {
@@ -118,10 +94,6 @@ exports.getAllPublishedCourses = async (req, res, next) => {
     }
 };
 
-/**
- * Tek Bir Kursun Tüm Detaylarını ve Müfredatını Getir
- * @route GET /api/courses/details/:id
- */
 exports.getCourseDetails = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -129,15 +101,15 @@ exports.getCourseDetails = async (req, res, next) => {
         const course = await Course.findOne({
             where: { id, durum: 'yayinda' },
             include: [
-                { 
-                    model: CourseSection, 
+                {
+                    model: CourseSection,
                     as: 'Sections',
-                    include: [{ model: Lesson, as: 'Lessons' }] 
+                    include: [{ model: Lesson, as: 'Lessons' }]
                 },
-                { 
-                    model: Profile, 
-                    as: 'Egitmen', 
-                    attributes: ['ad', 'soyad'] 
+                {
+                    model: Profile,
+                    as: 'Egitmen',
+                    attributes: ['ad', 'soyad']
                 }
             ],
             order: [
@@ -146,14 +118,14 @@ exports.getCourseDetails = async (req, res, next) => {
         });
 
         if (!course) {
-            const error = new Error('Course not found.');
+            const error = new Error('Kurs bulunamadı.');
             error.statusCode = 404;
             throw error;
         }
 
         return res.status(200).json({
-            status: 'success',
-            message: 'Course details retrieved successfully.',
+            success: true,
+            message: 'Kurs detayları başarıyla getirildi.',
             data: course
         });
     } catch (error) {

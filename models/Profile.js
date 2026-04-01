@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       rol: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.ENUM('ogrenci', 'egitmen', 'admin'),
         allowNull: false,
         defaultValue: 'ogrenci',
       },
@@ -86,4 +86,3 @@ module.exports = (sequelize, DataTypes) => {
 
   return Profile;
 };
-

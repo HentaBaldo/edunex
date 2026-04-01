@@ -45,6 +45,8 @@ const courseRoutes = require('./routes/courseRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const curriculumRoutes = require('./routes/curriculumRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
+const enrollmentRoutes = require('./routes/enrollmentRoutes');
 
 // Rota Baglamalari (Parametre ezilmelerini onlemek icin ozel rotalar ustte tanimlanabilir)
 app.use('/api/instructor', instructorRoutes);
@@ -52,7 +54,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/curriculum', curriculumRoutes);
+app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
 
 // --- 5. Root Redirection ---
 // Kok dizine gelen istekleri varsayilan ana sayfaya yonlendirir
