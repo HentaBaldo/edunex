@@ -42,12 +42,30 @@
 
 /* --- MEGA MENÜ STİLLERİ --- */
 .nav-item { position: relative; height: 100%; display: flex; align-items: center; }
-.nav-item::after { content: ""; position: absolute; top: 100%; left: 0; width: 100%; height: 25px; z-index: 5; }
+
+/* Menü ve Buton Arasındaki Köprü (Kapanmayı Engeller) */
+.mega-menu-trigger::after, .user-dropdown::after { 
+    content: ""; 
+    position: absolute; 
+    top: 100%; 
+    left: 0; 
+    width: 100%; 
+    height: 20px; /* Aradaki boşluğu kapatan görünmez alan */
+    z-index: 5; 
+}
 
 .mega-menu {
-    position: absolute; top: 50px; left: 0; background: #ffffff; display: none; 
-    border-radius: 12px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-color);
-    z-index: 1000; overflow: hidden; min-height: 300px;
+    position: absolute; 
+    top: 100%; /* Navbar'ın tam altına hizalandı */
+    left: 0; 
+    background: #ffffff; 
+    display: none; 
+    border-radius: 0 0 12px 12px; 
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-color);
+    z-index: 1000; 
+    overflow: hidden; 
+    min-height: 300px;
+    margin-top: -1px; /* Boşluk kalmaması için hafif yukarı çekildi */
 }
 .mega-menu-trigger:hover .mega-menu { display: flex; }
 
@@ -67,12 +85,23 @@
 .cat-item i { font-size: 0.7rem; color: #94a3b8; }
 
 /* --- Profil Dropdown --- */
-.user-dropdown { position: relative; display: inline-block; }
+.user-dropdown { position: relative; display: inline-block; padding: 10px 0; } /* Padding eklendi */
 .dropdown-trigger { background: none; border: none; font-weight: 600; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #1e293b; }
+
 .dropdown-content {
-    display: none; position: absolute; right: 0; top: 120%; background-color: white;
-    min-width: 180px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1); border-radius: 8px; z-index: 1; border: 1px solid #e2e8f0;
+    display: none; 
+    position: absolute; 
+    right: 0; 
+    top: 100%; /* 120%'den 100%'e çekildi, boşluk yok edildi */
+    background-color: white;
+    min-width: 180px; 
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1); 
+    border-radius: 8px; 
+    z-index: 1001; 
+    border: 1px solid #e2e8f0;
+    margin-top: 5px;
 }
+
 .user-dropdown:hover .dropdown-content { display: block; }
 .dropdown-content a, .dropdown-content button {
     color: #334155; padding: 12px 16px; text-decoration: none; display: block; width: 100%; text-align: left;

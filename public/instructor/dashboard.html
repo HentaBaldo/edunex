@@ -7,28 +7,18 @@
     
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
+    
+    <link rel="stylesheet" href="/main/css/main.css">
+    
     <link rel="stylesheet" href="/instructor/css/instructor-common.css">
     <link rel="stylesheet" href="/instructor/css/instructor-dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <header class="navbar">
-        <div class="container navbar-content">
-            <a href="/" class="logo" aria-label="EduNex Ana Sayfa">EduNex</a>
-            
-            <nav class="user-navigation" id="authNavContainer" aria-label="Kullanici Menusu">
-                <div class="user-info-wrapper">
-                    <i class="fas fa-user-circle user-icon" aria-hidden="true"></i>
-                    <span id="userName" class="user-greeting">Egitmen Paneli</span>
-                </div>
-                <button type="button" onclick="handleLogout()" class="btn-logout-alt" aria-label="Cikis Yap">
-                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Cikis Yap
-                </button>
-            </nav>
-        </div>
-    </header>
 
-    <main class="container dashboard-container">
+    <div id="navbar-container"></div>
+
+    <main class="container dashboard-container" style="margin-top: 40px;">
         
         <header class="page-header">
             <div class="header-text">
@@ -62,42 +52,11 @@
     </main>
 
     <script src="/assets/js/api.js"></script>
+    
+    <script src="/main/js/main.js"></script>
+    <script src="/main/js/loadNavbar.js"></script>
+    
     <script type="module" src="/instructor/js/instructor.js"></script>
     
-    <script>
-        /**
-         * Egitmen Panosu - Sayfa ici temel islevler
-         */
-
-        // Cikis islemini yonetir
-        function handleLogout() {
-            if (typeof ApiService !== 'undefined' && typeof ApiService.logout === 'function') {
-                ApiService.logout();
-            } else {
-                localStorage.clear();
-                window.location.href = '/auth/index.html';
-            }
-        }
-
-        // Sayfa yuklendiginde kullanici bilgilerini arayuze yansitir
-        document.addEventListener('DOMContentLoaded', () => {
-            const userNameElement = document.getElementById('userName');
-            const userJson = localStorage.getItem('edunex_user');
-            
-            if (userJson && userNameElement) {
-                try {
-                    const user = JSON.parse(userJson);
-                    if (user && user.ad) {
-                        // XSS korumasi icin textContent kullanilmaktadir
-                        userNameElement.textContent = `${user.ad} ${user.soyad || ''}`.trim();
-                    }
-                } catch (error) {
-                    console.error('[DASHBOARD] Kullanici verisi okunurken hata olustu:', error.message);
-                    // Hatali veriyi temizle
-                    localStorage.removeItem('edunex_user');
-                }
-            }
-        });
-    </script>
 </body>
 </html>

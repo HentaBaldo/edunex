@@ -1,4 +1,5 @@
 import { UIHelper } from './modules/ui-helper.js';
+
 /**
  * EduNex Egitmen - Dashboard Isleyisi (Instructor Dashboard Logic)
  * Egitmenin oturum kontrolunu yapar ve kurslarini listeler.
@@ -72,17 +73,5 @@ async function loadInstructorCourses() {
                 Hata: ${error.message}
             </div>
         `;
-    }
-}
-
-/**
- * Egitmen oturumunu kapatir ve giris sayfasina yonlendirir.
- */
-function logout() {
-    if (typeof ApiService !== 'undefined' && typeof ApiService.logout === 'function') {
-        ApiService.logout();
-    } else {
-        localStorage.clear();
-        window.location.href = '/auth/index.html';
     }
 }

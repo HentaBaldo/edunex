@@ -1,0 +1,120 @@
+/* EduNex Profil Sayfası Özel Stilleri */
+
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --bg-light: #f8f9fa;
+    --white: #ffffff;
+    --border-color: #dee2e6;
+    --text-dark: #212529;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+}
+
+/* Profil Kartı ve Fotoğrafı */
+.profile-card {
+    border: none;
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+}
+
+.profile-header-img {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 5px solid var(--white);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-top: -20px;
+}
+
+/* Menü (Tab) Stilleri */
+.list-group-item {
+    border: none;
+    padding: 12px 20px;
+    margin-bottom: 5px;
+    border-radius: 10px !important;
+    transition: all 0.2s ease;
+}
+
+.list-group-item.active {
+    background-color: var(--primary-color);
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2);
+}
+
+.list-group-item:hover:not(.active) {
+    background-color: #e9ecef;
+    color: var(--primary-color);
+}
+
+/* Form Alanları */
+.form-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    margin-bottom: 8px;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+    border-color: var(--primary-color);
+}
+
+/* Bölüm Başlıkları */
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    border-left: 4px solid var(--primary-color);
+    padding-left: 15px;
+    margin-bottom: 25px;
+}
+
+/* Sosyal Medya İkon Grupları */
+.input-group-text {
+    background-color: var(--bg-light);
+    border-right: none;
+    color: var(--secondary-color);
+}
+
+.input-group .form-control {
+    border-left: none;
+}
+
+/* Switch (Gizlilik) Ayarları */
+.form-check-input:checked {
+    background-color: #198754; /* Başarılı yeşil */
+    border-color: #198754;
+}
+
+/* Kaydet Butonu Animasyonu */
+.btn-primary {
+    border-radius: 8px;
+    padding: 12px 30px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
+}
+
+/* Dinamik Alan Geçişleri */
+#egitmen_ozel, #ogrenci_ozel {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
