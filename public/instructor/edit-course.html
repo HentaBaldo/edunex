@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Kurs Yonetimi</title>
+    <title>EduNex - Kurs Yönetimi</title>
     
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/instructor/css/instructor-common.css">
+    <link rel="stylesheet" href="/instructor/css/instructor.css">
     <link rel="stylesheet" href="/instructor/css/instructor-forms.css">
     <link rel="stylesheet" href="/instructor/css/instructor-edit.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -17,8 +17,10 @@
         <div class="container navbar-content">
             <a href="/" class="logo">EduNex</a>
             <nav class="nav-actions">
-                <a href="/instructor/dashboard.html" class="nav-link"><i class="fas fa-arrow-left"></i> Panoya Don</a>
-                <button type="button" onclick="logout()" class="btn-logout-alt">Cikis Yap</button>
+                <a href="/instructor/dashboard.html" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> Panoya Dön
+                </a>
+                <button type="button" onclick="handleLogout()" class="btn-logout-alt">Çıkış Yap</button>
             </nav>
         </div>
     </header>
@@ -26,124 +28,127 @@
     <main class="container dashboard-container">
         <div class="edit-course-layout">
             
+            <!-- Sidebar Menu -->
             <aside class="sidebar-aside">
                 <nav class="sidebar-menu">
-                    <button type="button" class="active" onclick="switchTab('mufredat')">
-                        <i class="fas fa-list-ul"></i> Mufredat Yonetimi
+                    <button type="button" class="active" onclick="window.switchTab('mufredat')">
+                        <i class="fas fa-list-ul"></i> Müfredat Yönetimi
                     </button>
-                    <button type="button" onclick="switchTab('ayarlar')">
-                        <i class="fas fa-cog"></i> Kurs Ayarlari
+                    <button type="button" onclick="window.switchTab('ayarlar')">
+                        <i class="fas fa-cog"></i> Kurs Ayarları
                     </button>
                 </nav>
             </aside>
 
+            <!-- Content Area -->
             <section class="content-area">
                 
+                <!-- Müfredat Tab -->
                 <article id="mufredat" class="tab-content active form-card">
-                    <div class="tab-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px;">
+                    <div class="tab-header">
                         <div>
-                            <h2 class="form-section-title" style="border:none; margin:0; padding:0;">Kurs Mufredati</h2>
-                            <p class="subtitle" style="font-size: 0.9rem; margin-top: 5px;">Kursunuzu bolumlere ayirin ve icerik ekleyin.</p>
+                            <h2 class="form-section-title">Kurs Müfredatı</h2>
+                            <p class="subtitle">Kursunuzu bölümlere ayırın ve içerik ekleyin.</p>
                         </div>
-                        <button type="button" onclick="sendCourseForApproval()" class="btn-primary-lg-alt" style="background-color: #10b981;">
-                            <i class="fas fa-paper-plane"></i> Onaya Gonder
+                        <button type="button" onclick="window.sendCourseForApproval()" class="btn-primary-lg-alt btn-send-approval">
+                            <i class="fas fa-paper-plane"></i> Onaya Gönder
                         </button>
                     </div>
                     
-                    <div style="margin-bottom: 25px;">
-                        <button type="button" class="btn-primary-lg-alt" onclick="showSectionModal()">
-                            <i class="fas fa-folder-plus"></i> Yeni Bolum Ekle
+                    <div class="add-section-btn-wrapper">
+                        <button type="button" class="btn-primary-lg-alt" onclick="window.showSectionModal()">
+                            <i class="fas fa-folder-plus"></i> Yeni Bölüm Ekle
                         </button>
                     </div>
 
                     <div id="mufredatListesi" class="curriculum-container">
-                        <p style="text-align:center; padding: 30px; color:#64748b;">Mufredat yukleniyor...</p>
+                        <p class="loading-text">Müfredat yükleniyor...</p>
                     </div>
                 </article>
 
-                <article id="ayarlar" class="tab-content form-card" style="display: none;">
-                    <h2 class="form-section-title">Kurs Ayarlari</h2>
-                    <p class="subtitle">Fiyatlandirma, yayin durumu ve diger temel ayarlar yakinda buraya eklenecek.</p>
+                <!-- Ayarlar Tab -->
+                <article id="ayarlar" class="tab-content form-card">
+                    <h2 class="form-section-title">Kurs Ayarları</h2>
+                    <p class="subtitle">Fiyatlandırma, yayın durumu ve diğer temel ayarlar yakında buraya eklenecek.</p>
                 </article>
 
             </section>
         </div>
     </main>
 
+    <!-- Bölüm Ekleme Modalı -->
     <div id="bolumEkleModal" class="modal-overlay">
         <div class="modal-box">
-            <h3 style="margin-bottom: 15px; color:#0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Yeni Bolum Olustur</h3>
-            <form id="bolumEkleForm">
+            <h3 class="modal-title">Yeni Bölüm Oluştur</h3>
+            <form id="bolumEkleForm" class="modal-form">
                 <div class="form-group">
-                    <label for="bolum_baslik" class="form-label">Bolum Basligi</label>
+                    <label for="bolum_baslik" class="form-label">Bölüm Başlığı</label>
                     <input type="text" id="bolum_baslik" class="form-control" placeholder="Orn: Modul 1: Temel Kavramlar" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="bolum_aciklama" class="form-label">Bolum Aciklamasi (Istege Bagli)</label>
-                    <textarea id="bolum_aciklama" class="form-control" rows="3" placeholder="Ogrenciler bu bolumde ne ogrenecek?"></textarea>
+                    <label for="bolum_aciklama" class="form-label">Bölüm Açıklaması (İsteğe Bağlı)</label>
+                    <textarea id="bolum_aciklama" class="form-control" rows="3" placeholder="Öğrenciler bu bölümde ne öğrenecek?"></textarea>
                 </div>
 
-                <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 10px;">
-                    <button type="submit" class="btn-primary-lg-alt" style="padding: 8px 16px; font-size: 0.9rem;">Kaydet</button>
-                    <button type="button" onclick="closeSectionModal()" class="btn-logout-alt" style="border-color:#64748b; color:#64748b; padding: 8px 16px;">Iptal</button>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
+                    <button type="button" onclick="window.closeSectionModal()" class="btn-logout-alt">İptal</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- Ders Ekleme Modalı -->
     <div id="dersEkleModal" class="modal-overlay">
         <div class="modal-box">
-            <h3 style="margin-bottom: 15px; color:#0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Yeni Ders Ekle</h3>
-            <form id="dersEkleForm">
+            <h3 class="modal-title">Yeni Ders Ekle</h3>
+            <form id="dersEkleForm" class="modal-form">
                 <input type="hidden" id="secili_bolum_id">
                 
                 <div class="form-group">
-                    <label for="ders_baslik" class="form-label">Ders Basligi</label>
-                    <input type="text" id="ders_baslik" class="form-control" required placeholder="Orn: Degiskenler ve Veri Tipleri">
+                    <label for="ders_baslik" class="form-label">Ders Başlığı</label>
+                    <input type="text" id="ders_baslik" class="form-control" required placeholder="Orn: Değişkenler ve Veri Tipleri">
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="video_dosyasi">Video Dosyasi Sec (.mp4, .mov)</label>
-                        <input type="file" id="video_dosyasi" accept="video/*" required>
+                        <label for="icerik_tipi" class="form-label">İçerik Tipi</label>
+                        <select id="icerik_tipi" class="form-control">
+                            <option value="video">Video</option>
+                            <option value="metin">Metin</option>
+                            <option value="quiz">Quiz</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label for="sure_saniye" class="form-label">Sure (Saniye)</label>
+                        <label for="sure_saniye" class="form-label">Süre (Saniye)</label>
                         <input type="number" id="sure_saniye" class="form-control" value="0" min="0">
                     </div>
                 </div>
-
+                <div class="form-group" id="dosya_yukleme_grubu">
+                    <label for="ders_dosyasi" class="form-label">Ders Dosyası (Video / Belge)</label>
+                    <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/webm,application/pdf,.doc,.docx,.txt">
+                    <small style="color: #64748b; margin-top: 5px; display: block;">Lütfen seçtiğiniz içerik tipine uygun bir dosya yükleyin.</small>
+                </div>
                 <div class="form-group">
-                    <label for="kaynak_url" class="form-label">Kaynak Linki (Ekstra Materyal)</label>
+                    <label for="kaynak_url" class="form-label">Kaynak Linki</label>
                     <input type="url" id="kaynak_url" class="form-control" placeholder="Orn: Github linki veya ek PDF">
                 </div>
 
-                <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="onizleme_mi" style="width: 18px; height: 18px; cursor: pointer;">
-                    <label for="onizleme_mi" style="margin: 0; font-weight: 500; color: #475569; cursor: pointer;">Bu dersi "Ucretsiz Onizleme"ye ac</label>
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" id="onizleme_mi">
+                    <label for="onizleme_mi">Bu dersi "Ücretsiz Önizleme"ye aç</label>
                 </div>
 
-                <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 10px;">
-                    <button type="submit" class="btn-primary-lg-alt" style="padding: 8px 16px; font-size: 0.9rem;">Videoyu Yukle ve Kaydet</button>
-                    <button type="button" onclick="closeLessonModal()" class="btn-logout-alt" style="border-color:#64748b; color:#64748b; padding: 8px 16px;">Iptal</button>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
+                    <button type="button" onclick="window.closeLessonModal()" class="btn-logout-alt">İptal</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="confirmModal" class="modal-overlay">
-        <div class="modal-box" style="text-align: center; max-width: 400px;">
-            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f59e0b; margin-bottom: 15px;"></i>
-            <h3 id="confirmTitle" style="margin-bottom: 10px;">Emin misiniz?</h3>
-            <p id="confirmMessage" style="color: #64748b; margin-bottom: 25px;">Bu islem geri alinamaz.</p>
-            
-            <div style="display: flex; justify-content: center; gap: 15px;">
-                <button type="button" id="confirmBtn" class="btn-logout-alt" style="background:#dc3545; color:white; border-color:#dc3545;">Evet, Sil</button>
-                <button type="button" onclick="closeConfirmModal()" class="btn-logout-alt" style="border-color:#64748b; color:#64748b;">Iptal</button>
-            </div>
-        </div>
-    </div>
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="/assets/js/api.js"></script>
     <script type="module" src="/instructor/js/edit-course.js"></script>

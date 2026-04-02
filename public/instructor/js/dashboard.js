@@ -1,57 +1,170 @@
 /**
- * Egitmen panosunda (dashboard) yer alan kurs listesini DOM uzerine cizer.
- * Veri dizisini (array) isleyerek HTML kartlarina donusturur.
- * * @param {Array} courses - Egitmene ait kurs verilerini iceren dizi.
+ * EduNex - Eğitmen Panosu (Dashboard)
+ * Backend'den kursları çeken ve dinamik olarak render eden modül
  */
-function renderCourses(courses) {
-    const grid = document.getElementById('courseList');
+
+import { UIHelper } from './modules/ui-helper.js';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Oturum doğrula
+    if (!UIHelper.checkInstructorAccess()) return;
     
-    // DOM elemani bulunamazsa isleme devam etme (Guvenlik Kontrolu)
-    if (!grid) {
-        console.warn('[INSTRUCTOR DASHBOARD] "courseList" ID\'li kapsayici eleman DOM uzerinde bulunamadi.');
+    // Kursları yükle
+    await loadMyCourses();
+});
+
+/**
+ * Backend'den eğitmenin kurslarını çekip render eder
+ */
+async function loadMyCourses() {
+    const courseListDiv = document.getElementById('courseList');
+    if (!courseListDiv) {
+        console.warn('[DASHBOARD] courseList DOM element bulunamadı.');
         return;
     }
 
-    // Veri bos veya tanimsiz ise standart bos durum (empty state) goster
-    if (!Array.isArray(courses) || courses.length === 0) {
-        grid.innerHTML = `
-            <div style="grid-column: 1/-1; text-align:center; padding: 40px; border: 2px dashed #cbd5e1; border-radius: 8px;">
-                <i class="fas fa-book" style="font-size: 2rem; color: #94a3b8; margin-bottom: 10px;" aria-hidden="true"></i>
-                <p style="color: #475569; font-weight: 500; margin: 0;">Henuz bir kurs eklemediniz.</p>
-            </div>
-        `;
-        return;
+    try {
+        // API çağrısı
+        const result = await ApiService.get('/courses/my-courses');
+        const courses = result.data || [];
+
+        if (courses.length === 0) {
+            renderEmptyState(courseListDiv);
+            return;
+        }
+
+        // Kursları render et
+        courseListDiv.innerHTML = '';
+        courses.forEach(course => {
+            const card = createCourseCard(course);
+            courseListDiv.insertAdjacentHTML('beforeend', card);
+        });
+
+    } catch (error) {
+        console.error('[DASHBOARD] Kurslar yüklenemedi:', error.message);
+        renderErrorState(courseListDiv, error.message);
     }
-
-    // Kurs verilerini donerek (map) HTML kartlarini olustur
-    grid.innerHTML = courses.map(course => {
-        // Durum kontrolu: Backend'den boolean veya string gelme ihtimaline karsi esnek yapi
-        const isPublished = course.yayinlandi === true || course.durum === 'yayinda';
-        const statusClass = isPublished ? 'badge-published' : 'badge-draft';
-        const statusText = isPublished ? 'Yayinda' : 'Taslak';
-        
-        // Gecersiz veriler icin varsayilan atamalar (Fallback)
-        const categoryName = (course.Category && course.Category.ad) ? course.Category.ad : 'Genel';
-        const courseTitle = course.baslik || 'Isimsiz Kurs';
-
-        return `
-            <div class="course-card-alt">
-                <div class="course-card-body">
-                    <span class="course-badge ${statusClass}">${statusText}</span>
-                    <h3 class="course-card-title" style="margin: 10px 0; font-size: 1.1rem;">${courseTitle}</h3>
-                    <p style="font-size: 0.85rem; color: #64748b; margin: 0;">
-                        <i class="fas fa-tag" aria-hidden="true"></i> ${categoryName}
-                    </p>
-                </div>
-                <div class="course-card-actions" style="display: flex; gap: 10px; margin-top: 15px;">
-                    <a href="/instructor/edit-course.html?id=${course.id}" class="btn-action" aria-label="${courseTitle} kursunu duzenle" style="flex: 1; background: #e2e8f0; color: #475569; text-decoration: none; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; text-align: center; font-weight: 500;">
-                        Duzenle
-                    </a>
-                    <a href="/course-detail.html?id=${course.id}" class="btn-action" aria-label="${courseTitle} kursunu onizle" style="flex: 1; background: #2563eb; color: white; text-decoration: none; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; text-align: center; font-weight: 500;">
-                        Onizle
-                    </a>
-                </div>
-            </div>
-        `;
-    }).join('');
 }
+
+/**
+ * Boş durum render eder
+ */
+function renderEmptyState(container) {
+    container.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-book-open"></i>
+            <h3>Henüz bir kurs oluşturmadınız</h3>
+            <p>Uzmanlığınızı paylaşmaya başlamak için ilk kursunuzu oluşturun.</p>
+            <a href="/instructor/create-course.html" class="btn-primary-lg-alt">
+                <i class="fas fa-plus"></i> Yeni Kurs Oluştur
+            </a>
+        </div>
+    `;
+}
+
+/**
+ * Hata durumu render eder
+ */
+function renderErrorState(container, message) {
+    container.innerHTML = `
+        <div class="error-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Hata: ${message}</p>
+            <button onclick="location.reload()" class="btn-primary-lg-alt" style="margin-top: 15px;">
+                <i class="fas fa-redo"></i> Tekrar Dene
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Kurs kartı HTML'i oluşturur
+ */
+function createCourseCard(course) {
+    const statusClass = `badge-${course.durum}`;
+    const statusLabel = getStatusLabel(course.durum);
+    const categoryName = course.Category?.ad || 'Genel';
+    const sectionCount = course.Sections?.length || 0;
+    const priceDisplay = course.fiyat > 0 
+        ? `${parseFloat(course.fiyat).toFixed(2)} ₺` 
+        : 'Ücretsiz';
+
+    return `
+        <div class="course-card-alt" data-course-id="${course.id}">
+            <div class="course-card-body">
+                <span class="course-badge ${statusClass}">
+                    <i class="${getStatusIcon(course.durum)}"></i>
+                    ${statusLabel}
+                </span>
+                <h3 class="course-card-title">${escapeHtml(course.baslik)}</h3>
+                <div class="course-card-info">
+                    <span>
+                        <i class="fas fa-folder-open"></i> 
+                        ${sectionCount} bölüm
+                    </span>
+                    <span>
+                        <i class="fas fa-tag"></i> 
+                        ${escapeHtml(categoryName)}
+                    </span>
+                    <span>
+                        <i class="fas fa-wallet"></i> 
+                        ${priceDisplay}
+                    </span>
+                </div>
+            </div>
+            <div class="course-card-actions">
+                <a href="/instructor/edit-course.html?id=${course.id}" class="btn-edit-link" title="Kursu yönet">
+                    <i class="fas fa-cog"></i> Yönet
+                </a>
+                <a href="/main/course-detail.html?id=${course.id}" class="btn-view-link" title="Kursu önizle">
+                    <i class="fas fa-eye"></i> Önizle
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Durum etiketi döndürür
+ */
+function getStatusLabel(durum) {
+    const labels = {
+        'taslak': 'TASLAK',
+        'onay_bekliyor': 'ONAY BEKLİYOR',
+        'onaylandi': 'ONAYLANDI',
+        'yayinda': 'YAYINDA',
+        'arsiv': 'ARŞİV'
+    };
+    return labels[durum] || 'BİLİNMİYOR';
+}
+
+/**
+ * Durum ikonu döndürür
+ */
+function getStatusIcon(durum) {
+    const icons = {
+        'taslak': 'fas fa-file-alt',
+        'onay_bekliyor': 'fas fa-hourglass-half',
+        'onaylandi': 'fas fa-check-circle',
+        'yayinda': 'fas fa-rocket',
+        'arsiv': 'fas fa-archive'
+    };
+    return icons[durum] || 'fas fa-question-circle';
+}
+
+/**
+ * HTML escape eder
+ */
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Global erişim
+window.loadMyCourses = loadMyCourses;

@@ -207,3 +207,40 @@ exports.approveCourse = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Kursu Reddetme İşlemi
+ * @route PUT /api/admin/courses/:id/reject
+ */
+exports.rejectCourse = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { red_sebebi } = req.body;
+
+        if (!red_sebebi || red_sebebi.trim() === '') {
+            const error = new Error('Red sebebi belirtilmelidir.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const [updatedRows] = await Course.update(
+            { durum: 'taslak' },
+            { where: { id, durum: 'onay_bekliyor' } }
+        );
+
+        if (updatedRows === 0) {
+            const error = new Error('Reddedilecek kurs bulunamadı veya zaten işlem yapılmış.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Kurs reddedildi ve taslağa geri alındı.',
+            data: { red_sebebi }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};

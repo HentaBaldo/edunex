@@ -30,7 +30,19 @@ export const CurriculumActions = {
 
     async sendForApproval(courseId) {
         if (!confirm("Kursu yönetici onayına göndermek istediğinize emin misiniz?")) return false;
-        await ApiService.put(`/courses/${courseId}/status`, { durum: 'onay_bekliyor' });
-        return true;
+        
+        try {
+            const result = await ApiService.put(`/courses/${courseId}/status`, { 
+                durum: 'onay_bekliyor' 
+            });
+            
+            if (result.status === 'success') {
+                alert('✓ Kursu başarıyla onaya gönderdininiz. Lütfen yönetici onayını bekleyiniz.');
+                return true;
+            }
+        } catch (error) {
+            alert('✗ Hata: ' + error.message);
+            return false;
+        }
     }
 };

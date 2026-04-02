@@ -33,5 +33,6 @@ router.get('/courses/:id', adminController.getCourseDetail);
 // --- Course Actions ---
 // RESTful mimaride bir kaydi guncellemek (onaylamak) icin PUT veya PATCH kullanilir.
 router.put('/courses/:id/approve', adminController.approveCourse);
+router.put('/courses/:id/reject', adminController.rejectCourse);
 
 module.exports = router;

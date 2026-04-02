@@ -1,9 +1,9 @@
 /**
- * EduNex Egitmen - Dashboard Master CSS
- * Kurs listeleme, kart tasarimlari ve ana pano yerlesimi.
+ * EduNex Instructor Dashboard - Complete Stylesheet
+ * Eğitmen panosu için grid, kart, badge ve responsive tasarım
  */
 
-/* --- Sayfa Temeli ve Konteyner --- */
+/* --- Dashboard Container --- */
 .dashboard-container {
     max-width: 1200px;
     margin: 40px auto;
@@ -11,23 +11,23 @@
     box-sizing: border-box;
 }
 
-/* --- Sayfa Basligi ve Aksiyon Alani --- */
+/* --- Page Header --- */
 .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* Merkeze hizalama iyilestirildi */
-    margin-bottom: 40px;
+    align-items: flex-start;
     padding-bottom: 25px;
     border-bottom: 1px solid #e2e8f0;
-    flex-wrap: wrap; /* Mobil uyum icin eklendi */
+    margin-bottom: 40px;
+    flex-wrap: wrap;
     gap: 20px;
 }
 
 .header-text h1 {
     font-size: 2.25rem;
+    font-weight: 800;
     color: #1e293b;
     margin: 0 0 8px 0;
-    font-weight: 800;
 }
 
 .subtitle {
@@ -36,29 +36,35 @@
     margin: 0;
 }
 
-/* --- Bolum Basliklari --- */
+.header-actions {
+    display: flex;
+    gap: 15px;
+}
+
+/* --- Section Header --- */
 .section-header-alt {
     margin-bottom: 30px;
 }
 
 .section-title {
     font-size: 1.5rem;
+    font-weight: 700;
     color: #0f172a;
     display: flex;
     align-items: center;
     gap: 12px;
-    font-weight: 700;
+    margin: 0;
 }
 
 .section-line {
     height: 3px;
     width: 60px;
-    background-color: var(--primary-color, #2563eb);
+    background-color: #2563eb;
     margin-top: 8px;
     border-radius: 99px;
 }
 
-/* --- Kurs Grid Sistemi --- */
+/* --- Course Grid --- */
 .course-management-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -66,17 +72,17 @@
     width: 100%;
 }
 
-/* --- Kurs Karti Tasarimi --- */
+/* --- Course Card --- */
 .course-card-alt {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 16px; /* Daha yumusak koseler */
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     height: 100%;
-    overflow: hidden; /* Kenar tasmasini onler */
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .course-card-alt:hover {
@@ -89,34 +95,63 @@
     flex-grow: 1;
 }
 
-/* Kart Durum Rozeti (Badge) */
+/* --- Status Badge --- */
 .course-badge {
     display: inline-block;
     padding: 5px 14px;
     border-radius: 999px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 16px;
+    border: 1px solid;
 }
 
-.badge-published { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-.badge-draft { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.badge-taslak {
+    background-color: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
 
+.badge-onay_bekliyor {
+    background-color: #fed7aa;
+    color: #92400e;
+    border-color: #fdba74;
+}
+
+.badge-onaylandi {
+    background-color: #dbeafe;
+    color: #075985;
+    border-color: #bae6fd;
+}
+
+.badge-yayinda {
+    background-color: #dcfce7;
+    color: #15803d;
+    border-color: #bbf7d0;
+}
+
+.badge-arsiv {
+    background-color: #e5e7eb;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+/* --- Course Title --- */
 .course-card-title {
     font-size: 1.25rem;
     font-weight: 700;
     color: #1e293b;
     margin-bottom: 12px;
     line-height: 1.5;
-    /* Uzun basliklari 2 satirda sinirla */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
+/* --- Course Info --- */
 .course-card-info {
     font-size: 0.9rem;
     color: #64748b;
@@ -131,7 +166,7 @@
     gap: 8px;
 }
 
-/* --- Kart Alti Islem Butonlari --- */
+/* --- Card Actions --- */
 .course-card-actions {
     padding: 16px 24px;
     background: #f8fafc;
@@ -140,7 +175,8 @@
     gap: 12px;
 }
 
-.course-card-actions a {
+.btn-edit-link,
+.btn-view-link {
     flex: 1;
     display: inline-flex;
     align-items: center;
@@ -151,6 +187,8 @@
     font-size: 0.85rem;
     font-weight: 600;
     text-decoration: none;
+    border: none;
+    cursor: pointer;
     transition: all 0.2s ease;
 }
 
@@ -167,7 +205,7 @@
 
 .btn-view-link {
     background: #2563eb;
-    color: #ffffff !important;
+    color: #ffffff;
 }
 
 .btn-view-link:hover {
@@ -175,7 +213,7 @@
     box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
 }
 
-/* --- Yukleniyor Durumu (Spinner) --- */
+/* --- Loading State --- */
 .loading-state {
     grid-column: 1 / -1;
     display: flex;
@@ -201,19 +239,83 @@
     100% { transform: rotate(360deg); }
 }
 
-/* --- Responsive Ayarlar --- */
+/* --- Empty State --- */
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 40px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.empty-state i {
+    font-size: 3.5rem;
+    color: #cbd5e1;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.empty-state h3 {
+    color: #475569;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0 0 10px 0;
+}
+
+.empty-state p {
+    color: #94a3b8;
+    font-size: 1rem;
+    margin: 0 0 25px 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.empty-state .btn-primary-lg-alt {
+    display: inline-flex;
+}
+
+/* --- Error State --- */
+.error-state {
+    grid-column: 1 / -1;
+    padding: 40px;
+    text-align: center;
+    border: 2px solid #fecaca;
+    border-radius: 12px;
+    background: #fef2f2;
+}
+
+.error-state i {
+    font-size: 2.5rem;
+    color: #ef4444;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.error-state p {
+    color: #991b1b;
+    font-weight: 500;
+    margin: 10px 0;
+}
+
+/* --- Responsive --- */
 @media (max-width: 768px) {
     .page-header {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .header-actions {
         width: 100%;
     }
-    
+
     .header-actions a {
         width: 100%;
-        text-align: center;
+        justify-content: center;
+    }
+
+    .course-management-grid {
+        grid-template-columns: 1fr;
     }
 }
