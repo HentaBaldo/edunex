@@ -72,6 +72,7 @@ function initCreateCourseForm() {
         const payload = {
             baslik: document.getElementById('baslik')?.value.trim() || '',
             alt_baslik: document.getElementById('alt_baslik')?.value.trim() || '',
+            aciklama: document.getElementById('aciklama')?.value.trim() || '',
             kategori_id: document.getElementById('kategori_id')?.value || '',
             dil: document.getElementById('dil')?.value || '',
             seviye: document.getElementById('seviye')?.value || '',

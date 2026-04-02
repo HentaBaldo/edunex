@@ -222,3 +222,49 @@
     transform: translateY(0);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+/* Unenroll Butonu */
+.btn-unenroll {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-unenroll:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+/* Hata Mesajı */
+.error-message-container {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    border: 2px solid #fecaca;
+    border-radius: 8px;
+    background: #fef2f2;
+}
+
+/* Retry Butonu */
+.btn-retry {
+    background: #3b82f6;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.btn-retry:hover {
+    background: #2563eb;
+}
