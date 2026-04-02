@@ -1,7 +1,11 @@
 /**
  * EduNex - Kurs Detay Mantığı (Course Detail Logic)
- * Oturum yönetimi ve Navbar senkronizasyonu eklenmiş versiyon.
+ * Version: 2.0 (Enrollment Sistemi Entegre)
+ * Oturum yönetimi, Navbar senkronizasyonu ve Kursa Kayıt özelliği eklenmiş versiyon.
  */
+
+let currentCourseId = null;
+let currentUserToken = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Navbar'daki giriş durumunu kontrol et
@@ -15,6 +19,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    currentCourseId = courseId;
+    currentUserToken = localStorage.getItem('edunex_token');
+
     try {
         const result = await ApiService.get(`/courses/details/${courseId}`);
         const course = result.data;
@@ -26,6 +33,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('courseSubTitle').innerText = course.alt_baslik || '';
         document.getElementById('courseInstructor').innerHTML = `<i class="fas fa-chalkboard-teacher"></i> Eğitmen: ${course.Egitmen.ad} ${course.Egitmen.soyad}`;
         document.getElementById('coursePrice').innerText = course.fiyat > 0 ? `${course.fiyat} ₺` : 'Ücretsiz';
+
+        // Enroll butonuna event listener ekle
+        const enrollBtn = document.getElementById('enrollBtn');
+        if (enrollBtn) {
+            enrollBtn.addEventListener('click', handleEnrollClick);
+        }
+
+        // Öğrenci zaten kayıtlı mı kontrol et
+        if (currentUserToken) {
+            await checkEnrollmentStatus(courseId);
+        }
 
         const curriculumDiv = document.getElementById('curriculumList');
         curriculumDiv.innerHTML = ''; // Yükleniyor yazısını temizle
@@ -67,25 +85,176 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
+ * Öğrencinin bu kursa zaten kayıtlı olup olmadığını kontrol et
+ * ✅ REAL DATA: /api/enrollments/:courseId endpoint'ine GET isteği
+ * @param {string} courseId - Kontrol edilecek kurs ID'si
+ */
+async function checkEnrollmentStatus(courseId) {
+    try {
+        const result = await ApiService.get(`/enrollments/${courseId}`);
+        
+        if (result.status === 'success' && result.data) {
+            // Öğrenci zaten kayıtlı
+            const enrollBtn = document.getElementById('enrollBtn');
+            if (enrollBtn) {
+                enrollBtn.textContent = '✓ Kayıtlısınız';
+                enrollBtn.disabled = true;
+                enrollBtn.style.backgroundColor = '#10b981';
+                enrollBtn.style.cursor = 'default';
+            }
+        }
+    } catch (error) {
+        // 404 gelecek (kayıtlı değil), bu normal
+        if (error.message.includes('404')) {
+            console.log('Öğrenci bu kursa kayıtlı değil');
+        } else {
+            console.warn('Enrollment status kontrol hatası:', error.message);
+        }
+    }
+}
+
+/**
+ * Enroll butonuna tıklandığında çalışan ana fonksiyon
+ * ✅ REAL DATA: /api/enrollments endpoint'ine POST isteği
+ */
+async function handleEnrollClick() {
+    // Giriş kontrolü
+    const token = localStorage.getItem('edunex_token');
+    if (!token) {
+        alert('Kursa kaydolmak için lütfen giriş yapınız.');
+        window.location.href = '/auth/index.html';
+        return;
+    }
+
+    const enrollBtn = document.getElementById('enrollBtn');
+    
+    // Çift tıklamayı engelle
+    if (enrollBtn.disabled) {
+        return;
+    }
+
+    // Buton durumunu "Kaydediliyor..." olarak değiştir
+    const originalText = enrollBtn.textContent;
+    enrollBtn.disabled = true;
+    enrollBtn.textContent = '⏳ Kaydediliyor...';
+
+    try {
+        // ✅ BACKEND API ÇAĞRISI: Kursa kayıt et
+        const result = await ApiService.post('/enrollments', {
+            kurs_id: currentCourseId
+        });
+
+        if (result.status === 'success') {
+            // Başarılı kayıt
+            enrollBtn.textContent = '✓ Kayıtlısınız';
+            enrollBtn.style.backgroundColor = '#10b981';
+            enrollBtn.disabled = true;
+
+            // Kullanıcıyı bilgilendir
+            showSuccessToast(result.message || 'Kursa başarıyla kaydoldunuz!');
+
+            // 2 saniye sonra öğrenci paneline yönlendir
+            setTimeout(() => {
+                window.location.href = '/student/dashboard.html';
+            }, 2000);
+        }
+    } catch (error) {
+        // Hata yönetimi
+        console.error('[ENROLL ERROR]', error.message);
+
+        // Unique constraint hatası (zaten kayıtlı)
+        if (error.message.includes('Zaten bu kursa kayıtlısınız')) {
+            enrollBtn.textContent = '✓ Kayıtlısınız';
+            enrollBtn.style.backgroundColor = '#10b981';
+            enrollBtn.disabled = true;
+            showErrorToast('Zaten bu kursa kayıtlısınız.');
+        } 
+        // Kurs bulunamadı
+        else if (error.message.includes('Kurs bulunamadı')) {
+            showErrorToast('Kurs bulunamadı veya yayında değildir.');
+        }
+        // Diğer hatalar
+        else {
+            showErrorToast(`Kayıt işlemi başarısız: ${error.message}`);
+            enrollBtn.textContent = originalText;
+            enrollBtn.disabled = false;
+        }
+    }
+}
+
+/**
+ * Başarı toast mesajı göster
+ * @param {string} message - Gösterilecek mesaj
+ */
+function showSuccessToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-weight: 500;
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = '✓ ' + message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+/**
+ * Hata toast mesajı göster
+ * @param {string} message - Gösterilecek hata mesajı
+ */
+function showErrorToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ef4444;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-weight: 500;
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = '✗ ' + message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+/**
  * Kullanıcı oturum durumunu kontrol eder ve Navbar'ı günceller
  * Bu mantık main.js'den referans alınmıştır
  */
 function checkAuth() {
     const token = localStorage.getItem('edunex_token');
     const userJson = localStorage.getItem('edunex_user');
-    // course-detail.html'deki navigasyon konteynerini seçiyoruz
     const authContainer = document.querySelector('.nav-actions');
     
     if (token && userJson && authContainer) {
         try {
             const user = JSON.parse(userJson);
             
-            // Kullanıcının rolüne göre doğru paneli belirle
             const dashboardLink = user.rol === 'egitmen' 
                 ? '/instructor/dashboard.html' 
                 : '/student/dashboard.html';
 
-            // Navbar'ı giriş yapmış kullanıcıya göre düzenle
             authContainer.innerHTML = `
                 <div class="user-dropdown">
                     <button class="dropdown-trigger">
@@ -112,7 +281,7 @@ function checkAuth() {
 }
 
 /**
- * Oturumu kapatır ve sayfayı yeniler
+ * Oturumu kapatır
  */
 function logout() {
     if (typeof ApiService !== 'undefined' && ApiService.logout) {
@@ -122,3 +291,30 @@ function logout() {
         window.location.reload();
     }
 }
+
+// Toast animasyonları için CSS
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);

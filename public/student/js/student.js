@@ -1,6 +1,6 @@
 /**
  * EduNex - Öğrenci Paneli (Student Dashboard Logic)
- * Version: 1.3 (Universal Navbar Uyumlu)
+ * Version: 2.0 (Enrollment Sistemi Entegre)
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -25,9 +25,6 @@ function checkStudentAccess() {
             return false;
         }
         
-        // HATA VEREN SATIR SİLİNDİ. 
-        // Kullanıcı adını sağ üste yazdırma işini artık main.js ortak navbar üzerinden yapıyor.
-        
         return true;
 
     } catch (error) {
@@ -39,18 +36,28 @@ function checkStudentAccess() {
     }
 }
 
+/**
+ * Backend'den öğrencinin kayıtlı olduğu kursları çeker ve görüntüler
+ * ✅ REAL DATA: /api/enrollments/my-courses endpoint'ine GET isteği
+ */
 async function loadEnrolledCourses() {
     const grid = document.getElementById('enrolledCourses');
     if (!grid) return;
     
     try {
-        // GELECEK PLAN: Backend hazır olduğunda bu satırı açacağız
-        // const result = await ApiService.get('/enrollments/my-courses');
-        // const courses = result.data || [];
-        
-        // Şimdilik Backend enrollment sistemi olmadığı için boş bir dizi simüle ediyoruz
-        const courses = []; 
+        // Yükleniyor durumunu göster
+        grid.innerHTML = `
+            <div class="loading-state">
+                <div class="spinner" aria-hidden="true"></div>
+                <p>Kurslarınız yükleniyor...</p>
+            </div>
+        `;
 
+        // ✅ BACKEND API ÇAĞRISI: Öğrencinin kayıtlı olduğu tüm kursları getir
+        const result = await ApiService.get('/enrollments/my-courses');
+        const courses = result.data || [];
+        
+        // Eğer kurs yoksa boş durum göster
         if (courses.length === 0) {
             grid.innerHTML = `
                 <div class="empty-message-container">
@@ -61,25 +68,45 @@ async function loadEnrolledCourses() {
             return;
         }
 
+        // ✅ RENDER: Kursları grid yapısında göster
         grid.innerHTML = ''; 
 
-        // İleride kurslar geldiğinde bu şablon kullanılacak
-        courses.forEach(course => {
+        courses.forEach(enrollment => {
+            // Course bilgisini enrollment'tan çıkar
+            const course = enrollment.Course;
+            const instructor = course.Egitmen;
+            const progress = enrollment.ilerleme_yuzdesi || 0;
+
             const card = `
                 <div class="student-course-card">
-                    <div class="course-img-placeholder">🎓</div>
+                    <div class="course-img-placeholder">
+                        <i class="fas fa-play-circle" style="font-size: 2rem; color: #3b82f6;"></i>
+                    </div>
                     <div class="card-body">
-                        <h3 class="course-title">${course.baslik}</h3>
-                        <p class="instructor-name">Eğitmen: ${course.Egitmen.ad}</p>
+                        <h3 class="course-title">${course.baslik || 'Başlıksız Kurs'}</h3>
+                        <p class="instructor-name">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            ${instructor ? `${instructor.ad} ${instructor.soyad}` : 'Bilinmeyen Eğitmen'}
+                        </p>
+                        <p class="course-level" style="font-size: 0.85rem; color: #64748b; margin: 5px 0;">
+                            <i class="fas fa-signal"></i> ${course.seviye || 'Temel'}
+                        </p>
                         
                         <div class="progress-wrapper">
                             <div class="progress-bar-bg">
-                                <div class="progress-bar-fill" style="width: 0%;"></div>
+                                <div class="progress-bar-fill" style="width: ${progress}%;"></div>
                             </div>
-                            <span class="progress-text">%0 Tamamlandı</span>
+                            <span class="progress-text">%${progress} Tamamlandı</span>
                         </div>
                         
-                        <a href="/student/course-player.html?id=${course.id}" class="btn-continue">Öğrenmeye Devam Et</a>
+                        <div class="card-actions">
+                            <a href="/student/course-player.html?id=${course.id}" class="btn-continue">
+                                <i class="fas fa-play"></i> Öğrenmeye Devam Et
+                            </a>
+                            <button onclick="unenrollCourse('${course.id}')" class="btn-unenroll" title="Kurstan Ayrıl">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -88,7 +115,37 @@ async function loadEnrolledCourses() {
 
     } catch (error) {
         console.error("[FETCH ERROR] Kayıtlı kurslar yüklenemedi:", error.message);
-        grid.innerHTML = `<p class="error-message">Hata: ${error.message}</p>`;
+        grid.innerHTML = `
+            <div class="error-message-container">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #ef4444;"></i>
+                <p class="error-message">Hata: ${error.message}</p>
+                <button onclick="loadEnrolledCourses()" class="btn-retry">Tekrar Dene</button>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Öğrenciyi bir kurstan çıkarır (Kaydı iptal eder)
+ * ✅ REAL DATA: /api/enrollments/:courseId endpoint'ine DELETE isteği
+ * @param {string} courseId - Kurstan ayrılacak kursun ID'si
+ */
+async function unenrollCourse(courseId) {
+    if (!confirm('Kurstan ayrılmak istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+        return;
+    }
+
+    try {
+        const result = await ApiService.delete(`/enrollments/${courseId}`);
+        
+        if (result.status === 'success') {
+            alert('Kurs kaydı başarıyla iptal edildi.');
+            // Sayfayı yenile
+            await loadEnrolledCourses();
+        }
+    } catch (error) {
+        console.error("[UNENROLL ERROR]", error.message);
+        alert('Kurstan ayrılırken hata oluştu: ' + error.message);
     }
 }
 

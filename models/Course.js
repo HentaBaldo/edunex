@@ -45,9 +45,10 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 0,
       },
       durum: {
-        type: DataTypes.ENUM('taslak', 'onay_bekliyor', 'onaylandi', 'yayinda'),
+        type: DataTypes.ENUM('taslak', 'onay_bekliyor', 'onaylandi', 'yayinda', 'arsiv'),
         allowNull: false,
         defaultValue: 'taslak',
+        comment: 'Kurs durumu: taslak (taslak), onay_bekliyor (yönetici onayını bekliyor), onaylandi (onaylanmış), yayinda (yayında), arsiv (arşiv)'
       },
       olusturulma_tarihi: {
         type: DataTypes.DATE,
@@ -69,4 +70,3 @@ module.exports = (sequelize, DataTypes) => {
 
   return Course;
 };
-

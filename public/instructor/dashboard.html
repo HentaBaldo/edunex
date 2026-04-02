@@ -3,32 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Egitmen Panosu</title>
+    <title>EduNex - Eğitmen Panosu</title>
     
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
-    
     <link rel="stylesheet" href="/main/css/main.css">
-    
-    <link rel="stylesheet" href="/instructor/css/instructor-common.css">
+    <link rel="stylesheet" href="/instructor/css/instructor.css">
     <link rel="stylesheet" href="/instructor/css/instructor-dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
-    <div id="navbar-container"></div>
+    <header class="navbar">
+        <div class="container navbar-content">
+            
+            <div class="nav-left">
+                <a href="/" class="logo">EduNex</a>
+                
+                <div class="nav-item mega-menu-trigger">
+                    <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></span>
+                    
+                    <div class="mega-menu" id="megaMenu">
+                        <div class="menu-col">
+                            <h4>Kategoriler</h4>
+                            <div id="parentList" class="menu-list">
+                                <p style="padding: 10px 20px; color: #64748b;">Yükleniyor...</p>
+                            </div>
+                        </div>
+                        <div class="menu-col" id="childCol" style="display: none;">
+                            <h4>Alt Kategoriler</h4>
+                            <div id="childList" class="menu-list"></div>
+                        </div>
+                        <div class="menu-col" id="grandChildCol" style="display: none;">
+                            <h4>Popüler Konular</h4>
+                            <div id="grandChildList" class="menu-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <main class="container dashboard-container" style="margin-top: 40px;">
+            <div class="nav-middle">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Geleceğinizi şekillendirecek kursu arayın...">
+                </div>
+            </div>
+
+            <div class="nav-right">
+                <a href="/instructor/dashboard.html" class="nav-text-link" style="color: var(--primary-color); font-weight: bold;">Eğitmen Paneli</a>
+                <div id="authNavContainer"></div>
+            </div>
+
+        </div>
+    </header>
+
+    <main class="dashboard-container">
         
         <header class="page-header">
             <div class="header-text">
-                <h1>Egitmen Panosu</h1>
-                <p class="subtitle">Kurslarinizi, iceriklerinizi ve ogrenci istatistiklerinizi buradan yonetebilirsiniz.</p>
+                <h1>Eğitmen Panosu</h1>
+                <p class="subtitle">Kurslarınızı, içeriklerinizi ve öğrenci istatistiklerinizi buradan yönetebilirsiniz.</p>
             </div>
             
             <div class="header-actions">
-                <a href="/instructor/create-course.html" class="btn-primary-lg-alt" aria-label="Yeni Kurs Olustur">
-                    <i class="fas fa-plus" aria-hidden="true"></i> Yeni Kurs Olustur
+                <a href="/instructor/create-course.html" class="btn-primary-lg-alt" aria-label="Yeni Kurs Oluştur">
+                    <i class="fas fa-plus"></i> Yeni Kurs Oluştur
                 </a>
             </div>
         </header>
@@ -36,27 +75,24 @@
         <section class="courses-section" aria-labelledby="courses-title">
             <div class="section-header-alt">
                 <h2 id="courses-title" class="section-title">
-                    <i class="fas fa-book-open" aria-hidden="true"></i> Yayindaki ve Taslak Kurslarim
+                    <i class="fas fa-book-open"></i> Kurslarım
                 </h2>
                 <div class="section-line"></div>
             </div>
 
             <div id="courseList" class="course-management-grid">
                 <div class="loading-state">
-                    <div class="spinner" aria-hidden="true"></div>
-                    <p>Kurslariniz hazirlaniyor...</p>
+                    <div class="spinner"></div>
+                    <p>Kurslarınız yükleniyor...</p>
                 </div>
             </div>
         </section>
-
     </main>
 
+    <div id="toastContainer" class="toast-container"></div>
+
     <script src="/assets/js/api.js"></script>
-    
     <script src="/main/js/main.js"></script>
-    <script src="/main/js/loadNavbar.js"></script>
-    
-    <script type="module" src="/instructor/js/instructor.js"></script>
-    
+    <script type="module" src="/instructor/js/dashboard.js"></script>
 </body>
 </html>

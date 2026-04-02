@@ -1,34 +1,40 @@
-const db = require('../models');
-const { Course, CourseSection, Lesson, Profile, Category } = db;
+const { Course, Profile, CourseSection, Lesson } = require('../models');
 
 /**
- * Yeni Kurs Oluşturma (Taslak)
- * @route POST /api/courses
+ * Tüm Kursları Getir (Sayfalama ile)
+ * @route GET /api/courses
  */
-exports.createCourse = async (req, res, next) => {
+exports.getAllCourses = async (req, res, next) => {
     try {
-        const { baslik, alt_baslik, kategori_id, dil, seviye, fiyat, gereksinimler, kazanimlar } = req.body;
-        const egitmen_id = req.user.id; 
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+        const offset = (page - 1) * limit;
 
-        const newCourse = await Course.create({
-            egitmen_id,
-            kategori_id,
-            baslik,
-            alt_baslik,
-            dil,
-            seviye,
-            fiyat,
-            gereksinimler,
-            kazanimlar,
-            durum: 'taslak',
-            olusturulma_tarihi: new Date()
+        const { count, rows } = await Course.findAndCountAll({
+            where: { durum: 'yayinda' },
+            include: [
+                { 
+                    model: Profile, 
+                    as: 'Egitmen', 
+                    attributes: ['ad', 'soyad'] 
+                }
+            ],
+            limit,
+            offset,
+            order: [['olusturulma_tarihi', 'DESC']]
         });
 
-        return res.status(201).json({
+        const totalPages = Math.ceil(count / limit);
+
+        return res.status(200).json({
             status: 'success',
-            message: 'Course created as draft successfully.',
-            data: {
-                id: newCourse.id
+            message: 'Courses retrieved successfully.',
+            data: rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalCourses: count,
+                coursesPerPage: limit
             }
         });
     } catch (error) {
@@ -37,15 +43,27 @@ exports.createCourse = async (req, res, next) => {
 };
 
 /**
- * Eğitmenin Kendi Kurslarını Listelemesi
+ * Eğitmen Tarafından Oluşturulan Kursları Getir
  * @route GET /api/courses/my-courses
  */
-exports.getMyCourses = async (req, res, next) => {
+exports.getInstructorCourses = async (req, res, next) => {
     try {
-        const egitmen_id = req.user.id;
+        const instructorId = req.user.id;
 
         const courses = await Course.findAll({
-            where: { egitmen_id },
+            where: { egitmen_id: instructorId },
+            include: [
+                { 
+                    model: Profile, 
+                    as: 'Egitmen',
+                    attributes: ['ad', 'soyad'] 
+                },
+                {
+                    model: CourseSection,
+                    as: 'Sections',
+                    attributes: ['id', 'baslik']
+                }
+            ],
             order: [['olusturulma_tarihi', 'DESC']]
         });
 
@@ -60,55 +78,35 @@ exports.getMyCourses = async (req, res, next) => {
 };
 
 /**
- * Kurs Durumunu Güncelleme (Yayına al/Taslağa çek)
- * @route PATCH /api/courses/:id/status
+ * Yeni Kurs Oluştur
+ * @route POST /api/courses
  */
-exports.updateCourseStatus = async (req, res, next) => {
+exports.createCourse = async (req, res, next) => {
     try {
-        const { id } = req.params;
-        const { durum } = req.body;
-        
+        const { baslik, aciklama, kategori_id, fiyat, zorluk_seviyesi } = req.body;
         const egitmen_id = req.user.id;
 
-        const course = await Course.findOne({ where: { id, egitmen_id } });
-
-        if (!course) {
-            const error = new Error('Course not found or unauthorized.');
-            error.statusCode = 404;
+        // Validasyon
+        if (!baslik || !aciklama || !kategori_id) {
+            const error = new Error('Başlık, açıklama ve kategori gereklidir.');
+            error.statusCode = 400;
             throw error;
         }
 
-        course.durum = durum;
-        await course.save();
-
-        return res.status(200).json({
-            status: 'success',
-            message: `Course status updated to '${durum}' successfully.`
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-/**
- * Tüm Yayınlanmış Kursları Getir (Ana Sayfa İçin)
- * @route GET /api/courses
- */
-exports.getAllPublishedCourses = async (req, res, next) => {
-    try {
-        const courses = await Course.findAll({
-            where: { durum: 'yayinda' },
-            include: [
-                { model: Category, attributes: ['ad'] },
-                { model: Profile, as: 'Egitmen', attributes: ['ad', 'soyad'] }
-            ],
-            order: [['olusturulma_tarihi', 'DESC']]
+        const course = await Course.create({
+            baslik,
+            aciklama,
+            kategori_id,
+            egitmen_id,
+            fiyat: fiyat || 0,
+            zorluk_seviyesi: zorluk_seviyesi || 'orta',
+            durum: 'taslak'
         });
 
-        return res.status(200).json({
+        return res.status(201).json({
             status: 'success',
-            message: 'Published courses retrieved successfully.',
-            data: courses
+            message: 'Kurs başarıyla oluşturuldu.',
+            data: course
         });
     } catch (error) {
         next(error);
@@ -143,15 +141,275 @@ exports.getCourseDetails = async (req, res, next) => {
         });
 
         if (!course) {
-            const error = new Error('Course not found.');
+            const error = new Error('Kurs bulunamadı.');
             error.statusCode = 404;
             throw error;
         }
 
         return res.status(200).json({
             status: 'success',
-            message: 'Course details retrieved successfully.',
+            message: 'Kurs detayları başarıyla alındı.',
             data: course
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Kurs Bilgilerini Güncelle
+ * @route PUT /api/courses/:id
+ * YETKİ KONTROLÜ EKLENDI
+ */
+exports.updateCourse = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const { baslik, aciklama, kategori_id, fiyat, zorluk_seviyesi, durum, resim } = req.body;
+
+        // Kursun sahibini kontrol et
+        const course = await Course.findOne({
+            where: { id },
+            attributes: ['id', 'egitmen_id', 'baslik', 'aciklama', 'kategori_id', 'fiyat', 'zorluk_seviyesi', 'durum', 'resim']
+        });
+
+        if (!course) {
+            const error = new Error('Kurs bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // YETKİ KONTROLÜ: Kursun sahibi mi kontrol et
+        if (course.egitmen_id !== userId) {
+            const error = new Error('Bu kurs üzerinde işlem yapma yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // Güncellenecek alanları hazırla
+        const updateData = {};
+        if (baslik !== undefined) updateData.baslik = baslik;
+        if (aciklama !== undefined) updateData.aciklama = aciklama;
+        if (kategori_id !== undefined) updateData.kategori_id = kategori_id;
+        if (fiyat !== undefined) updateData.fiyat = fiyat;
+        if (zorluk_seviyesi !== undefined) updateData.zorluk_seviyesi = zorluk_seviyesi;
+        if (durum !== undefined) updateData.durum = durum;
+        if (resim !== undefined) updateData.resim = resim;
+
+        await course.update(updateData);
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Kurs başarıyla güncellendi.',
+            data: course
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Kurs Durumunu Değiştir (Taslak -> Onay Bekliyor -> Onaylandı -> Yayında -> Arşiv)
+ * @route PUT /api/courses/:id/status
+ * ✅ YETKİ KONTROLÜ + GÜNCELLENEN VALIDASYON
+ */
+exports.updateCourseStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const { durum } = req.body;
+
+        // ✅ GÜNCELLENEN: Model'deki ENUM'a uygun olarak tüm durumlar
+        const validStatuses = ['taslak', 'onay_bekliyor', 'onaylandi', 'yayinda', 'arsiv'];
+        
+        if (!validStatuses.includes(durum)) {
+            const error = new Error(`Geçersiz kurs durumu. İzin verilen durumlar: ${validStatuses.join(', ')}`);
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Kursun sahibini kontrol et
+        const course = await Course.findOne({
+            where: { id },
+            attributes: ['id', 'egitmen_id', 'durum', 'baslik']
+        });
+
+        if (!course) {
+            const error = new Error('Kurs bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // ✅ YETKİ KONTROLÜ: Kursun sahibi mi kontrol et
+        if (course.egitmen_id !== userId) {
+            const error = new Error('Bu kurs üzerinde işlem yapma yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // ✅ DURUM DEĞİŞİM KURALLARI: Geçerli durum geçişlerini kontrol et
+        const validTransitions = {
+            'taslak': ['onay_bekliyor', 'arsiv'],
+            'onay_bekliyor': ['taslak', 'onaylandi', 'arsiv'],
+            'onaylandi': ['yayinda', 'arsiv', 'taslak'],
+            'yayinda': ['arsiv'],
+            'arsiv': ['taslak']
+        };
+
+        if (validTransitions[course.durum] && !validTransitions[course.durum].includes(durum)) {
+            const error = new Error(
+                `"${course.durum}" durumundan "${durum}" durumuna geçiş yapılamaz. ` +
+                `İzin verilen geçişler: ${validTransitions[course.durum].join(', ')}`
+            );
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Güncelle
+        await course.update({ durum });
+
+        return res.status(200).json({
+            status: 'success',
+            message: `Kurs durumu "${durum}" olarak güncellendi.`,
+            data: { 
+                id: course.id, 
+                baslik: course.baslik,
+                durum: course.durum 
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+/**
+ * Yayında olan Tüm Kursları Getir (Sayfalama ile)
+ * @route GET /api/courses/published
+ */
+exports.getAllPublishedCourses = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+        const offset = (page - 1) * limit;
+
+        const { count, rows } = await Course.findAndCountAll({
+            where: { durum: 'yayinda' },  // Sadece yayında olanlar
+            include: [
+                { 
+                    model: Profile, 
+                    as: 'Egitmen', 
+                    attributes: ['ad', 'soyad'] 
+                }
+            ],
+            limit,
+            offset,
+            order: [['olusturulma_tarihi', 'DESC']]
+        });
+
+        const totalPages = Math.ceil(count / limit);
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Published courses retrieved successfully.',
+            data: rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalCourses: count,
+                coursesPerPage: limit
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Kurs Sil
+ * @route DELETE /api/courses/:id
+ * YETKİ KONTROLÜ EKLENDI
+ */
+exports.deleteCourse = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Kursun sahibini kontrol et
+        const course = await Course.findOne({
+            where: { id },
+            attributes: ['id', 'egitmen_id', 'baslik']
+        });
+
+        if (!course) {
+            const error = new Error('Kurs bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // YETKİ KONTROLÜ: Kursun sahibi mi kontrol et
+        if (course.egitmen_id !== userId) {
+            const error = new Error('Bu kurs üzerinde işlem yapma yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // Kursun bölümlerini sil (cascade silme)
+        await CourseSection.destroy({
+            where: { kurs_id: id }
+        });
+
+        // Kursu sil
+        await course.destroy();
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Kurs başarıyla silindi.',
+            data: { id: course.id }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Kurs İstatistiklerini Getir (Öğrenci Sayısı, Derecelendirme vb.)
+ * @route GET /api/courses/:id/stats
+ * YETKİ KONTROLÜ EKLENDI
+ */
+exports.getCourseStats = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Kursun sahibini kontrol et
+        const course = await Course.findOne({
+            where: { id },
+            attributes: ['id', 'egitmen_id']
+        });
+
+        if (!course) {
+            const error = new Error('Kurs bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // YETKİ KONTROLÜ: Kursun sahibi mi kontrol et
+        if (course.egitmen_id !== userId) {
+            const error = new Error('Bu kurs üzerinde işlem yapma yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // İstatistik verilerini topla (Model ve veri yapınıza göre uyarla)
+        const stats = {
+            toplam_ogrenci: 0, // Enrollment sayısı
+            ortalama_puan: 0,
+            toplam_dersin_sayisi: 0
+        };
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Kurs istatistikleri başarıyla alındı.',
+            data: stats
         });
     } catch (error) {
         next(error);

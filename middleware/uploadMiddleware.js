@@ -23,19 +23,45 @@ const storage = multer.diskStorage({
     }
 });
 
-// Sadece resim dosyalarına izin ver
+// Sadece izin verilen MIME türleri
+const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Sadece izin verilen dosya uzantıları
+const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+// Güvenlik açısından iyileştirilmiş fileFilter
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('Lütfen sadece resim dosyası (JPG, PNG vb.) yükleyin.'), false);
+    // 1. MIME type kontrolü (whitelist)
+    if (!allowedMimes.includes(file.mimetype)) {
+        return cb(new Error('Geçersiz dosya türü. Sadece JPEG, PNG ve WebP destekleniyor.'), false);
     }
+    
+    // 2. Dosya uzantısı kontrolü (spoofing saldırılarını engelle)
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+        return cb(new Error(`Geçersiz dosya uzantısı: ${ext}. Sadece .jpg, .jpeg, .png, .webp destekleniyor.`), false);
+    }
+    
+    // 3. MIME type ile uzantı uyuşması kontrolü
+    const mimeToExt = {
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/webp': ['.webp']
+    };
+    
+    if (!mimeToExt[file.mimetype].includes(ext)) {
+        return cb(new Error('Dosya adı ile MIME type uyuşmuyor. Dosya tahrif edilmiş olabilir.'), false);
+    }
+    
+    cb(null, true);
 };
 
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Maksimum 5 MB
-    fileFilter: fileFilter
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB sınırı
+    }
 });
 
 module.exports = upload;
