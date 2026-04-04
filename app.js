@@ -44,6 +44,7 @@ const curriculumRoutes = require('./routes/curriculumRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const courseEnrollmentRoutes = require('./routes/courseEnrollmentRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
 
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/auth', authRoutes);
