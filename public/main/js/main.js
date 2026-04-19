@@ -288,11 +288,20 @@ function renderCourseCard(course) {
 /**
  * Giriş yapmış öğrenciye kişiselleştirilmiş kurs önerileri yükle
  * @route GET /api/recommendations/personalized
+ * 
+ * ✅ FIX: recommendedGrid olmayan sayfalarda hata vermez
  */
 async function loadPersonalizedRecommendations() {
+    const recommendedGrid = document.getElementById('recommendedGrid');
+    
+    // ✅ DOM KONTROLÜ: Element yoksa fonksiyonu durdur
+    if (!recommendedGrid) {
+        console.log('[RECOMMENDATIONS] recommendedGrid bu sayfada yok, atlaniyor.');
+        return;
+    }
+
     const token = localStorage.getItem('edunex_token');
     const recommendedSection = document.getElementById('recommendedSection');
-    const recommendedGrid = document.getElementById('recommendedGrid');
 
     // Giriş yapmamışsa bölümü gizle
     if (!token) {
@@ -346,9 +355,17 @@ async function loadPersonalizedRecommendations() {
 /**
  * Trend olan (en çok kayıtlı) kursları yükle
  * @route GET /api/recommendations/trending
+ * 
+ * ✅ FIX: trendingGrid olmayan sayfalarda hata vermez
  */
 async function loadTrendingCourses() {
     const trendingGrid = document.getElementById('trendingGrid');
+
+    // ✅ DOM KONTROLÜ: Element yoksa fonksiyonu durdur
+    if (!trendingGrid) {
+        console.log('[RECOMMENDATIONS] trendingGrid bu sayfada yok, atlaniyor.');
+        return;
+    }
 
     try {
         console.log('[RECOMMENDATIONS] Trending kurslar yükleniyor...');
@@ -390,9 +407,17 @@ async function loadTrendingCourses() {
 /**
  * En yüksek puanlı kursları yükle
  * @route GET /api/recommendations/top-rated
+ * 
+ * ✅ FIX: topRatedGrid olmayan sayfalarda hata vermez
  */
 async function loadTopRatedCourses() {
     const topRatedGrid = document.getElementById('topRatedGrid');
+
+    // ✅ DOM KONTROLÜ: Element yoksa fonksiyonu durdur
+    if (!topRatedGrid) {
+        console.log('[RECOMMENDATIONS] topRatedGrid bu sayfada yok, atlaniyor.');
+        return;
+    }
 
     try {
         console.log('[RECOMMENDATIONS] Top-rated kurslar yükleniyor...');
