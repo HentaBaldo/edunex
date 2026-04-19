@@ -6,7 +6,21 @@
 document.addEventListener('DOMContentLoaded', async () => {
     if (!checkStudentAccess()) return;
     await loadEnrolledCourses();
+    loadDashboardCartBadge();
 });
+
+async function loadDashboardCartBadge() {
+    const badge = document.getElementById('dashCartBadge');
+    if (!badge) return;
+    try {
+        const r = await ApiService.get('/cart');
+        const c = r?.data?.kalem_sayisi || 0;
+        if (c > 0) {
+            badge.textContent = c > 99 ? '99+' : String(c);
+            badge.style.display = 'inline-block';
+        }
+    } catch (_) { /* sessiz */ }
+}
 
 function checkStudentAccess() {
     const token = localStorage.getItem('edunex_token');
