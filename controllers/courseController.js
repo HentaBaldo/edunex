@@ -913,7 +913,7 @@ exports.updateLesson = async (req, res, next) => {
         if (sure_saniye !== undefined) updateData.sure_saniye = sure_saniye;
         if (onizleme_mi !== undefined) updateData.onizleme_mi = onizleme_mi;
         if (sira_numarasi !== undefined) updateData.sira_numarasi = sira_numarasi;
-        if (icelik_tipi !== undefined) updateData.icerik_tipi = icelik_tipi;
+        if (icerik_tipi !== undefined) updateData.icerik_tipi = icelik_tipi;
         if (kaynak_url !== undefined) updateData.kaynak_url = kaynak_url;
 
         await lesson.update(updateData);

@@ -1,67 +1,85 @@
+/**
+ * EduNex Upload Middleware
+ * FormData ve dosya yüklemeleri için Multer konfigürasyonu
+ */
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Kayıt edilecek klasör yolu (public/uploads/avatars)
-const uploadDir = path.join(__dirname, '../public/uploads/avatars');
+// Yükleme dizini
+const uploadDir = path.join(__dirname, '../uploads/temp');
 
-// Klasör yoksa otomatik oluştur
+// Dizin yoksa oluştur
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer disk depolama ayarları
+// === STORAGE CONFIGURATION ===
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
+    destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
-    filename: function (req, file, cb) {
-        // Dosya ismini benzersiz yap: avatar-kullaniciId-zamanDamgasi.uzanti
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, 'avatar-' + req.user.id + '-' + uniqueSuffix + ext);
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${file.originalname}`;
+        cb(null, uniqueName);
     }
 });
 
-// Sadece izin verilen MIME türleri
-const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-
-// Sadece izin verilen dosya uzantıları
-const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-
-// Güvenlik açısından iyileştirilmiş fileFilter
+// === FILE FILTER ===
 const fileFilter = (req, file, cb) => {
-    // 1. MIME type kontrolü (whitelist)
-    if (!allowedMimes.includes(file.mimetype)) {
-        return cb(new Error('Geçersiz dosya türü. Sadece JPEG, PNG ve WebP destekleniyor.'), false);
+    // Video dosyaları kabul et
+    const validMimes = [
+        'video/mp4',
+        'video/x-msvideo',
+        'video/quicktime',
+        'video/x-matroska',
+        'video/webm',
+        'video/x-ms-wmv',
+        'application/octet-stream'  // Bazı tarayıcılar .mp4'ü buna dönüştürüyor
+    ];
+    
+    const validExtensions = /\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i;
+    
+    if (validMimes.includes(file.mimetype) || validExtensions.test(file.originalname)) {
+        console.log(`[MULTER] Dosya kabul edildi: ${file.originalname} (${file.mimetype})`);
+        cb(null, true);
+    } else {
+        console.error(`[MULTER] Dosya reddedildi: ${file.originalname} (${file.mimetype})`);
+        cb(new Error(`Geçersiz dosya tipi: ${file.mimetype}. İzin verilen: MP4, AVI, MOV, MKV, WebM`), false);
     }
-    
-    // 2. Dosya uzantısı kontrolü (spoofing saldırılarını engelle)
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!allowedExtensions.includes(ext)) {
-        return cb(new Error(`Geçersiz dosya uzantısı: ${ext}. Sadece .jpg, .jpeg, .png, .webp destekleniyor.`), false);
-    }
-    
-    // 3. MIME type ile uzantı uyuşması kontrolü
-    const mimeToExt = {
-        'image/jpeg': ['.jpg', '.jpeg'],
-        'image/png': ['.png'],
-        'image/webp': ['.webp']
-    };
-    
-    if (!mimeToExt[file.mimetype].includes(ext)) {
-        return cb(new Error('Dosya adı ile MIME type uyuşmuyor. Dosya tahrif edilmiş olabilir.'), false);
-    }
-    
-    cb(null, true);
 };
 
-const upload = multer({ 
+// === MULTER CONFIGURATION ===
+const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB sınırı
+        fileSize: 4 * 1024 * 1024 * 1024  // 4GB
     }
 });
 
+// === ERROR HANDLER WRAPPER ===
+const handleMulterError = (err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'FILE_TOO_LARGE') {
+            return res.status(413).json({
+                success: false,
+                message: `Dosya çok büyük. Maksimum: 4GB`
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: `Dosya yükleme hatası: ${err.message}`
+        });
+    } else if (err) {
+        return res.status(400).json({
+            success: false,
+            message: err.message || 'Dosya yükleme hatası'
+        });
+    }
+    next();
+};
+
+// ✅ EXPORT
 module.exports = upload;

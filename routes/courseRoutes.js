@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/courseController');
+const curriculumController = require('../controllers/curriculumController');
 const { verifyToken, isInstructor } = require('../middleware/authMiddleware');
+const { 
+    uploadLimiter, 
+    courseCreateLimiter,  // ✅ İMPORT ET
+    sectionCreateLimiter  // ✅ İMPORT ET
+} = require('../middleware/rateLimitMiddleware');
+const { preventConcurrentLesson } = require('../middleware/concurrencyMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 // ============================================
 // PUBLIC ROUTES (Herkes erişebilir)
@@ -9,22 +17,38 @@ const { verifyToken, isInstructor } = require('../middleware/authMiddleware');
 
 /**
  * GET /api/courses
- * Tüm yayında kursları sayfalama ile getir
+ * Tüm kursları sayfalama ile getir
  */
 router.get('/', courseController.getAllCourses);
 
 /**
  * GET /api/courses/published
  * Yayında olan tüm kursları getir
- * Not: Bu route diğer :id route'lardan ÖNCE olmalı!
  */
 router.get('/published', courseController.getAllPublishedCourses);
 
+// ============================================
+// INSTRUCTOR ONLY ROUTES (ÖNCE OLMALI!)
+// ============================================
+
 /**
- * GET /api/courses/:id
- * Belirli bir kurs detaylarını getir
+ * GET /api/courses/my-courses
+ * Eğitmenin kendi kurslarını getir
+ * ⚠️ ÖNEMLI: /:id'den ÖNCE tanımlanmalı!
  */
-router.get('/:id', courseController.getCourseDetails);
+router.get('/my-courses', verifyToken, isInstructor, courseController.getInstructorCourses);
+
+/**
+ * POST /api/courses
+ * Yeni kurs oluştur (Günde max 5)
+ */
+router.post(
+    '/',
+    verifyToken,
+    isInstructor,
+    courseCreateLimiter,  // ✅ RATE LIMITER EKLE
+    courseController.createCourse
+);
 
 // ============================================
 // PROTECTED ROUTES (Sadece kayıtlı kullanıcılar)
@@ -32,44 +56,15 @@ router.get('/:id', courseController.getCourseDetails);
 
 /**
  * GET /api/courses/:courseId/learning
- * Öğrenci için kurs öğrenim verisi (müfredat + dersler + ilerleme)
- * ✅ ÖNEMLİ: Bu route private ve courseId parametresi kullanıyor
+ * Öğrenci için kurs öğrenim verisi
  */
 router.get('/:courseId/learning', verifyToken, courseController.getCourseCurriculumForStudent);
 
-// ============================================
-// INSTRUCTOR ONLY ROUTES (Sadece eğitmenler)
-// ============================================
-
 /**
- * GET /api/courses/my-courses
- * Eğitmenin kendi kurslarını getir
+ * PUT /api/courses/:courseId/lessons/:lessonId/complete
+ * Dersi tamamlandı olarak işaretle
  */
-router.get('/my-courses', verifyToken, isInstructor, courseController.getInstructorCourses);
-
-/**
- * POST /api/courses
- * Yeni kurs oluştur
- */
-router.post('/', verifyToken, isInstructor, courseController.createCourse);
-
-/**
- * PUT /api/courses/:id
- * Kurs bilgilerini güncelle
- */
-router.put('/:id', verifyToken, isInstructor, courseController.updateCourse);
-
-/**
- * PUT /api/courses/:id/status
- * Kurs durumunu değiştir (taslak → onay_bekliyor → yayinda vb.)
- */
-router.put('/:id/status', verifyToken, isInstructor, courseController.updateCourseStatus);
-
-/**
- * DELETE /api/courses/:id
- * Kurs sil
- */
-router.delete('/:id', verifyToken, isInstructor, courseController.deleteCourse);
+router.put('/:courseId/lessons/:lessonId/complete', verifyToken, courseController.markLessonAsComplete);
 
 // ============================================
 // COURSE SECTION (BÖLÜM) ROUTES
@@ -77,48 +72,57 @@ router.delete('/:id', verifyToken, isInstructor, courseController.deleteCourse);
 
 /**
  * POST /api/courses/:courseId/sections
- * Kursa yeni bölüm ekle
+ * Yeni bölüm oluştur (Saatte max 20)
  */
-router.post('/:courseId/sections', verifyToken, isInstructor, courseController.createCourseSection);
+router.post(
+    '/:courseId/sections',
+    verifyToken,
+    isInstructor,
+    sectionCreateLimiter,  // ✅ RATE LIMITER EKLE
+    courseController.createCourseSection
+);
 
-/**
- * PUT /api/courses/:courseId/sections/:sectionId
- * Bölümü güncelle
- */
 router.put('/:courseId/sections/:sectionId', verifyToken, isInstructor, courseController.updateCourseSection);
 
-/**
- * DELETE /api/courses/:courseId/sections/:sectionId
- * Bölümü sil
- */
 router.delete('/:courseId/sections/:sectionId', verifyToken, isInstructor, courseController.deleteCourseSection);
 
 // ============================================
 // LESSON (DERS) ROUTES
 // ============================================
 
-/**
- * POST /api/courses/:courseId/sections/:sectionId/lessons
- * Bölüme yeni ders ekle
- */
-router.post('/:courseId/sections/:sectionId/lessons', verifyToken, isInstructor, courseController.createLesson);
+router.post(
+    '/:courseId/sections/:sectionId/lessons',
+    verifyToken,
+    isInstructor,
+    uploadLimiter,           // ✅ Saatte max 10 video
+    preventConcurrentLesson, // ✅ Concurrent upload kontrol
+    upload.single('video'),  // ✅ Video dosyasını al
+    curriculumController.createLesson
+);
 
-/**
- * PUT /api/courses/:courseId/sections/:sectionId/lessons/:lessonId
- * Dersi güncelle
- */
 router.put('/:courseId/sections/:sectionId/lessons/:lessonId', verifyToken, isInstructor, courseController.updateLesson);
 
-/**
- * DELETE /api/courses/:courseId/sections/:sectionId/lessons/:lessonId
- * Dersi sil
- */
 router.delete('/:courseId/sections/:sectionId/lessons/:lessonId', verifyToken, isInstructor, courseController.deleteLesson);
 
+// ============================================
+// PUBLIC - DETAIL ROUTE (SONRA OLMALI!)
+// ============================================
+
 /**
- * PUT /api/courses/:courseId/lessons/:lessonId/complete
- * Dersi tamamlandı olarak işaretle (Öğrenci)
+ * GET /api/courses/:id
+ * Belirli bir kurs detaylarını getir
+ * ⚠️ ÖNEMLI: Bu SONDA olmalı, yoksa /my-courses'ı yakalar!
  */
-router.put('/:courseId/lessons/:lessonId/complete', verifyToken, courseController.markLessonAsComplete);
+router.get('/:id', courseController.getCourseDetails);
+
+// ============================================
+// INSTRUCTOR UPDATE/DELETE ROUTES
+// ============================================
+
+router.put('/:id', verifyToken, isInstructor, courseController.updateCourse);
+
+router.put('/:id/status', verifyToken, isInstructor, courseController.updateCourseStatus);
+
+router.delete('/:id', verifyToken, isInstructor, courseController.deleteCourse);
 
 module.exports = router;

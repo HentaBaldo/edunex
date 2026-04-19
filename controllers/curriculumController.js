@@ -1,4 +1,7 @@
 const { CourseSection, Lesson, Course } = require('../models');
+const { uploadVideoToBunny } = require('../services/bunnyService');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Yeni Bölüm Oluşturma
@@ -15,7 +18,7 @@ exports.createSection = async (req, res, next) => {
             throw error;
         }
 
-        // YETKİ KONTROLÜ: Kursun varlığını ve sahibini tek sorguda kontrol et
+        // YETKİ KONTROLÜ
         const course = await Course.findOne({
             where: { id: kurs_id, egitmen_id: userId },
             attributes: ['id']
@@ -27,19 +30,20 @@ exports.createSection = async (req, res, next) => {
             throw error;
         }
 
-        // Mevcut en yüksek sıra numarasını bul
+        // SIRA NUMARASI HESAPLA
         const maxSira = await CourseSection.max('sira_numarasi', {
             where: { kurs_id }
         });
-
         const nextOrder = (maxSira || 0) + 1;
 
         const section = await CourseSection.create({
             kurs_id,
             baslik,
-            aciklama,
+            aciklama: aciklama || '',
             sira_numarasi: nextOrder
         });
+
+        console.log(`[SECTION CREATE] Bölüm oluşturuldu: ${section.id}`);
 
         return res.status(201).json({
             status: 'success',
@@ -47,33 +51,46 @@ exports.createSection = async (req, res, next) => {
             data: section
         });
     } catch (error) {
+        console.error(`[SECTION CREATE] HATA: ${error.message}`);
         next(error);
     }
 };
 
 /**
- * Yeni Ders Oluşturma
+ * Yeni Ders Oluşturma (Video Upload ile)
  * @route POST /api/curriculum/lessons
  */
 exports.createLesson = async (req, res, next) => {
+    const uploadedFile = req.file;
+    let bunnyVideoGuid = null;
+    let tempFilePath = null;
+    
     try {
-        const { bolum_id, baslik, icerik_tipi, kaynak_url, sure_saniye, onizleme_mi, aciklama } = req.body;
+        const { 
+            bolum_id, 
+            baslik, 
+            icerik_tipi, 
+            kaynak_url, 
+            sure_saniye, 
+            onizleme_mi, 
+            aciklama 
+        } = req.body;
         const userId = req.user.id;
 
+        // === VALIDASYON ===
         if (!bolum_id || !baslik) {
             const error = new Error('Bölüm ID ve başlık gereklidir.');
             error.statusCode = 400;
             throw error;
         }
 
-        // YETKİ KONTROLÜ: Bölümün ilişkili olduğu kursun sahibi mi kontrol et
+        // === OWNERSHIP CHECK ===
         const section = await CourseSection.findOne({
             where: { id: bolum_id },
             attributes: ['id', 'kurs_id'],
             include: [{
                 model: Course,
-                attributes: ['id', 'egitmen_id'],
-                required: true
+                attributes: ['id', 'egitmen_id']
             }]
         });
 
@@ -89,29 +106,90 @@ exports.createLesson = async (req, res, next) => {
             throw error;
         }
 
-        // Sıra numarasını belirle
+        // === SIRA NUMARASI HESAPLA ===
         const maxSira = await Lesson.max('sira_numarasi', {
             where: { bolum_id }
         });
         const nextOrder = (maxSira || 0) + 1;
 
-        const lesson = await Lesson.create({
+        // === VIDEO UPLOAD LOGIC ===
+        let finalVideoProvider = null;
+
+        if (uploadedFile) {
+            tempFilePath = uploadedFile.path;
+            console.log(`[LESSON CREATE] Video yükleniyor: ${baslik}`);
+            
+            const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
+            bunnyVideoGuid = bunnyResult.guid;
+            finalVideoProvider = bunnyVideoGuid;
+            
+            console.log(`[LESSON CREATE] Bunny Video GUID: ${bunnyVideoGuid}`);
+            
+        } else if (kaynak_url) {
+            const urlValidation = (url) => {
+                const allowedDomains = [
+                    'youtube.com', 'youtu.be', 'vimeo.com',
+                    'bunnycdn.com', 'cdn.example.com', 'localhost:3000'
+                ];
+                
+                try {
+                    const urlObj = new URL(url);
+                    const isAllowed = allowedDomains.some(d => 
+                        urlObj.hostname === d || urlObj.hostname.endsWith('.' + d)
+                    );
+                    
+                    if (!isAllowed) throw new Error('Geçersiz domain');
+                    if (!['http:', 'https:'].includes(urlObj.protocol)) throw new Error('HTTPS gerekli');
+                    
+                    return true;
+                } catch (e) {
+                    throw new Error(`Video URL doğrulanmadı: ${e.message}`);
+                }
+            };
+            
+            urlValidation(kaynak_url);
+            finalVideoProvider = kaynak_url;
+        }
+
+        // === DERS OLUŞTUR ===
+        const newLesson = await Lesson.create({
             bolum_id,
-            baslik,
-            icerik_tipi,
-            kaynak_url,
-            sure_saniye: sure_saniye || 0,
-            onizleme_mi: onizleme_mi === true || onizleme_mi === 'true' ? 1 : 0,
-            aciklama,
-            sira_numarasi: nextOrder
+            baslik: String(baslik).trim().substring(0, 255),
+            aciklama: aciklama ? String(aciklama).trim().substring(0, 5000) : null,
+            video_saglayici_id: finalVideoProvider,
+            sure_saniye: parseInt(sure_saniye) || 0,
+            onizleme_mi: Boolean(onizleme_mi),
+            sira_numarasi: nextOrder,
+            icerik_tipi: icerik_tipi || 'video'
         });
+
+        console.log(`[LESSON CREATE] Ders oluşturuldu: ${newLesson.id}`);
 
         return res.status(201).json({
             status: 'success',
             message: 'Ders başarıyla eklendi.',
-            data: lesson
+            data: {
+                id: newLesson.id,
+                baslik: newLesson.baslik,
+                video_saglayici_id: newLesson.video_saglayici_id,
+                sira_numarasi: newLesson.sira_numarasi,
+                processingNote: bunnyVideoGuid 
+                    ? '✓ Video Bunny.net\'te işleniyor (1-30 dakika)' 
+                    : 'Video yok'
+            }
         });
+
     } catch (error) {
+        console.error(`[LESSON CREATE] HATA: ${error.message}`);
+        
+        if (uploadedFile && tempFilePath && fs.existsSync(tempFilePath)) {
+            try {
+                fs.unlinkSync(tempFilePath);
+            } catch (e) {
+                console.warn(`[CLEANUP] Geçici dosya silinemedi: ${tempFilePath}`);
+            }
+        }
+        
         next(error);
     }
 };
@@ -153,12 +231,15 @@ exports.updateSection = async (req, res, next) => {
             aciklama: aciklama || section.aciklama
         });
 
+        console.log(`[SECTION UPDATE] Bölüm güncellendi: ${section.id}`);
+
         return res.status(200).json({
             status: 'success',
             message: 'Bölüm başarıyla güncellendi.',
             data: section
         });
     } catch (error) {
+        console.error(`[SECTION UPDATE] HATA: ${error.message}`);
         next(error);
     }
 };
@@ -173,10 +254,82 @@ exports.updateLesson = async (req, res, next) => {
         const { baslik, icerik_tipi, kaynak_url, sure_saniye, onizleme_mi, aciklama } = req.body;
         const userId = req.user.id;
 
+        // === VALIDASYON UTILITIES ===
+        const validateVideoUrl = (url) => {
+            if (!url) return true;
+            
+            const allowedDomains = [
+                'youtube.com', 'youtu.be', 'vimeo.com',
+                'bunnycdn.com', 'cdn.example.com', 'localhost:3000'
+            ];
+
+            try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname;
+                
+                const isAllowed = allowedDomains.some(domain => 
+                    hostname === domain || hostname.endsWith('.' + domain)
+                );
+                
+                if (!isAllowed) {
+                    throw new Error(`Geçersiz video URL. İzin verilen: ${allowedDomains.join(', ')}`);
+                }
+
+                if (!['http:', 'https:'].includes(urlObj.protocol)) {
+                    throw new Error('Sadece HTTP/HTTPS protokolleri destekleniyor');
+                }
+
+                return true;
+            } catch (error) {
+                throw new Error(`Video URL doğrulanmadı: ${error.message}`);
+            }
+        };
+
+        const sanitizeLessonData = (data) => {
+            const sanitized = {};
+            
+            if (data.baslik) {
+                sanitized.baslik = String(data.baslik).trim().substring(0, 255);
+            }
+            
+            if (data.aciklama) {
+                sanitized.aciklama = String(data.aciklama).trim().substring(0, 5000);
+            }
+            
+            if (data.sure_saniye !== undefined) {
+                const saniye = parseInt(data.sure_saniye, 10);
+                if (isNaN(saniye) || saniye < 0 || saniye > 43200) {
+                    throw new Error('Ders süresi 0-43200 saniye arası olmalıdır');
+                }
+                sanitized.sure_saniye = saniye;
+            }
+            
+            const validTypes = ['video', 'pdf', 'quiz', 'text'];
+            if (data.icerik_tipi && !validTypes.includes(data.icerik_tipi)) {
+                throw new Error(`Geçersiz içerik tipi. İzin verilenleri: ${validTypes.join(', ')}`);
+            }
+            if (data.icerik_tipi) {
+                sanitized.icerik_tipi = data.icerik_tipi;
+            }
+            
+            if (data.onizleme_mi !== undefined) {
+                sanitized.onizleme_mi = Boolean(data.onizleme_mi);
+            }
+            
+            if (data.kaynak_url) {
+                validateVideoUrl(data.kaynak_url);
+                sanitized.kaynak_url = String(data.kaynak_url).trim();
+            }
+            
+            return sanitized;
+        };
+
+        // === MAIN LOGIC ===
         const lesson = await Lesson.findOne({
             where: { id },
             include: [{
                 model: CourseSection,
+                attributes: ['id', 'kurs_id'],
                 include: [{
                     model: Course,
                     attributes: ['id', 'egitmen_id']
@@ -196,21 +349,32 @@ exports.updateLesson = async (req, res, next) => {
             throw error;
         }
 
-        await lesson.update({
-            baslik: baslik || lesson.baslik,
-            icerik_tipi: icerik_tipi || lesson.icerik_tipi, // icelik_tipi yazımı düzeltildi
-            kaynak_url: kaynak_url || lesson.kaynak_url,
-            sure_saniye: sure_saniye !== undefined ? sure_saniye : lesson.sure_saniye,
-            onizleme_mi: onizleme_mi !== undefined ? (onizleme_mi === true || onizleme_mi === 'true' ? 1 : 0) : lesson.onizleme_mi,
-            aciklama: aciklama || lesson.aciklama
+        const sanitizedData = sanitizeLessonData({
+            baslik,
+            icerik_tipi,
+            kaynak_url,
+            sure_saniye,
+            onizleme_mi,
+            aciklama
         });
+
+        await lesson.update(sanitizedData);
+
+        console.log(`[LESSON UPDATE] Ders güncellendi: ${lesson.id}`);
 
         return res.status(200).json({
             status: 'success',
             message: 'Ders başarıyla güncellendi.',
-            data: lesson
+            data: {
+                id: lesson.id,
+                baslik: lesson.baslik,
+                icerik_tipi: lesson.icerik_tipi,
+                onizleme_mi: lesson.onizleme_mi
+            }
         });
+
     } catch (error) {
+        console.error(`[LESSON UPDATE] HATA: ${error.message}`);
         next(error);
     }
 };
@@ -244,14 +408,18 @@ exports.deleteSection = async (req, res, next) => {
             throw error;
         }
 
+        // CASCADE: Dersleri sil
         await Lesson.destroy({ where: { bolum_id: id } });
         await section.destroy();
+
+        console.log(`[SECTION DELETE] Bölüm silindi: ${id}`);
 
         return res.status(200).json({
             status: 'success',
             message: 'Bölüm ve ilişkili dersler başarıyla silindi.'
         });
     } catch (error) {
+        console.error(`[SECTION DELETE] HATA: ${error.message}`);
         next(error);
     }
 };
@@ -290,17 +458,20 @@ exports.deleteLesson = async (req, res, next) => {
 
         await lesson.destroy();
 
+        console.log(`[LESSON DELETE] Ders silindi: ${id}`);
+
         return res.status(200).json({
             status: 'success',
             message: 'Ders başarıyla silindi.'
         });
     } catch (error) {
+        console.error(`[LESSON DELETE] HATA: ${error.message}`);
         next(error);
     }
 };
 
 /**
- * Tüm Müfredatı Getir (Bölümler + Dersler)
+ * Müfredatı Getir (Bölümler + Dersler)
  * @route GET /api/curriculum/:courseId
  */
 exports.getFullCurriculum = async (req, res, next) => {
@@ -313,7 +484,7 @@ exports.getFullCurriculum = async (req, res, next) => {
             include: [{
                 model: Lesson,
                 as: 'Lessons',
-                attributes: ['id', 'bolum_id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi', 'kaynak_url'],
+                attributes: ['id', 'bolum_id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi', 'kaynak_url', 'aciklama', 'video_saglayici_id'],
                 required: false
             }],
             order: [
@@ -322,18 +493,21 @@ exports.getFullCurriculum = async (req, res, next) => {
             ]
         });
 
+        console.log(`[CURRICULUM GET] Müfredat getirildi: ${courseId} (${curriculum.length} bölüm)`);
+
         return res.status(200).json({
             status: 'success',
             message: curriculum.length === 0 ? 'Bu kurs için henüz bölüm eklenmemiş.' : 'Müfredat başarıyla alındı.',
             data: curriculum
         });
     } catch (error) {
+        console.error(`[CURRICULUM GET] HATA: ${error.message}`);
         next(error);
     }
 };
 
 /**
- * Belirli Bölümün Derslerini Getir
+ * Bölümün Derslerini Getir
  * @route GET /api/curriculum/sections/:sectionId/lessons
  */
 exports.getSectionLessons = async (req, res, next) => {
@@ -342,7 +516,7 @@ exports.getSectionLessons = async (req, res, next) => {
 
         const lessons = await Lesson.findAll({
             where: { bolum_id: sectionId },
-            attributes: ['id', 'bolum_id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi', 'kaynak_url', 'aciklama'],
+            attributes: ['id', 'bolum_id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi', 'kaynak_url', 'aciklama', 'video_saglayici_id'],
             order: [['sira_numarasi', 'ASC']]
         });
 
@@ -352,6 +526,7 @@ exports.getSectionLessons = async (req, res, next) => {
             data: lessons
         });
     } catch (error) {
+        console.error(`[SECTION LESSONS GET] HATA: ${error.message}`);
         next(error);
     }
 };
@@ -389,6 +564,7 @@ exports.getLessonDetail = async (req, res, next) => {
             data: lesson
         });
     } catch (error) {
+        console.error(`[LESSON DETAIL GET] HATA: ${error.message}`);
         next(error);
     }
 };
