@@ -42,10 +42,12 @@ function checkStudentAccess() {
  */
 async function loadEnrolledCourses() {
     const grid = document.getElementById('enrolledCourses');
-    if (!grid) return;
+    if (!grid) {
+        console.error('[STUDENT] enrolledCourses DOM element bulunamadı.');
+        return;
+    }
     
     try {
-        // Yükleniyor durumunu göster
         grid.innerHTML = `
             <div class="loading-state">
                 <div class="spinner" aria-hidden="true"></div>
@@ -53,29 +55,48 @@ async function loadEnrolledCourses() {
             </div>
         `;
 
-        // ✅ BACKEND API ÇAĞRISI: Öğrencinin kayıtlı olduğu tüm kursları getir
+        console.log('[STUDENT] Enrollment API çağrılıyor: /enrollments/my-courses');
         const result = await ApiService.get('/enrollments/my-courses');
+        console.log('[STUDENT] Enrollment API yanıtı:', result);
+
         const courses = result.data || [];
         
-        // Eğer kurs yoksa boş durum göster
-        if (courses.length === 0) {
+        if (!Array.isArray(courses)) {
+            console.error('[STUDENT] Courses data bir array değil:', typeof courses);
             grid.innerHTML = `
-                <div class="empty-message-container">
-                    <p class="empty-message">Henüz hiçbir kursa kayıt olmadınız.</p>
-                    <a href="/main/index.html#courses" class="btn-outline">Kursları Keşfet</a>
+                <div class="error-message-container">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Veri formatı hatalı. Admin ile iletişime geçin.</p>
                 </div>
             `;
             return;
         }
 
-        // ✅ RENDER: Kursları grid yapısında göster
-        grid.innerHTML = ''; 
+        if (courses.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-message-container">
+                    <p class="empty-message">Henüz hiçbir kursa kayıt olmadınız.</p>
+                    <a href="/main/index.html#courses" class="btn-primary-lg-alt">
+                        Kursları Keşfet
+                    </a>
+                </div>
+            `;
+            return;
+        }
 
+        grid.innerHTML = ''; 
         courses.forEach(enrollment => {
-            // Course bilgisini enrollment'tan çıkar
+            if (!enrollment || !enrollment.Course) {
+                console.warn('[STUDENT] Eksik enrollment verisi:', enrollment);
+                return;
+            }
+
             const course = enrollment.Course;
-            const instructor = course.Egitmen;
+            const instructor = course.Egitmen || {};
             const progress = enrollment.ilerleme_yuzdesi || 0;
+
+            const courseTitle = escapeHtml(course.baslik || 'Başlıksız Kurs');
+            const instructorName = escapeHtml(`${instructor.ad || 'Bilinmeyen'} ${instructor.soyad || 'Eğitmen'}`);
 
             const card = `
                 <div class="student-course-card">
@@ -83,10 +104,10 @@ async function loadEnrolledCourses() {
                         <i class="fas fa-play-circle" style="font-size: 2rem; color: #3b82f6;"></i>
                     </div>
                     <div class="card-body">
-                        <h3 class="course-title">${course.baslik || 'Başlıksız Kurs'}</h3>
+                        <h3 class="course-title">${courseTitle}</h3>
                         <p class="instructor-name">
                             <i class="fas fa-chalkboard-teacher"></i>
-                            ${instructor ? `${instructor.ad} ${instructor.soyad}` : 'Bilinmeyen Eğitmen'}
+                            ${instructorName}
                         </p>
                         <p class="course-level" style="font-size: 0.85rem; color: #64748b; margin: 5px 0;">
                             <i class="fas fa-signal"></i> ${course.seviye || 'Temel'}
@@ -96,11 +117,12 @@ async function loadEnrolledCourses() {
                             <div class="progress-bar-bg">
                                 <div class="progress-bar-fill" style="width: ${progress}%;"></div>
                             </div>
-                            <span class="progress-text">%${progress} Tamamlandı</span>
+                            <span class="progress-text">%${Math.round(progress)} Tamamlandı</span>
                         </div>
                         
                         <div class="card-actions">
-                            <a href="/student/course-player.html?id=${course.id}" class="btn-continue">
+                            <!-- ✅ BURASI DÜZELTILDI: /student/learning-room.html -->
+                            <a href="/student/learning-room.html?id=${course.id}" class="btn-continue">
                                 <i class="fas fa-play"></i> Öğrenmeye Devam Et
                             </a>
                             <button onclick="unenrollCourse('${course.id}')" class="btn-unenroll" title="Kurstan Ayrıl">
@@ -113,12 +135,14 @@ async function loadEnrolledCourses() {
             grid.insertAdjacentHTML('beforeend', card);
         });
 
+        console.log(`[STUDENT] ${courses.length} kurs başarıyla render edildi`);
+
     } catch (error) {
-        console.error("[FETCH ERROR] Kayıtlı kurslar yüklenemedi:", error.message);
+        console.error("[STUDENT] Kayıtlı kurslar yüklenemedi:", error);
         grid.innerHTML = `
             <div class="error-message-container">
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #ef4444;"></i>
-                <p class="error-message">Hata: ${error.message}</p>
+                <p class="error-message">Hata: ${escapeHtml(error.message)}</p>
                 <button onclick="loadEnrolledCourses()" class="btn-retry">Tekrar Dene</button>
             </div>
         `;
@@ -246,6 +270,10 @@ async function loadStudentTopRatedCourses() {
  * Öğrenci paneli için kurs kartı render eder
  * (Ana sayfadaki renderCourseCard'dan biraz daha kompakt)
  */
+/**
+ * Öğrenci paneli için kurs kartı render eder
+ * (Ana sayfadaki renderCourseCard'dan biraz daha kompakt)
+ */
 function renderStudentCourseCard(course) {
     const courseId = course.id || '';
     const courseTitle = course.baslik || 'Başlıksız Kurs';
@@ -260,7 +288,7 @@ function renderStudentCourseCard(course) {
     const safeInstructor = escapeHtml(instructorName);
 
     return `
-        <a href="/main/course-detail.html?id=${courseId}" style="text-decoration: none; color: inherit;">
+        <a href="/student/learning-room.html?id=${courseId}" style="text-decoration: none; color: inherit;">
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.2s; cursor: pointer;" 
                  onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'"
                  onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)'">
@@ -285,7 +313,7 @@ function renderStudentCourseCard(course) {
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                         <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">${coursePrice}</span>
-                        <span style="background: #2563eb; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Göz At</span>
+                        <span style="background: #2563eb; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Devam Et</span>
                     </div>
                 </div>
             </div>
