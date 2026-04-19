@@ -210,3 +210,263 @@ function showGrandChildCategories(childId, element) {
         grandChildCol.style.display = 'none'; 
     }
 }
+// ==========================================
+// ÖNERİ SİSTEMİ - RECOMMENDATION ENGINE
+// ==========================================
+
+/**
+ * Tek bir kurs kartı oluşturur (Ortak fonksiyon)
+ * Tümü tarafından kullanılır: Personalized, Trending, Top-Rated
+ * @param {Object} course - Kurs verisi
+ * @returns {string} HTML string
+ */
+function renderCourseCard(course) {
+    // 1. Veri Hazırlama
+    const courseId = course.id || '';
+    const courseTitle = course.baslik || 'Başlıksız Kurs';
+    const courseDesc = course.alt_baslik || '';
+    const instructorName = course.egitmen 
+        ? `${course.egitmen.ad || ''} ${course.egitmen.soyad || ''}`.trim()
+        : 'Bilinmeyen Eğitmen';
+    const coursePrice = course.fiyat > 0 ? `${parseFloat(course.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
+    const courseLevel = course.seviye || 'Temel';
+    
+    // 2. Rating Verisi (varsa)
+    const avgRating = course.istatistikler?.ortalama_puan || null;
+    const totalStudents = course.istatistikler?.toplam_ogrenci || 0;
+    const ratingDisplay = avgRating 
+        ? `<div style="color: #fbbf24; font-size: 0.9rem; margin: 8px 0;"><i class="fas fa-star"></i> ${avgRating} (${totalStudents} kayıt)</div>`
+        : `<div style="color: #94a3b8; font-size: 0.9rem; margin: 8px 0;"><i class="fas fa-star"></i> Henüz puan yok</div>`;
+
+    // 3. XSS Koruması
+    const safeTitle = escapeHtml(courseTitle);
+    const safeDesc = escapeHtml(courseDesc);
+    const safeInstructor = escapeHtml(instructorName);
+
+    // 4. HTML Oluştur
+    return `
+        <a href="/main/course-detail.html?id=${courseId}" class="course-card" style="text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s;">
+            <div style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s;">
+                <!-- Kurs Kapak Fotoğrafı -->
+                <div style="height: 160px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; position: relative; overflow: hidden;">
+                    <i class="fas fa-book" style="opacity: 0.3;"></i>
+                    ${course.Kategori ? `<span style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">${escapeHtml(course.Kategori.ad || course.kategori.ad || 'Genel')}</span>` : ''}
+                </div>
+
+                <!-- Kurs Bilgisi -->
+                <div style="padding: 16px;">
+                    <!-- Başlık -->
+                    <h3 style="margin: 0 0 8px 0; font-size: 1.1rem; color: #1e293b; line-height: 1.4; font-weight: 600;">
+                        ${safeTitle}
+                    </h3>
+
+                    <!-- Alt Başlık -->
+                    ${safeDesc ? `<p style="margin: 8px 0; font-size: 0.9rem; color: #64748b; line-height: 1.4;">${safeDesc}</p>` : ''}
+
+                    <!-- Eğitmen -->
+                    <p style="margin: 8px 0; font-size: 0.85rem; color: #64748b;">
+                        <i class="fas fa-user-tie" style="margin-right: 4px;"></i>
+                        ${safeInstructor}
+                    </p>
+
+                    <!-- Rating -->
+                    ${ratingDisplay}
+
+                    <!-- Fiyat -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: 12px;">
+                        <span style="font-weight: 800; font-size: 1.2rem; color: #0f172a;">${coursePrice}</span>
+                        <button style="background: #2563eb; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background 0.2s;">
+                            İncele →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </a>
+    `;
+}
+
+/**
+ * Giriş yapmış öğrenciye kişiselleştirilmiş kurs önerileri yükle
+ * @route GET /api/recommendations/personalized
+ */
+async function loadPersonalizedRecommendations() {
+    const token = localStorage.getItem('edunex_token');
+    const recommendedSection = document.getElementById('recommendedSection');
+    const recommendedGrid = document.getElementById('recommendedGrid');
+
+    // Giriş yapmamışsa bölümü gizle
+    if (!token) {
+        recommendedSection.style.display = 'none';
+        return;
+    }
+
+    try {
+        console.log('[RECOMMENDATIONS] Personalized öneriler yükleniyor...');
+        
+        const result = await ApiService.get('/recommendations/personalized');
+        const courses = result.data || [];
+
+        console.log('[RECOMMENDATIONS] Alınan veriler:', courses);
+
+        // Bölümü göster
+        recommendedSection.style.display = 'block';
+
+        // Eğer öneri yoksa bilgi mesajı göster
+        if (courses.length === 0) {
+            recommendedGrid.innerHTML = `
+                <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: white;">
+                    <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                    <p>Henüz kişiselleştirilmiş öneriler oluşturulamadı. Lütfen ilgi alanlarınızı profil sayfasında ayarlayın.</p>
+                    <a href="/profile/index.html" style="color: white; text-decoration: underline; margin-top: 10px; display: inline-block;">Profil Ayarlarına Git →</a>
+                </div>
+            `;
+            return;
+        }
+
+        // Kursları render et
+        recommendedGrid.innerHTML = '';
+        courses.forEach(course => {
+            const cardHtml = renderCourseCard(course);
+            recommendedGrid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        console.log(`[RECOMMENDATIONS] ${courses.length} kişiselleştirilmiş kurs render edildi`);
+
+    } catch (error) {
+        console.error('[RECOMMENDATIONS] Personalized yükleme hatası:', error);
+        recommendedGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #dc3545;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                <p>Öneriler yüklenemedi. Lütfen daha sonra tekrar deneyin.</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Trend olan (en çok kayıtlı) kursları yükle
+ * @route GET /api/recommendations/trending
+ */
+async function loadTrendingCourses() {
+    const trendingGrid = document.getElementById('trendingGrid');
+
+    try {
+        console.log('[RECOMMENDATIONS] Trending kurslar yükleniyor...');
+        
+        const result = await ApiService.get('/recommendations/trending');
+        const courses = result.data || [];
+
+        console.log('[RECOMMENDATIONS] Trend kursu sayısı:', courses.length);
+
+        if (courses.length === 0) {
+            trendingGrid.innerHTML = `
+                <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #64748b;">
+                    <p>Şu anda trend olan kurs bulunmuyor.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Kursları render et
+        trendingGrid.innerHTML = '';
+        courses.forEach(course => {
+            const cardHtml = renderCourseCard(course);
+            trendingGrid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        console.log(`[RECOMMENDATIONS] ${courses.length} trend kurs render edildi`);
+
+    } catch (error) {
+        console.error('[RECOMMENDATIONS] Trending yükleme hatası:', error);
+        trendingGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #dc3545;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                <p>Trend kurslar yüklenemedi.</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * En yüksek puanlı kursları yükle
+ * @route GET /api/recommendations/top-rated
+ */
+async function loadTopRatedCourses() {
+    const topRatedGrid = document.getElementById('topRatedGrid');
+
+    try {
+        console.log('[RECOMMENDATIONS] Top-rated kurslar yükleniyor...');
+        
+        const result = await ApiService.get('/recommendations/top-rated');
+        const courses = result.data || [];
+
+        console.log('[RECOMMENDATIONS] Top-rated kurs sayısı:', courses.length);
+
+        if (courses.length === 0) {
+            topRatedGrid.innerHTML = `
+                <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #64748b;">
+                    <p>Henüz puanlanmış kurs bulunmuyor.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Kursları render et
+        topRatedGrid.innerHTML = '';
+        courses.forEach(course => {
+            const cardHtml = renderCourseCard(course);
+            topRatedGrid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        console.log(`[RECOMMENDATIONS] ${courses.length} top-rated kurs render edildi`);
+
+    } catch (error) {
+        console.error('[RECOMMENDATIONS] Top-rated yükleme hatası:', error);
+        topRatedGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #dc3545;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                <p>En yüksek puanlı kurslar yüklenemedi.</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Tüm önerileri yükle (DOMContentLoaded'da çağrılır)
+ */
+async function loadAllRecommendations() {
+    console.log('[RECOMMENDATIONS] Tüm öneri bölümleri başlatılıyor...');
+    
+    // Paralel yükle (performance için)
+    await Promise.all([
+        loadPersonalizedRecommendations(),
+        loadTrendingCourses(),
+        loadTopRatedCourses()
+    ]);
+
+    console.log('[RECOMMENDATIONS] Tüm bölümler yüklendi.');
+}
+
+/**
+ * XSS Koruması - HTML escape
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ==========================================
+// SAYFA YÜKLEMEDE ÇAĞIR
+// ==========================================
+
+// Mevcut DOMContentLoaded event listener'ına ekle
+document.addEventListener('DOMContentLoaded', async () => {
+    checkAuth();
+    loadPublishedCourses();
+    loadCategoriesForMenu();
+    
+    // ✅ ÖNERİ SİSTEMİNİ ÇAĞIR
+    await loadAllRecommendations();
+});

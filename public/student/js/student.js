@@ -158,3 +158,189 @@ function logout() {
         window.location.href = '/auth/index.html';
     }
 }
+// ==========================================
+// STUDENT DASHBOARD - ÖNERİ SİSTEMİ
+// ==========================================
+
+/**
+ * Öğrenci paneli için trend olan kursları yükle
+ */
+async function loadStudentTrendingCourses() {
+    const trendingGrid = document.getElementById('studentTrendingGrid');
+    if (!trendingGrid) return;
+
+    try {
+        console.log('[STUDENT RECOMMENDATIONS] Trend kurslar yükleniyor...');
+        
+        const result = await ApiService.get('/recommendations/trending');
+        const courses = result.data || [];
+
+        if (courses.length === 0) {
+            trendingGrid.innerHTML = `
+                <div style="grid-column: 1/-1; padding: 20px; text-align: center; color: #64748b;">
+                    <p>Şu anda trend olan kurs bulunmuyor.</p>
+                </div>
+            `;
+            return;
+        }
+
+        trendingGrid.innerHTML = '';
+        courses.forEach(course => {
+            const cardHtml = renderStudentCourseCard(course);
+            trendingGrid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        console.log(`[STUDENT RECOMMENDATIONS] ${courses.length} trend kurs render edildi`);
+
+    } catch (error) {
+        console.error('[STUDENT RECOMMENDATIONS] Trend yükleme hatası:', error);
+        trendingGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 20px; text-align: center; color: #dc3545;">
+                <p>Trend kurslar yüklenemedi.</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Öğrenci paneli için en yüksek puanlı kursları yükle
+ */
+async function loadStudentTopRatedCourses() {
+    const topRatedGrid = document.getElementById('studentTopRatedGrid');
+    if (!topRatedGrid) return;
+
+    try {
+        console.log('[STUDENT RECOMMENDATIONS] Top-rated kurslar yükleniyor...');
+        
+        const result = await ApiService.get('/recommendations/top-rated');
+        const courses = result.data || [];
+
+        if (courses.length === 0) {
+            topRatedGrid.innerHTML = `
+                <div style="grid-column: 1/-1; padding: 20px; text-align: center; color: #64748b;">
+                    <p>Henüz puanlanmış kurs bulunmuyor.</p>
+                </div>
+            `;
+            return;
+        }
+
+        topRatedGrid.innerHTML = '';
+        courses.forEach(course => {
+            const cardHtml = renderStudentCourseCard(course);
+            topRatedGrid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        console.log(`[STUDENT RECOMMENDATIONS] ${courses.length} top-rated kurs render edildi`);
+
+    } catch (error) {
+        console.error('[STUDENT RECOMMENDATIONS] Top-rated yükleme hatası:', error);
+        topRatedGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 20px; text-align: center; color: #dc3545;">
+                <p>En yüksek puanlı kurslar yüklenemedi.</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Öğrenci paneli için kurs kartı render eder
+ * (Ana sayfadaki renderCourseCard'dan biraz daha kompakt)
+ */
+function renderStudentCourseCard(course) {
+    const courseId = course.id || '';
+    const courseTitle = course.baslik || 'Başlıksız Kurs';
+    const coursePrice = course.fiyat > 0 ? `${parseFloat(course.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
+    const avgRating = course.istatistikler?.ortalama_puan || null;
+    const totalStudents = course.istatistikler?.toplam_ogrenci || 0;
+    const instructorName = course.egitmen 
+        ? `${course.egitmen.ad || ''} ${course.egitmen.soyad || ''}`.trim()
+        : 'Bilinmeyen Eğitmen';
+
+    const safeTitle = escapeHtml(courseTitle);
+    const safeInstructor = escapeHtml(instructorName);
+
+    return `
+        <a href="/main/course-detail.html?id=${courseId}" style="text-decoration: none; color: inherit;">
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.2s; cursor: pointer;" 
+                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'"
+                 onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)'">
+                
+                <!-- Kapak -->
+                <div style="height: 140px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem;">
+                    <i class="fas fa-book"></i>
+                </div>
+
+                <!-- Bilgi -->
+                <div style="padding: 12px;">
+                    <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; color: #1e293b; font-weight: 600; line-height: 1.3;">
+                        ${safeTitle}
+                    </h4>
+                    
+                    <p style="margin: 6px 0; font-size: 0.8rem; color: #64748b;">
+                        <i class="fas fa-user-tie" style="margin-right: 4px;"></i>
+                        ${safeInstructor}
+                    </p>
+
+                    ${avgRating ? `<p style="margin: 6px 0; font-size: 0.8rem; color: #fbbf24;"><i class="fas fa-star"></i> ${avgRating} (${totalStudents})</p>` : ''}
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                        <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">${coursePrice}</span>
+                        <span style="background: #2563eb; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Göz At</span>
+                    </div>
+                </div>
+            </div>
+        </a>
+    `;
+}
+
+/**
+ * XSS Koruması
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Öğrenci paneli önerilerini yükle
+ */
+async function loadStudentRecommendations() {
+    console.log('[STUDENT RECOMMENDATIONS] Öneriler başlatılıyor...');
+    
+    await Promise.all([
+        loadStudentTrendingCourses(),
+        loadStudentTopRatedCourses()
+    ]);
+
+    console.log('[STUDENT RECOMMENDATIONS] Tamamlandı.');
+}
+
+// ==========================================
+// MEVCUT DOMContentLoaded'A EKLE
+// ==========================================
+
+// Mevcut kod: document.addEventListener('DOMContentLoaded', async () => {
+//     if (!checkStudentAccess()) return;
+//     await loadEnrolledCourses();
+// });
+
+// BUNU ŞUNA ÇEVIR:
+
+// Eski kod (satır 5-8):
+// document.addEventListener('DOMContentLoaded', async () => {
+//     if (!checkStudentAccess()) return;
+//     await loadEnrolledCourses();
+// });
+
+// YENİ KOD (satır 5-11):
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!checkStudentAccess()) return;
+    
+    // Kayıtlı kursları yükle
+    await loadEnrolledCourses();
+    
+    // ✅ Önerileri de yükle
+    await loadStudentRecommendations();
+});
