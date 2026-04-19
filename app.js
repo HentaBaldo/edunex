@@ -46,6 +46,8 @@ const profileRoutes = require('./routes/profileRoutes');
 const courseEnrollmentRoutes = require('./routes/courseEnrollmentRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/auth', authRoutes);
@@ -58,6 +60,8 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/enrollments', courseEnrollmentRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {
@@ -68,7 +72,7 @@ app.get('/', (req, res) => {
  * Veritabani semasini modellerle esitler ve baslangic verilerini yukler.
  * alter: true yapilandirmasi mevcut verileri koruyarak tablo yapisini gunceller.
  */
-sequelize.sync({ alter: false })
+sequelize.sync({ alter: true })
     .then(async () => {
         console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi (Alter Mode).');
         

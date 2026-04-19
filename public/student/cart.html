@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sepetim - EduNex</title>
+
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/student/css/student.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        .cart-wrap { max-width: 1100px; margin: 40px auto; padding: 0 16px; }
+        .cart-grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+        @media (max-width: 860px) { .cart-grid { grid-template-columns: 1fr; } }
+        .cart-items { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+        .cart-item { display: grid; grid-template-columns: 80px 1fr auto; gap: 16px; align-items: center; padding: 16px; border-bottom: 1px solid #f1f5f9; }
+        .cart-item:last-child { border-bottom: 0; }
+        .cart-item .thumb { width: 80px; height: 60px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 1.5rem; }
+        .cart-item .title { font-weight: 600; color: #0f172a; margin: 0 0 4px; }
+        .cart-item .meta { color: #64748b; font-size: 0.9rem; }
+        .cart-item .price { font-weight: 700; color: #0f172a; min-width: 90px; text-align: right; }
+        .cart-item .remove { background: transparent; border: 0; color: #ef4444; cursor: pointer; font-size: 0.9rem; margin-top: 6px; }
+        .cart-summary { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; height: fit-content; position: sticky; top: 20px; }
+        .cart-summary h3 { margin: 0 0 12px; }
+        .cart-summary .row { display: flex; justify-content: space-between; margin: 8px 0; color: #334155; }
+        .cart-summary .total { font-size: 1.3rem; font-weight: 800; color: #0f172a; border-top: 1px solid #e2e8f0; margin-top: 12px; padding-top: 12px; }
+        .btn-checkout { display: block; width: 100%; padding: 14px; background: #2563eb; color: #fff; border: 0; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 16px; }
+        .btn-checkout:disabled { background: #94a3b8; cursor: not-allowed; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+        .empty-state i { font-size: 3rem; color: #cbd5e1; margin-bottom: 12px; }
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: #fff; font-weight: 500; z-index: 9999; }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="logo">EduNex</a>
+            <nav class="nav-actions">
+                <a href="/student/dashboard.html" class="btn-auth-blue">Panelim</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="cart-wrap">
+        <h1 style="margin-bottom: 20px;">Sepetim</h1>
+
+        <div id="cartRoot">
+            <p>Sepet yükleniyor...</p>
+        </div>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/student/js/cart.js"></script>
+</body>
+</html>
