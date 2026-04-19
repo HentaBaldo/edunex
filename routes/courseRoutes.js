@@ -21,6 +21,13 @@ router.get('/', courseController.getAllCourses);
 router.get('/published', courseController.getAllPublishedCourses);
 
 /**
+ * GET /api/courses/my-courses
+ * Eğitmenin kendi kurslarını getir
+ * Not: /:id route'undan ÖNCE tanımlanmalı!
+ */
+router.get('/my-courses', verifyToken, isInstructor, courseController.getInstructorCourses);
+
+/**
  * GET /api/courses/:id
  * Belirli bir kurs detaylarını getir
  */
@@ -40,12 +47,6 @@ router.get('/:courseId/learning', verifyToken, courseController.getCourseCurricu
 // ============================================
 // INSTRUCTOR ONLY ROUTES (Sadece eğitmenler)
 // ============================================
-
-/**
- * GET /api/courses/my-courses
- * Eğitmenin kendi kurslarını getir
- */
-router.get('/my-courses', verifyToken, isInstructor, courseController.getInstructorCourses);
 
 /**
  * POST /api/courses
