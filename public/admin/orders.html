@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sipariş & Ödeme Yönetimi | EduNex Admin</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+
+    <style>
+        .orders-summary-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px; }
+        .summary-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; }
+        .summary-card h3 { margin:0 0 4px; font-size:1.4rem; color:#0f172a; }
+        .summary-card p { margin:0; color:#64748b; font-size:0.85rem; }
+        .summary-card.revenue h3 { color:#059669; }
+        .filter-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; background:#fff; padding:14px; border:1px solid #e5e7eb; border-radius:10px; }
+        .filter-bar input, .filter-bar select { padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; }
+        .filter-bar input[type=search] { min-width:260px; }
+        .filter-bar button { padding:8px 14px; background:#2563eb; color:#fff; border:0; border-radius:6px; cursor:pointer; font-weight:600; }
+        .filter-bar button.secondary { background:#e2e8f0; color:#0f172a; }
+        .admin-table-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+        .admin-table { width:100%; border-collapse:collapse; }
+        .admin-table th, .admin-table td { padding:12px 14px; text-align:left; font-size:0.9rem; border-bottom:1px solid #f1f5f9; }
+        .admin-table th { background:#f8fafc; font-weight:600; color:#334155; }
+        .admin-table tr:last-child td { border-bottom:0; }
+        .admin-table .ref { font-family:monospace; font-size:0.8rem; color:#64748b; }
+        .pill { display:inline-block; padding:3px 9px; border-radius:999px; font-size:0.72rem; font-weight:700; text-transform:uppercase; }
+        .pill.tamamlandi { background:#d1fae5; color:#065f46; }
+        .pill.beklemede { background:#fef3c7; color:#92400e; }
+        .pill.basarisiz { background:#fee2e2; color:#991b1b; }
+        .pill.iade_edildi { background:#e0e7ff; color:#3730a3; }
+        .btn-view { background:transparent; border:1px solid #cbd5e1; padding:6px 10px; border-radius:6px; cursor:pointer; color:#2563eb; font-weight:600; font-size:0.85rem; }
+        .pagination { display:flex; justify-content:space-between; align-items:center; margin-top:14px; color:#64748b; font-size:0.9rem; }
+        .pagination button { padding:6px 12px; border:1px solid #cbd5e1; background:#fff; border-radius:6px; cursor:pointer; margin:0 4px; }
+        .pagination button:disabled { opacity:0.5; cursor:not-allowed; }
+
+        .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.55); display:none; align-items:center; justify-content:center; z-index:9999; padding:20px; }
+        .modal-overlay.open { display:flex; }
+        .modal { background:#fff; border-radius:14px; max-width:780px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,0.25); }
+        .modal-head { padding:18px 22px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
+        .modal-head h2 { margin:0; font-size:1.2rem; }
+        .modal-close { background:transparent; border:0; font-size:1.4rem; cursor:pointer; color:#64748b; }
+        .modal-body { padding:20px 22px; }
+        .meta-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:20px; }
+        .meta-grid .cell { background:#f8fafc; padding:10px 12px; border-radius:8px; }
+        .meta-grid .cell small { color:#64748b; display:block; margin-bottom:4px; }
+        .meta-grid .cell b { color:#0f172a; }
+        .items-list { border:1px solid #f1f5f9; border-radius:8px; overflow:hidden; margin-bottom:20px; }
+        .items-list .row { display:grid; grid-template-columns:1fr auto; padding:10px 14px; border-bottom:1px solid #f1f5f9; }
+        .items-list .row:last-child { border-bottom:0; }
+        .tx-list { border:1px solid #f1f5f9; border-radius:8px; }
+        .tx-row { padding:10px 14px; border-bottom:1px solid #f1f5f9; font-size:0.85rem; }
+        .tx-row:last-child { border-bottom:0; }
+        .tx-row .tx-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .tx-row code { background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.78rem; }
+    </style>
+</head>
+<body>
+
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
+            <a href="/admin/dashboard.html" class="nav-item">
+                <i class="fas fa-chart-pie"></i> Ozet Tablo
+            </a>
+            <a href="/admin/courses.html" class="nav-item">
+                <i class="fas fa-video"></i> Kurs Onaylari
+            </a>
+            <a href="/admin/orders.html" class="nav-item active">
+                <i class="fas fa-receipt"></i> Siparisler
+            </a>
+            <a href="/admin/users.html" class="nav-item">
+                <i class="fas fa-users"></i> Kullanici Yonetimi
+            </a>
+            <a href="/admin/categories.html" class="nav-item">
+                <i class="fas fa-tags"></i> Kategoriler
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h1>Sipariş & Ödeme Yönetimi</h1>
+                <p class="subtitle">Tüm siparişlerin durumunu, iyzico işlemlerini ve ciro toplamını buradan takip edin.</p>
+            </div>
+            <div class="header-user">
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yonetici Yukleniyor...</span>
+                    <small>Full Access</small>
+                </div>
+                <div class="admin-avatar-circle">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content">
+
+            <!-- Özet Kartlari -->
+            <div id="summaryGrid" class="orders-summary-grid">
+                <div class="summary-card revenue">
+                    <h3 id="sumRevenue">-- ₺</h3>
+                    <p>Toplam Ciro (tamamlanan)</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="sumTotal">--</h3>
+                    <p>Toplam Sipariş</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="sumDone">--</h3>
+                    <p>Tamamlanan</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="sumPending">--</h3>
+                    <p>Bekleyen</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="sumFailed">--</h3>
+                    <p>Başarısız</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="sumRefund">--</h3>
+                    <p>İade Edilen</p>
+                </div>
+            </div>
+
+            <!-- Filtre Bari -->
+            <div class="filter-bar">
+                <input id="searchInput" type="search" placeholder="Öğrenci adı, e-posta veya sipariş ID..." />
+                <select id="statusFilter">
+                    <option value="">Tüm Durumlar</option>
+                    <option value="tamamlandi">Tamamlandı</option>
+                    <option value="beklemede">Beklemede</option>
+                    <option value="basarisiz">Başarısız</option>
+                    <option value="iade_edildi">İade Edildi</option>
+                </select>
+                <input id="fromDate" type="date" />
+                <input id="toDate" type="date" />
+                <button id="applyBtn"><i class="fas fa-search"></i> Uygula</button>
+                <button id="resetBtn" class="secondary"><i class="fas fa-rotate-left"></i> Temizle</button>
+            </div>
+
+            <!-- Tablo -->
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Tarih</th>
+                            <th>Öğrenci</th>
+                            <th>Kalem</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th style="text-align:right;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersBody">
+                        <tr><td colspan="7" style="text-align:center;padding:40px;color:#64748b;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <span id="pageInfo">-</span>
+                <div>
+                    <button id="prevBtn">&larr; Önceki</button>
+                    <button id="nextBtn">Sonraki &rarr;</button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Detay Modali -->
+    <div id="detailOverlay" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal">
+            <div class="modal-head">
+                <h2>Sipariş Detayı</h2>
+                <button class="modal-close" onclick="closeDetail()" aria-label="Kapat">&times;</button>
+            </div>
+            <div id="detailBody" class="modal-body">Yükleniyor...</div>
+        </div>
+    </div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/admin/js/orders.js"></script>
+</body>
+</html>

@@ -333,18 +333,27 @@ function checkAuth() {
                 ? '/instructor/dashboard.html' 
                 : '/student/dashboard.html';
 
+            const isStudent = user.rol === 'ogrenci';
+            const cartIconHtml = isStudent ? `
+                <a href="/student/cart.html" class="nav-cart-link" title="Sepetim" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;color:#0f172a;text-decoration:none;margin-right:8px;">
+                    <i class="fas fa-shopping-cart" style="font-size:1.15rem;"></i>
+                    <span id="cartCountBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ef4444;color:#fff;font-size:0.7rem;font-weight:700;line-height:18px;text-align:center;"></span>
+                </a>
+            ` : '';
+
             authContainer.innerHTML = `
+                ${cartIconHtml}
                 <div class="user-dropdown">
                     <button class="dropdown-trigger">
-                        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i> 
-                        ${user.ad} 
+                        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i>
+                        ${user.ad}
                         <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 5px;"></i>
                     </button>
-                    
+
                     <div class="dropdown-content">
                         <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
                         <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
-                        ${user.rol === 'ogrenci' ? '<a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a>' : ''}
+                        ${isStudent ? '<a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a><a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>' : ''}
                         <hr>
                         <button onclick="logout()" class="text-danger">
                             <i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap
@@ -352,6 +361,17 @@ function checkAuth() {
                     </div>
                 </div>
             `;
+
+            if (isStudent) {
+                (async () => {
+                    try {
+                        const r = await ApiService.get('/cart');
+                        const c = r?.data?.kalem_sayisi || 0;
+                        const b = document.getElementById('cartCountBadge');
+                        if (b && c > 0) { b.textContent = c > 99 ? '99+' : c; b.style.display = 'inline-block'; }
+                    } catch (_) {}
+                })();
+            }
         } catch (error) {
             console.error('[HATA] Kullanıcı verisi okunamadı.');
             logout(); 

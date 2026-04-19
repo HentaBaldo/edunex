@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const adminOrderController = require('../controllers/adminOrderController');
 const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 
 // ---------------------------------------------------------
@@ -34,5 +35,11 @@ router.get('/courses/:id', adminController.getCourseDetail);
 // RESTful mimaride bir kaydi guncellemek (onaylamak) icin PUT veya PATCH kullanilir.
 router.put('/courses/:id/approve', adminController.approveCourse);
 router.put('/courses/:id/reject', adminController.rejectCourse);
+
+// --- Orders & Payments (Read-only) ---
+// Dikkat: /orders/summary rotasi, /orders/:id rotasindan ONCE tanimlanmali.
+router.get('/orders/summary', adminOrderController.getOrdersSummary);
+router.get('/orders/:id', adminOrderController.getOrderDetail);
+router.get('/orders', adminOrderController.listOrders);
 
 module.exports = router;
