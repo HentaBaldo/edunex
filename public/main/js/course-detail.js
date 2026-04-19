@@ -34,10 +34,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('courseInstructor').innerHTML = `<i class="fas fa-chalkboard-teacher"></i> Eğitmen: ${course.Egitmen.ad} ${course.Egitmen.soyad}`;
         document.getElementById('coursePrice').innerText = course.fiyat > 0 ? `${course.fiyat} ₺` : 'Ücretsiz';
 
-        // Enroll butonuna event listener ekle
+        // Fiyata göre buton gösterimi: ücretli -> Sepete Ekle, ücretsiz -> Direkt Kayıt
+        const isPaid = Number(course.fiyat) > 0;
         const enrollBtn = document.getElementById('enrollBtn');
-        if (enrollBtn) {
-            enrollBtn.addEventListener('click', handleEnrollClick);
+        const addToCartBtn = document.getElementById('addToCartBtn');
+        if (isPaid) {
+            if (enrollBtn) enrollBtn.style.display = 'none';
+            if (addToCartBtn) addToCartBtn.addEventListener('click', handleAddToCart);
+        } else {
+            if (addToCartBtn) addToCartBtn.style.display = 'none';
+            if (enrollBtn) {
+                enrollBtn.style.background = '';
+                enrollBtn.style.color = '';
+                enrollBtn.textContent = 'Kursa Kaydol';
+                enrollBtn.addEventListener('click', handleEnrollClick);
+            }
         }
 
         // Öğrenci zaten kayıtlı mı kontrol et
@@ -122,12 +133,16 @@ async function checkEnrollmentStatus(courseId) {
         // ✅ DÜZELTME: enrolled flag'ine bak
         if (result.status === 'success') {
             if (result.enrolled === true && result.data) {
-                // Öğrenci zaten kayıtlı
+                // Öğrenci zaten kayıtlı - tüm butonları "Kayıtlısınız" olarak güncelle
                 const enrollBtn = document.getElementById('enrollBtn');
+                const addToCartBtn = document.getElementById('addToCartBtn');
+                if (addToCartBtn) addToCartBtn.style.display = 'none';
                 if (enrollBtn) {
+                    enrollBtn.style.display = 'block';
                     enrollBtn.textContent = '✓ Kayıtlısınız';
                     enrollBtn.disabled = true;
                     enrollBtn.style.backgroundColor = '#10b981';
+                    enrollBtn.style.color = '#fff';
                     enrollBtn.style.cursor = 'default';
                 }
             } else if (result.enrolled === false) {
@@ -138,6 +153,49 @@ async function checkEnrollmentStatus(courseId) {
     } catch (error) {
         // Sadece gerçek hatalar için uyar
         console.warn('[ENROLLMENT CHECK] Hata:', error.message);
+    }
+}
+
+/**
+ * Sepete Ekle butonuna tıklandığında çalışır.
+ * Ücretli kurslar için iyzico akışının başlangıcı.
+ */
+async function handleAddToCart() {
+    const token = localStorage.getItem('edunex_token');
+    if (!token) {
+        alert('Sepete eklemek için lütfen giriş yapınız.');
+        window.location.href = '/auth/index.html';
+        return;
+    }
+
+    const btn = document.getElementById('addToCartBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ekleniyor...';
+
+    try {
+        const result = await ApiService.post('/cart/items', { kurs_id: currentCourseId });
+        if (result.status === 'success') {
+            showSuccessToast(result.message || 'Sepete eklendi.');
+            btn.innerHTML = '<i class="fas fa-check"></i> Sepete Gitmek İçin Tıklayın';
+            btn.onclick = () => { window.location.href = '/student/cart.html'; };
+            btn.disabled = false;
+        }
+    } catch (error) {
+        console.error('[CART ADD ERROR]', error.message);
+        if (error.message.includes('zaten sepetinizde')) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Sepete Gitmek İçin Tıklayın';
+            btn.onclick = () => { window.location.href = '/student/cart.html'; };
+            btn.disabled = false;
+            showErrorToast('Bu kurs zaten sepetinizde.');
+        } else if (error.message.includes('zaten kayitli') || error.message.includes('zaten kayıtlı')) {
+            btn.style.display = 'none';
+            showErrorToast('Bu kursa zaten kayıtlısınız.');
+        } else {
+            showErrorToast(`Sepete eklenemedi: ${error.message}`);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 }
 
@@ -286,6 +344,7 @@ function checkAuth() {
                     <div class="dropdown-content">
                         <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
                         <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
+                        ${user.rol === 'ogrenci' ? '<a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a>' : ''}
                         <hr>
                         <button onclick="logout()" class="text-danger">
                             <i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap
