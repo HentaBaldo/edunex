@@ -40,6 +40,43 @@
                 </div>
             </div>
         </section>
+
+        <!-- ========================================
+            ÖNERİ SİSTEMİ - STUDENT DASHBOARD
+            ======================================== -->
+
+        <!-- TREND OLAN KURSLAR -->
+        <section class="trending-section-student" style="background: #f8f9fa; padding: 40px 0; margin-top: 40px; border-radius: 8px;">
+            <div class="section-header" style="margin-bottom: 30px; padding: 0 20px;">
+                <h2 class="section-title" style="margin: 0;">
+                    <i class="fas fa-fire" style="color: #ef4444; margin-right: 8px;"></i>Trend Olan Kurslar
+                </h2>
+                <p style="color: #64748b; margin: 8px 0 0 0;">Bu hafta en çok kayıt olunan kursları keşfedin</p>
+            </div>
+            
+            <div id="studentTrendingGrid" class="student-course-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 20px;">
+                <div class="loading-state" style="grid-column: 1/-1;">
+                    <p>Trend kurslar yükleniyor...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- EN YÜKSEK PUANLI KURSLAR -->
+        <section class="top-rated-section-student" style="padding: 40px 0; margin-top: 40px;">
+            <div class="section-header" style="margin-bottom: 30px; padding: 0 20px;">
+                <h2 class="section-title" style="margin: 0;">
+                    <i class="fas fa-star" style="color: #fbbf24; margin-right: 8px;"></i>En Yüksek Puanlılar
+                </h2>
+                <p style="color: #64748b; margin: 8px 0 0 0;">Kullanıcılar tarafından en çok beğenilen kurslar</p>
+            </div>
+            
+            <div id="studentTopRatedGrid" class="student-course-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 20px;">
+                <div class="loading-state" style="grid-column: 1/-1;">
+                    <p>En yüksek puanlı kurslar yükleniyor...</p>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <script src="/assets/js/api.js"></script>
