@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Canlı Ders</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+
+        .live-header {
+            position: fixed; top: 0; left: 0; right: 0; height: 54px;
+            background: #1e293b; border-bottom: 1px solid #334155;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; z-index: 100;
+        }
+        .live-header .left, .live-header .right { display: flex; align-items: center; gap: 12px; }
+        .live-header a { color: #3b82f6; font-size: 1.1rem; text-decoration: none; }
+        .live-header .session-title { font-weight: 600; font-size: 0.95rem; }
+        .live-header .role-badge {
+            background: #4338ca; color: #fff; padding: 3px 10px;
+            font-size: 0.75rem; border-radius: 12px;
+        }
+        .attendance-pill {
+            background: #064e3b; color: #6ee7b7; padding: 4px 12px;
+            border-radius: 20px; font-size: 0.82rem;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .attendance-pill .dot {
+            width: 8px; height: 8px; border-radius: 50%; background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        #jitsiContainer { position: fixed; top: 54px; left: 0; right: 0; bottom: 0; }
+        #jitsiContainer iframe { width: 100%; height: 100%; border: 0; }
+
+        .screen { position: fixed; inset: 54px 0 0 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: #0f172a; }
+        .screen .spinner { width: 42px; height: 42px; border: 4px solid #334155; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+        .screen .msg { color: #cbd5e1; font-size: 0.95rem; }
+        .screen .err { color: #fecaca; background: #7f1d1d; padding: 14px 20px; border-radius: 8px; max-width: 480px; text-align: center; }
+        .screen button { background: #3b82f6; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+        .screen button:hover { background: #2563eb; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header class="live-header">
+        <div class="left">
+            <a href="javascript:history.back()" title="Geri Dön"><i class="fas fa-arrow-left"></i></a>
+            <span class="session-title" id="sessionTitle">Canlı Ders</span>
+            <span class="role-badge" id="roleBadge" style="display:none;"></span>
+        </div>
+        <div class="right">
+            <div class="attendance-pill" id="attendancePill" style="display:none;">
+                <span class="dot"></span>
+                <span>Katılım: <b id="attendanceMinutes">0</b> dk</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="loadingScreen" class="screen">
+        <div class="spinner"></div>
+        <p class="msg">Oturum hazırlanıyor...</p>
+    </div>
+
+    <div id="errorScreen" class="screen" style="display:none;">
+        <div class="err" id="errorMessage">Bir hata oluştu.</div>
+        <button onclick="history.back()">Geri Dön</button>
+    </div>
+
+    <div id="jitsiContainer" style="display:none;"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="https://meet.jit.si/external_api.js"></script>
+    <script src="/live/live-room.js"></script>
+</body>
+</html>
