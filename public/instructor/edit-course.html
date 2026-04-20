@@ -34,6 +34,9 @@
                     <button type="button" class="active" onclick="window.switchTab('mufredat')">
                         <i class="fas fa-list-ul"></i> Müfredat Yönetimi
                     </button>
+                    <button type="button" onclick="window.switchTab('canli_dersler')">
+                        <i class="fas fa-video"></i> Canlı Dersler
+                    </button>
                     <button type="button" onclick="window.switchTab('ayarlar')">
                         <i class="fas fa-cog"></i> Kurs Ayarları
                     </button>
@@ -63,6 +66,23 @@
 
                     <div id="mufredatListesi" class="curriculum-container">
                         <p class="loading-text">Müfredat yükleniyor...</p>
+                    </div>
+                </article>
+
+                <!-- Canlı Dersler Tab -->
+                <article id="canli_dersler" class="tab-content form-card">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="form-section-title">Canlı Dersler</h2>
+                            <p class="subtitle">Jitsi üzerinden canlı ders oturumları planlayın ve öğrenci katılımını takip edin.</p>
+                        </div>
+                        <button type="button" class="btn-primary-lg-alt" onclick="window.showLiveSessionModal()">
+                            <i class="fas fa-plus-circle"></i> Yeni Oturum Oluştur
+                        </button>
+                    </div>
+
+                    <div id="canliOturumListesi" class="curriculum-container">
+                        <p class="loading-text">Canlı oturumlar yükleniyor...</p>
                     </div>
                 </article>
 
@@ -157,9 +177,59 @@
             </div>
         </div>
 
+    <!-- Canlı Oturum Modal -->
+    <div id="canliOturumModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="modal-title" id="canliOturumModalTitle">Yeni Canlı Oturum</h3>
+            <form id="canliOturumForm" class="modal-form">
+                <input type="hidden" id="canli_oturum_id">
+
+                <div class="form-group">
+                    <label for="cs_baslik" class="form-label">Oturum Başlığı</label>
+                    <input type="text" id="cs_baslik" class="form-control" required placeholder="Orn: Hafta 3 Canlı Soru-Cevap">
+                </div>
+
+                <div class="form-group">
+                    <label for="cs_aciklama" class="form-label">Açıklama (Opsiyonel)</label>
+                    <textarea id="cs_aciklama" class="form-control" rows="3" placeholder="Oturumun içeriği / gündemi"></textarea>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cs_tarih" class="form-label">Başlangıç Tarihi ve Saati</label>
+                        <input type="datetime-local" id="cs_tarih" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cs_sure" class="form-label">Süre (Dakika)</label>
+                        <input type="number" id="cs_sure" class="form-control" min="15" max="480" value="60" required>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
+                    <button type="button" onclick="window.closeLiveSessionModal()" class="btn-logout-alt">İptal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Yoklama Modal -->
+    <div id="yoklamaModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 640px;">
+            <h3 class="modal-title" id="yoklamaModalTitle">Katılım Raporu</h3>
+            <div id="yoklamaContent" style="max-height: 60vh; overflow-y: auto;">
+                <p class="loading-text">Yoklama yükleniyor...</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="window.closeAttendanceModal()" class="btn-logout-alt">Kapat</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="/assets/js/api.js"></script>
     <script type="module" src="/instructor/js/edit-course.js"></script>
+    <script type="module" src="/instructor/js/live-sessions.js"></script>
 </body>
 </html>

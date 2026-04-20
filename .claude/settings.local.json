@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node -c app.js)",
+      "Bash(node -c controllers/paymentController.js)",
+      "Bash(node -c controllers/cartController.js)",
+      "Bash(node -c services/iyzicoService.js)",
+      "Bash(node -c models/index.js)",
+      "Bash(gh pr *)",
+      "Bash(where gh *)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash(node -c public/student/js/orders.js)",
+      "Bash(node -c public/main/js/main.js)",
+      "Bash(node -c public/student/js/student.js)",
+      "Bash(node -c public/main/js/course-detail.js)",
+      "Bash(node -c controllers/adminOrderController.js)",
+      "Bash(node -c routes/adminRoutes.js)",
+      "Bash(node -c public/admin/js/orders.js)",
+      "Bash(node -c routes/courseRoutes.js)"
+    ]
+  }
+}
