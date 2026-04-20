@@ -1,7 +1,5 @@
 /**
- * EduNex Application Configuration (app.js)
- * Express.js uygulamasının temel middleware, güvenlik, 
- * statik dosya sunumu, veritabanı senkronizasyonu ve rota yönetimini sağlar.
+ * EduNex Application Configuration
  */
 
 const express = require('express');
@@ -11,7 +9,6 @@ const fs = require('fs');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
-// Veritabanı ve Seeder Bileşenleri
 const { sequelize } = require('./models');
 const seedCategories = require('./seeders/categorySeeder');
 const seedProfiles = require('./seeders/profileSeeder');
@@ -29,12 +26,16 @@ if (!fs.existsSync(uploadDir)) {
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('combined'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// JSON ve URL-encoded parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // --- 3. Static File Serving ---
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// --- 4. API Routes Registration ---
 // --- 4. API Routes Registration ---
 const authRoutes = require('./routes/authRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
@@ -44,22 +45,21 @@ const curriculumRoutes = require('./routes/curriculumRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const courseEnrollmentRoutes = require('./routes/courseEnrollmentRoutes');
-const adminUserRoutes = require('./routes/adminUserRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');  // ✅ IMPORT
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const liveSessionRoutes = require('./routes/liveSessionRoutes');
 
-app.use('/api/instructor', instructorRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/instructor', instructorRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/curriculum', curriculumRoutes);
-app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/enrollments', courseEnrollmentRoutes);
-app.use('/api/courses', courseRoutes);
+app.use('/api/admin/users', adminUserRoutes);  // ✅ REGISTER
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -76,7 +76,7 @@ app.get('/', (req, res) => {
  */
 sequelize.sync({ alter: true })
     .then(async () => {
-        console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi (Alter Mode).');
+        console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi.');
         
         try {
             console.log('[SEEDER] Kategori hiyerarsisi kontrol ediliyor...');
@@ -91,7 +91,7 @@ sequelize.sync({ alter: true })
         }
     })
     .catch(err => {
-        console.error('[DATABASE ERROR] Veritabani baglantisi veya senkronizasyon hatasi:', err.message);
+        console.error('[DATABASE ERROR] Veritabani baglantisi hatasi:', err.message);
     });
 
 // --- 7. 404 Not Found Handler (API) ---
@@ -108,15 +108,15 @@ app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const environment = process.env.NODE_ENV || 'development';
 
-    console.error(`[GLOBAL ERROR] ${err.name}: ${err.message}`);
+    console.error(`[ERROR] ${err.name}: ${err.message}`);
     
     if (environment === 'development') {
-        console.error(err.stack);
+        console.error('[STACK]', err.stack);
     }
 
     return res.status(statusCode).json({
         success: false,
-        message: err.message || 'Sunucu Ici Hata (Internal Server Error)',
+        message: err.message || 'Sunucu Ici Hata',
         ...(environment === 'development' && { stack: err.stack })
     });
 });

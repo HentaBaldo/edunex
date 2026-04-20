@@ -1,7 +1,7 @@
 const API_URL = '/api/admin/users';
 // Eğer JWT kullanıyorsanız, login olan adminin token'ını buradan çekiyoruz.
 // Session kullanıyorsanız bu header'a gerek kalmayabilir.
-const token = localStorage.getItem('token'); 
+const token = localStorage.getItem('edunex_admin_token'); 
 
 const headers = {
     'Content-Type': 'application/json',

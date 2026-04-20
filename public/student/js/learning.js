@@ -172,6 +172,7 @@ function renderLessons(lessons) {
 
     return lessons.map(lesson => {
         const isCompleted = lesson.tamamlandi_mi;
+        const isPreview = lesson.onizleme_mi; // ✅ PREVIEW KONTROL
         const durationText = lesson.sure_saniye 
             ? `${Math.floor(lesson.sure_saniye / 60)}m`
             : 'N/A';
@@ -181,6 +182,9 @@ function renderLessons(lessons) {
                 <div class="lesson-name">
                     <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
                     <span>${escapeHtml(lesson.baslik)}</span>
+                    
+                    <!-- ✅ PREVIEW BADGE -->
+                    ${isPreview ? '<span style="background: #dbeafe; color: #075985; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 5px; font-weight: 600;">ÖNİZLEME</span>' : ''}
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     ${isCompleted ? '<i class="fas fa-check-circle lesson-completed"></i>' : ''}
@@ -273,7 +277,8 @@ function loadLesson(lessonId) {
 }
 
 /**
- * Video'yu yükle (HTML5 video veya iframe)
+ * Video'yu yükle (Bunny.net Stream + HTML5 + YouTube + Vimeo)
+ * DÜZELTME: Bunny.net UUID'sini doğru iframe URL'sine dönüştür
  * @param {Object} lesson - Ders nesnesi
  */
 function loadVideo(lesson) {
@@ -284,7 +289,7 @@ function loadVideo(lesson) {
         return;
     }
 
-    // Video kaynağı kontrol et
+    // Video kaynağı kontrol et (video_saglayici_id veya kaynak_url)
     const videoSource = lesson.video_saglayici_id || lesson.kaynak_url;
 
     if (!videoSource) {
@@ -297,9 +302,30 @@ function loadVideo(lesson) {
         return;
     }
 
-    // Video URL'sine göre player tipini belirle
+    console.log(`[LEARNING] Video kaynağı: ${videoSource}`);
+
+    // === BUNNY.NET STREAM (UUID) ===
+    // Eğer video_saglayici_id UUID formatında ise (49887b68-c7c6-4f49-bd0c-5efcc70bbf30)
+    if (isBunnyUUID(videoSource)) {
+        const BUNNY_LIBRARY_ID = '640675'; // .env'den BUNNY_LIBRARY_ID
+        const bunnyStreamUrl = `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoSource}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`;
+        
+        console.log(`[LEARNING] Bunny.net video yükleniyor: ${bunnyStreamUrl}`);
+        
+        videoPlayer.innerHTML = `
+            <iframe
+                src="${bunnyStreamUrl}"
+                loading="lazy"
+                style="border:0;position:absolute;top:0;height:100%;width:100%;"
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                allowfullscreen="true">
+            </iframe>
+        `;
+        return;
+    }
+
+    // === YOUTUBE ===
     if (isYoutubeUrl(videoSource)) {
-        // YouTube iframe
         const videoId = extractYoutubeId(videoSource);
         videoPlayer.innerHTML = `
             <iframe 
@@ -309,8 +335,11 @@ function loadVideo(lesson) {
                 style="width: 100%; height: 100%; border: none;"
             ></iframe>
         `;
-    } else if (isVimeoUrl(videoSource)) {
-        // Vimeo iframe
+        return;
+    }
+
+    // === VIMEO ===
+    if (isVimeoUrl(videoSource)) {
         const videoId = extractVimeoId(videoSource);
         videoPlayer.innerHTML = `
             <iframe 
@@ -320,15 +349,45 @@ function loadVideo(lesson) {
                 style="width: 100%; height: 100%; border: none;"
             ></iframe>
         `;
-    } else {
-        // HTML5 video player
-        videoPlayer.innerHTML = `
-            <video controls style="width: 100%; height: 100%; object-fit: contain;">
-                <source src="${videoSource}" type="video/mp4">
-                Tarayıcınız HTML5 video etiketini desteklemiyor.
-            </video>
-        `;
+        return;
     }
+
+    // === HTML5 VIDEO (MP4 / WebM) ===
+    videoPlayer.innerHTML = `
+        <video controls style="width: 100%; height: 100%; object-fit: contain;">
+            <source src="${escapeHtml(videoSource)}" type="video/mp4">
+            Tarayıcınız HTML5 video etiketini desteklemiyor.
+        </video>
+    `;
+}
+
+/**
+ * UUID formatını kontrol et (Bunny.net video GUID)
+ * Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ * @param {string} str - Kontrol edilecek string
+ * @returns {boolean}
+ */
+function isBunnyUUID(str) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+}
+
+/**
+ * YouTube URL'si kontrol et
+ * @param {string} url - URL
+ * @returns {boolean}
+ */
+function isYoutubeUrl(url) {
+    return url.includes('youtube.com') || url.includes('youtu.be');
+}
+
+/**
+ * Vimeo URL'si kontrol et
+ * @param {string} url - URL
+ * @returns {boolean}
+ */
+function isVimeoUrl(url) {
+    return url.includes('vimeo.com');
 }
 
 /**
