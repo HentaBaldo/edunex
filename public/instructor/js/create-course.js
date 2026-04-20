@@ -1,36 +1,30 @@
-import { UIHelper } from './modules/ui-helper.js';
 /**
- * EduNex Egitmen - Kurs Olusturma Isleyisi (Course Creation Logic)
- * API versiyon 1.0 standartlarina uygundur.
+ * EduNex Egitmen - Kurs Olusturma Isleyisi
+ * Version: 2.0 (Production Ready)
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Oturum ve Rol Dogrulamasi
-    if (!UIHelper.checkInstructorAccess()) return;
+    const token = localStorage.getItem('edunex_token');
+    if (!token) {
+        alert('Lütfen giriş yapınız.');
+        window.location.href = '/auth/index.html';
+        return;
+    }
 
-    // 2. Baslangic Verilerinin Yuklenmesi (Kategoriler)
     await loadCategories();
-    
-    // 3. Form Dinleyicisinin Baslatilmasi
     initCreateCourseForm();
 });
 
 /**
- * API'den kategorileri ceker ve secim (select) kutusunu dinamik olarak doldurur.
+ * Kategorileri yükle
  */
 async function loadCategories() {
     const categorySelect = document.getElementById('kategori_id');
-    const messageDiv = document.getElementById('courseMessage');
-    
     if (!categorySelect) return;
 
     try {
         const result = await ApiService.get('/categories');
         const categories = result.data || [];
-
-        if (categories.length === 0) {
-            console.warn('[CREATE COURSE] Sunucuda kayitli kategori bulunamadi.');
-        }
 
         categories.forEach(category => {
             const option = document.createElement('option');
@@ -40,16 +34,12 @@ async function loadCategories() {
         });
 
     } catch (error) {
-        console.error('[CREATE COURSE] Kategoriler yuklenemedi:', error.message);
-        if (messageDiv) {
-            messageDiv.textContent = "Uyari: Kategoriler sunucudan yuklenemedi.";
-            messageDiv.className = "message-box error active";
-        }
+        console.error('[CATEGORIES] Hata:', error.message);
     }
 }
 
 /**
- * Kurs olusturma formunun gonderim (submit) islemini yonetir ve veriyi API'ye iletir.
+ * Form submit handler
  */
 function initCreateCourseForm() {
     const form = document.getElementById('createCourseForm');
@@ -59,50 +49,96 @@ function initCreateCourseForm() {
         e.preventDefault();
         
         const messageDiv = document.getElementById('courseMessage');
-        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const submitBtn = form.querySelector('button[type="submit"]');
 
-        // Kullanici Arayuzu Geri Bildirimi: Islemi baslat
         if (messageDiv) {
-            messageDiv.textContent = "Kurs kaydediliyor, lutfen bekleyin...";
+            messageDiv.textContent = "Kurs kaydediliyor, lütfen bekleyin...";
             messageDiv.className = "message-box active";
         }
         if (submitBtn) submitBtn.disabled = true;
 
-        // Veri Hazirligi ve Temizligi (Trim)
-        const payload = {
-            baslik: document.getElementById('baslik')?.value.trim() || '',
-            alt_baslik: document.getElementById('alt_baslik')?.value.trim() || '',
-            aciklama: document.getElementById('aciklama')?.value.trim() || '',
-            kategori_id: document.getElementById('kategori_id')?.value || '',
-            dil: document.getElementById('dil')?.value || '',
-            seviye: document.getElementById('seviye')?.value || '',
-            fiyat: parseFloat(document.getElementById('fiyat')?.value) || 0,
-            gereksinimler: document.getElementById('gereksinimler')?.value.trim() || '',
-            kazanimlar: document.getElementById('kazanimlar')?.value.trim() || ''
-        };
-
         try {
-            // API Cagrisi
-            const result = await ApiService.post('/courses', payload);
-            
-            // Basarili Islem Yonetimi
-            if (messageDiv) {
-                messageDiv.textContent = result.message || "Kurs basariyla olusturuldu! Yonlendiriliyorsunuz...";
-                messageDiv.className = "message-box success active";
+            // Form verilerini topla
+            const baslik = document.getElementById('baslik')?.value?.trim();
+            const alt_baslik = document.getElementById('alt_baslik')?.value?.trim();
+            const aciklama = document.getElementById('aciklama')?.value?.trim();
+            const kategori_id = document.getElementById('kategori_id')?.value;
+            const fiyat = parseFloat(document.getElementById('fiyat')?.value) || 0;
+            const dil = document.getElementById('dil')?.value || 'Turkce';
+            const seviye = document.getElementById('seviye')?.value || 'Tum Seviyeler';
+            const gereksinimler = document.getElementById('gereksinimler')?.value?.trim();
+            const kazanimlar = document.getElementById('kazanimlar')?.value?.trim();
+
+            // Validasyon
+            if (!baslik || !aciklama || !kategori_id) {
+                throw new Error('Başlık, açıklama ve kategori zorunlu alanlar.');
             }
-            
-            // Yonlendirme Bekleme Suresi
-            setTimeout(() => {
-                window.location.href = '/instructor/dashboard.html';
-            }, 1500);
+
+            if (baslik.length < 5) {
+                throw new Error('Başlık en az 5 karakter olmalıdır.');
+            }
+
+            if (aciklama.length < 20) {
+                throw new Error('Açıklama en az 20 karakter olmalıdır.');
+            }
+
+            if (fiyat < 0) {
+                throw new Error('Fiyat negatif olamaz.');
+            }
+
+            console.log('[CREATE COURSE] Validasyon başarılı');
+
+            // Payload oluştur
+            const payload = {
+                baslik,
+                alt_baslik: alt_baslik || '',
+                aciklama,
+                kategori_id,
+                fiyat,
+                dil,
+                seviye,
+                gereksinimler: gereksinimler || '',
+                kazanimlar: kazanimlar || ''
+            };
+
+            console.log('[CREATE COURSE] Payload hazırlandı:', payload);
+            console.log('[CREATE COURSE] API\'ye POST isteği gönderiliyor...');
+
+            // API çağrısı
+            const result = await ApiService.post('/courses', payload);
+
+            if (result.status === 'success' || result.success) {
+                if (messageDiv) {
+                    messageDiv.textContent = result.message || "✓ Kurs başarıyla oluşturuldu!";
+                    messageDiv.className = "message-box success active";
+                }
+                
+                console.log('[CREATE COURSE] Başarılı. Panoya yönlendiriliyor...');
+                
+                setTimeout(() => {
+                    window.location.href = '/instructor/dashboard.html';
+                }, 1500);
+            }
 
         } catch (error) {
-            // Hata Yonetimi
-            console.error("[CREATE COURSE] Kurs olusturma isleminde hata:", error.message);
+            console.error("[CREATE COURSE] Kurs oluşturma hatası:", error);
+
+            let errorMessage = error.message || 'Bilinmeyen hata oluştu.';
+
+            // Rate limit hatası
+            if (error.statusCode === 429) {
+                errorMessage = 'Günde maksimum 5 kurs oluşturabilirsiniz. Yarın tekrar deneyin.';
+            }
+            // Validasyon hatası
+            else if (error.statusCode === 400) {
+                errorMessage = errorMessage;
+            }
+
             if (messageDiv) {
-                messageDiv.textContent = `Hata: ${error.message}`;
+                messageDiv.textContent = `❌ Hata: ${errorMessage}`;
                 messageDiv.className = "message-box error active";
             }
+            
             if (submitBtn) submitBtn.disabled = false;
         }
     });

@@ -1,27 +1,33 @@
 /**
  * EduNex - Kurs Düzenleme & Müfredat Yönetimi
  * Backend ile tam entegre, CRUD işlemleri yapan modül
+ * ✅ VIDEO UPLOAD (Bunny.net) - PRODUCTION READY
  */
 
-import { UIHelper } from './modules/ui-helper.js';
+const UIHelper = {
+    checkInstructorAccess: () => {
+        const token = localStorage.getItem('edunex_token');
+        if (!token) {
+            alert('Lütfen giriş yapınız.');
+            window.location.href = '/auth/index.html';
+            return false;
+        }
+        return true;
+    }
+};
 
 let courseId = new URLSearchParams(window.location.search).get('id');
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Oturum doğrula
     if (!UIHelper.checkInstructorAccess()) return;
 
-    // Kurs ID kontrolü
     if (!courseId) {
         showToast('Geçersiz Kurs ID\'si.', 'error');
         setTimeout(() => window.location.href = '/instructor/dashboard.html', 2000);
         return;
     }
 
-    // Müfredatı yükle
     await loadCurriculum();
-    
-    // Event listener'ları kur
     setupEventListeners();
 });
 
@@ -104,18 +110,25 @@ function renderLessons(lessons) {
         return `<p class="empty-section">Bu bölümde henüz ders yok.</p>`;
     }
 
-    return lessons.map(lesson => `
-        <div class="lesson-item" id="lesson-${lesson.id}">
-            <div class="lesson-info">
-                <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
-                <span>${escapeHtml(lesson.baslik)}</span>
-                ${lesson.onizleme_mi ? '<i class="fas fa-eye" style="color: #2563eb; margin-left: auto; margin-right: 10px;"></i>' : ''}
+    return lessons.map(lesson => {
+        const durationText = lesson.sure_saniye 
+            ? `${Math.floor(lesson.sure_saniye / 60)}m` 
+            : '';
+        
+        return `
+            <div class="lesson-item" id="lesson-${lesson.id}">
+                <div class="lesson-info">
+                    <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
+                    <span>${escapeHtml(lesson.baslik)}</span>
+                    ${lesson.onizleme_mi ? '<i class="fas fa-eye" style="color: #2563eb; margin-left: auto; margin-right: 10px;"></i>' : ''}
+                    ${durationText ? `<span style="color: #64748b; font-size: 0.8rem; margin-left: 8px;">${durationText}</span>` : ''}
+                </div>
+                <button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 /**
@@ -130,22 +143,42 @@ function setupEventListeners() {
             await handleAddSection();
         });
     }
-    // İçerik tipine göre dosya yükleme alanını göster/gizle
-    const icerikTipiSelect = document.getElementById('icerik_tipi');
-    const dosyaYuklemeGrubu = document.getElementById('dosya_yukleme_grubu');
 
-    if (icerikTipiSelect && dosyaYuklemeGrubu) {
-        icerikTipiSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'quiz') {
-                dosyaYuklemeGrubu.style.display = 'none';
-            } else {
-                dosyaYuklemeGrubu.style.display = 'block';
-            }
-        });
-        
-        // Modal ilk açıldığında mevcut seçime göre tetikle
-        icerikTipiSelect.dispatchEvent(new Event('change'));
-    }
+    // İçerik tipine göre dosya yükleme alanını göster/gizle
+        // --- DİNAMİK DERS EKLEME FORMU KONTROLÜ ---
+        const icerikTipiSelect = document.getElementById('icerik_tipi');
+        const tahminiSureContainer = document.getElementById('tahminiSureContainer');
+        const dersDosyasiInput = document.getElementById('ders_dosyasi');
+        const dersDosyasiLabel = document.getElementById('ders_dosyasi_label');
+    
+        if (icerikTipiSelect) {
+            icerikTipiSelect.addEventListener('change', (e) => {
+                const secilenTip = e.target.value;
+    
+                if (secilenTip === 'video') {
+                    // Video seçildi: Süre sorulmaz, dosya inputu video ile kısıtlanır
+                    if (tahminiSureContainer) tahminiSureContainer.style.display = 'none';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = 'video/mp4,video/webm';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (Video MP4/WEBM)';
+                } 
+                else if (secilenTip === 'metin') {
+                    // Belge seçildi: Süre sorulur, dosya inputu belge ile kısıtlanır
+                    if (tahminiSureContainer) tahminiSureContainer.style.display = 'block';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = '.pdf,.doc,.docx,.ppt,.pptx';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (PDF, Word, PPT)';
+                } 
+                else if (secilenTip === 'quiz') {
+                    // Quiz seçildi: Süre sorulur, dosya inputu PDF veya resim ile kısıtlanır
+                    if (tahminiSureContainer) tahminiSureContainer.style.display = 'block';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = '.pdf,.jpg,.png';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Test Dosyası (PDF veya Resim)';
+                }
+            });
+    
+            // Sayfa açıldığında varsayılan seçime göre form arayüzünü ayarla
+            icerikTipiSelect.dispatchEvent(new Event('change'));
+        }
+
     // Ders Ekleme Formu
     const dersForm = document.getElementById('dersEkleForm');
     if (dersForm) {
@@ -206,35 +239,62 @@ async function handleAddSection() {
         await loadCurriculum();
 
     } catch (error) {
+        console.error('[SECTION ADD] Hata:', error.message);
         showToast(`Hata: ${error.message}`, 'error');
     }
 }
 
 /**
- * Ders ekleme işlemi
+ * Ders ekleme işlemi - UPLOAD SPAM ENGELLEME VE DİNAMİK VERİ (GÖREV 3)
  */
 async function handleAddLesson() {
     const bolumId = document.getElementById('secili_bolum_id')?.value;
     const baslik = document.getElementById('ders_baslik')?.value.trim();
     const icerikTipi = document.getElementById('icerik_tipi')?.value;
-    const sureSaniye = parseInt(document.getElementById('sure_saniye')?.value) || 0;
+    const tahminiSureDk = document.getElementById('tahmini_sure')?.value;
+    const dosyaInput = document.getElementById('ders_dosyasi');
+    const aciklama = document.getElementById('ders_aciklama')?.value.trim();
     const kaynakUrl = document.getElementById('kaynak_url')?.value.trim();
-    const onizlemeMi = document.getElementById('onizleme_mi')?.checked || false;
+    const onizlemeMi = document.getElementById('onizleme_mi')?.checked;
+
+    const file = dosyaInput?.files[0];
 
     if (!baslik) {
         showToast('Ders başlığı gereklidir.', 'error');
         return;
     }
 
+    // BUTON KİLİTLEME MANTIĞI (SPAM ENGELLEYİCİ)
+    const submitBtn = document.getElementById('dersSubmitBtn');
+    const originalBtnText = submitBtn ? submitBtn.innerText : 'Kaydet';
+    
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Yükleniyor, Lütfen Bekleyin...';
+    }
+
     try {
-        const result = await ApiService.post('/curriculum/lessons', {
-            bolum_id: bolumId,
-            baslik,
-            icerik_tipi: icerikTipi,
-            sure_saniye: sureSaniye,
-            kaynak_url: kaynakUrl,
-            onizleme_mi: onizlemeMi
-        });
+        const formData = new FormData();
+        formData.append('bolum_id', bolumId);
+        formData.append('baslik', baslik);
+        formData.append('icerik_tipi', icerikTipi);
+        formData.append('onizleme_mi', onizlemeMi);
+        
+        if (aciklama) formData.append('aciklama', aciklama);
+        if (kaynakUrl) formData.append('kaynak_url', kaynakUrl);
+
+        // Belge veya Test ise dakikayı saniyeye çevirip gönder
+        if (icerikTipi !== 'video' && tahminiSureDk) {
+            formData.append('sure_saniye', parseInt(tahminiSureDk) * 60);
+        }
+
+        // KRİTİK DÜZELTME: Backend "video" anahtarını bekliyor (upload.single('video'))
+        if (file) {
+            formData.append('video', file);
+        }
+
+        // Backend'e form data olarak gönder (true parametresi form-data olduğunu belirtir)
+        await ApiService.postFormData('/curriculum/lessons', formData);
 
         showToast('Ders başarıyla eklendi.', 'success');
         window.closeLessonModal();
@@ -242,7 +302,14 @@ async function handleAddLesson() {
         await loadCurriculum();
 
     } catch (error) {
+        console.error('[LESSON ADD] Hata:', error.message);
         showToast(`Hata: ${error.message}`, 'error');
+    } finally {
+        // İŞLEM BİTİNCE BUTONU AKTİF ET YADA HATAYA DÜŞSÜN
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
+        }
     }
 }
 
@@ -257,6 +324,7 @@ async function handleDeleteSection(sectionId) {
         showToast('Bölüm başarıyla silindi.', 'success');
         await loadCurriculum();
     } catch (error) {
+        console.error('[SECTION DELETE] Hata:', error.message);
         showToast(`Hata: ${error.message}`, 'error');
     }
 }
@@ -272,6 +340,7 @@ async function handleDeleteLesson(lessonId) {
         showToast('Ders başarıyla silindi.', 'success');
         await loadCurriculum();
     } catch (error) {
+        console.error('[LESSON DELETE] Hata:', error.message);
         showToast(`Hata: ${error.message}`, 'error');
     }
 }
@@ -338,8 +407,19 @@ window.closeSectionModal = () => {
 };
 
 window.showLessonModal = (sectionId) => {
-    document.getElementById('secili_bolum_id').value = sectionId;
-    document.getElementById('dersEkleModal').style.display = 'flex';
+    // Tıklanan bölümün ID'sini gizli inputa yaz
+    const bolumInput = document.getElementById('secili_bolum_id');
+    if (bolumInput) {
+        bolumInput.value = sectionId;
+    }
+    
+    const modal = document.getElementById('dersEkleModal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeLessonModal = () => {
+    const modal = document.getElementById('dersEkleModal');
+    if (modal) modal.style.display = 'none';
 };
 
 window.closeLessonModal = () => {
@@ -356,6 +436,7 @@ window.sendCourseForApproval = async () => {
         showToast('Kurs onaya gönderildi.', 'success');
         setTimeout(() => window.location.href = '/instructor/dashboard.html', 2000);
     } catch (error) {
+        console.error('[APPROVAL] Hata:', error.message);
         showToast(`Hata: ${error.message}`, 'error');
     }
 };
