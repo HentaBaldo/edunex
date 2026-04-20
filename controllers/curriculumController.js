@@ -21,11 +21,18 @@ exports.createSection = async (req, res, next) => {
         // YETKİ KONTROLÜ
         const course = await Course.findOne({
             where: { id: kurs_id, egitmen_id: userId },
-            attributes: ['id']
+            attributes: ['id', 'durum'] // DÜZELTME: 'durum' eklendi
         });
 
         if (!course) {
             const error = new Error('Kurs bulunamadı veya bu kursa bölüm ekleme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // KURS DEĞİŞİKLİK KİLİDİ
+        if (course.durum !== 'taslak') {
+            const error = new Error('Sadece taslak durumundaki kurslara bölüm eklenebilir. Yayında veya onayda olan kurslar değiştirilemez.');
             error.statusCode = 403;
             throw error;
         }
@@ -90,7 +97,7 @@ exports.createLesson = async (req, res, next) => {
             attributes: ['id', 'kurs_id'],
             include: [{
                 model: Course,
-                attributes: ['id', 'egitmen_id']
+                attributes: ['id', 'egitmen_id', 'durum'] // DÜZELTME: 'durum' eklendi
             }]
         });
 
@@ -106,6 +113,13 @@ exports.createLesson = async (req, res, next) => {
             throw error;
         }
 
+        // KURS DEĞİŞİKLİK KİLİDİ
+        if (section.Course.durum !== 'taslak') {
+            const error = new Error('Sadece taslak durumundaki kursların müfredatında değişiklik yapılabilir.');
+            error.statusCode = 403;
+            throw error;
+        }
+
         // === SIRA NUMARASI HESAPLA ===
         const maxSira = await Lesson.max('sira_numarasi', {
             where: { bolum_id }
@@ -117,13 +131,23 @@ exports.createLesson = async (req, res, next) => {
 
         if (uploadedFile) {
             tempFilePath = uploadedFile.path;
-            console.log(`[LESSON CREATE] Video yükleniyor: ${baslik}`);
             
-            const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
-            bunnyVideoGuid = bunnyResult.guid;
-            finalVideoProvider = bunnyVideoGuid;
-            
-            console.log(`[LESSON CREATE] Bunny Video GUID: ${bunnyVideoGuid}`);
+            // Eğer içerik tipi video ise BunnyCDN'e yükle
+            if (icerik_tipi === 'video') {
+                console.log(`[LESSON CREATE] Video yükleniyor (BunnyNet): ${baslik}`);
+                
+                const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
+                bunnyVideoGuid = bunnyResult.guid;
+                finalVideoProvider = bunnyVideoGuid;
+                
+                console.log(`[LESSON CREATE] Bunny Video GUID: ${bunnyVideoGuid}`);
+            } 
+            // Eğer video değilse (PDF, Word, resim vs.) BunnyCDN'i yorma, direkt dosya yolunu veritabanına kaydet
+            else {
+                console.log(`[LESSON CREATE] Belge/Döküman yükleniyor (Local): ${uploadedFile.filename}`);
+                // Sunucuda /uploads/temp/ dizininde tutulan dosyanın public URL'i
+                finalVideoProvider = `/uploads/temp/${uploadedFile.filename}`;
+            }
             
         } else if (kaynak_url) {
             const urlValidation = (url) => {
@@ -209,7 +233,7 @@ exports.updateSection = async (req, res, next) => {
             attributes: ['id', 'kurs_id', 'baslik', 'aciklama'],
             include: [{
                 model: Course,
-                attributes: ['id', 'egitmen_id'],
+                attributes: ['id', 'egitmen_id', 'durum'], // DÜZELTME: 'durum' eklendi
                 required: true
             }]
         });
@@ -222,6 +246,13 @@ exports.updateSection = async (req, res, next) => {
 
         if (section.Course.egitmen_id !== userId) {
             const error = new Error('Bu bölümü güncelleme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // KURS DEĞİŞİKLİK KİLİDİ
+        if (section.Course.durum !== 'taslak') {
+            const error = new Error('Sadece taslak durumundaki kursların bölümleri güncellenebilir.');
             error.statusCode = 403;
             throw error;
         }
@@ -332,7 +363,7 @@ exports.updateLesson = async (req, res, next) => {
                 attributes: ['id', 'kurs_id'],
                 include: [{
                     model: Course,
-                    attributes: ['id', 'egitmen_id']
+                    attributes: ['id', 'egitmen_id', 'durum'] // DÜZELTME: 'durum' eklendi
                 }]
             }]
         });
@@ -345,6 +376,13 @@ exports.updateLesson = async (req, res, next) => {
 
         if (lesson.CourseSection.Course.egitmen_id !== userId) {
             const error = new Error('Bu dersi güncelleme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // KURS DEĞİŞİKLİK KİLİDİ
+        if (lesson.CourseSection.Course.durum !== 'taslak') {
+            const error = new Error('Sadece taslak durumundaki kursların dersleri güncellenebilir.');
             error.statusCode = 403;
             throw error;
         }
@@ -392,7 +430,7 @@ exports.deleteSection = async (req, res, next) => {
             where: { id },
             include: [{
                 model: Course,
-                attributes: ['id', 'egitmen_id']
+                attributes: ['id', 'egitmen_id', 'durum'] // DÜZELTME: 'durum' eklendi
             }]
         });
 
@@ -404,6 +442,13 @@ exports.deleteSection = async (req, res, next) => {
 
         if (section.Course.egitmen_id !== userId) {
             const error = new Error('Bu bölümü silme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // KURS DEĞİŞİKLİK KİLİDİ
+        if (section.Course.durum !== 'taslak') {
+            const error = new Error('Onaya gönderilmiş veya yayında olan kurslardan içerik silinemez.');
             error.statusCode = 403;
             throw error;
         }
@@ -439,7 +484,7 @@ exports.deleteLesson = async (req, res, next) => {
                 model: CourseSection,
                 include: [{
                     model: Course,
-                    attributes: ['id', 'egitmen_id']
+                    attributes: ['id', 'egitmen_id', 'durum'] // DÜZELTME: 'durum' eklendi
                 }]
             }]
         });
@@ -452,6 +497,13 @@ exports.deleteLesson = async (req, res, next) => {
 
         if (lesson.CourseSection.Course.egitmen_id !== userId) {
             const error = new Error('Bu dersi silme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // KURS DEĞİŞİKLİK KİLİDİ
+        if (lesson.CourseSection.Course.durum !== 'taslak') {
+            const error = new Error('Onaya gönderilmiş veya yayında olan kurslardan içerik silinemez.');
             error.statusCode = 403;
             throw error;
         }

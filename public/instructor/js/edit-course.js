@@ -145,20 +145,39 @@ function setupEventListeners() {
     }
 
     // İçerik tipine göre dosya yükleme alanını göster/gizle
-    const icerikTipiSelect = document.getElementById('icerik_tipi');
-    const dosyaYuklemeGrubu = document.getElementById('dosya_yukleme_grubu');
-
-    if (icerikTipiSelect && dosyaYuklemeGrubu) {
-        icerikTipiSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'quiz') {
-                dosyaYuklemeGrubu.style.display = 'none';
-            } else {
-                dosyaYuklemeGrubu.style.display = 'block';
-            }
-        });
-        
-        icerikTipiSelect.dispatchEvent(new Event('change'));
-    }
+        // --- DİNAMİK DERS EKLEME FORMU KONTROLÜ ---
+        const icerikTipiSelect = document.getElementById('icerik_tipi');
+        const tahminiSureContainer = document.getElementById('tahminiSureContainer');
+        const dersDosyasiInput = document.getElementById('ders_dosyasi');
+        const dersDosyasiLabel = document.getElementById('ders_dosyasi_label');
+    
+        if (icerikTipiSelect) {
+            icerikTipiSelect.addEventListener('change', (e) => {
+                const secilenTip = e.target.value;
+    
+                if (secilenTip === 'video') {
+                    // Video seçildi: Süre sorulmaz, dosya inputu video ile kısıtlanır
+                    if (tahminiSureContainer) tahminiSureContainer.style.display = 'none';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = 'video/mp4,video/webm';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (Video MP4/WEBM)';
+                } 
+                else if (secilenTip === 'metin') {
+                    // Belge seçildi: Süre sorulur, dosya inputu belge ile kısıtlanır
+                    if (tahminiSureContainer) tahminiSureContainer.style.display = 'block';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = '.pdf,.doc,.docx,.ppt,.pptx';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (PDF, Word, PPT)';
+                } 
+                else if (secilenTip === 'quiz') {
+                    // Quiz seçildi: Süre sorulur, dosya inputu PDF veya resim ile kısıtlanır
+                    if (tahminiSureContainer) tahminiSureContainer.style.display = 'block';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = '.pdf,.jpg,.png';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Test Dosyası (PDF veya Resim)';
+                }
+            });
+    
+            // Sayfa açıldığında varsayılan seçime göre form arayüzünü ayarla
+            icerikTipiSelect.dispatchEvent(new Event('change'));
+        }
 
     // Ders Ekleme Formu
     const dersForm = document.getElementById('dersEkleForm');
@@ -226,104 +245,71 @@ async function handleAddSection() {
 }
 
 /**
- * Ders ekleme işlemi - VIDEO UPLOAD
+ * Ders ekleme işlemi - UPLOAD SPAM ENGELLEME VE DİNAMİK VERİ (GÖREV 3)
  */
 async function handleAddLesson() {
     const bolumId = document.getElementById('secili_bolum_id')?.value;
     const baslik = document.getElementById('ders_baslik')?.value.trim();
     const icerikTipi = document.getElementById('icerik_tipi')?.value;
-    const sureSaniye = parseInt(document.getElementById('sure_saniye')?.value) || 0;
-    const kaynakUrl = document.getElementById('kaynak_url')?.value.trim();
-    const onizlemeMi = document.getElementById('onizleme_mi')?.checked || false;
-    const aciklama = document.getElementById('ders_aciklama')?.value.trim();
+    const tahminiSureDk = document.getElementById('tahmini_sure')?.value;
     const dosyaInput = document.getElementById('ders_dosyasi');
+    const aciklama = document.getElementById('ders_aciklama')?.value.trim();
+    const kaynakUrl = document.getElementById('kaynak_url')?.value.trim();
+    const onizlemeMi = document.getElementById('onizleme_mi')?.checked;
+
+    const file = dosyaInput?.files[0];
 
     if (!baslik) {
         showToast('Ders başlığı gereklidir.', 'error');
         return;
     }
 
+    // BUTON KİLİTLEME MANTIĞI (SPAM ENGELLEYİCİ)
+    const submitBtn = document.getElementById('dersSubmitBtn');
+    const originalBtnText = submitBtn ? submitBtn.innerText : 'Kaydet';
+    
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Yükleniyor, Lütfen Bekleyin...';
+    }
+
     try {
-        // ✅ LOADING GÖSTER
-        showToast('Video yükleniyor, lütfen bekleyin...', 'info');
-        
         const formData = new FormData();
-        
         formData.append('bolum_id', bolumId);
         formData.append('baslik', baslik);
-        formData.append('icerik_tipi', icerikTipi || 'video');
-        formData.append('sure_saniye', sureSaniye);
-        formData.append('kaynak_url', kaynakUrl || '');
+        formData.append('icerik_tipi', icerikTipi);
         formData.append('onizleme_mi', onizlemeMi);
-        formData.append('aciklama', aciklama || '');
         
-        // Video dosyası
-        if (dosyaInput && dosyaInput.files.length > 0) {
-            const videoFile = dosyaInput.files[0];
-            
-            const validTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
-            if (!validTypes.includes(videoFile.type)) {
-                showToast(`Geçersiz dosya tipi: ${videoFile.type}`, 'error');
-                return;
-            }
-            
-            const maxSize = 4 * 1024 * 1024 * 1024;
-            if (videoFile.size > maxSize) {
-                showToast(`Dosya çok büyük: ${(videoFile.size / 1024 / 1024 / 1024).toFixed(2)}GB`, 'error');
-                return;
-            }
-            
-            formData.append('video', videoFile);
-            console.log(`[LESSON ADD] Video: ${videoFile.name} (${(videoFile.size / 1024 / 1024).toFixed(2)}MB)`);
+        if (aciklama) formData.append('aciklama', aciklama);
+        if (kaynakUrl) formData.append('kaynak_url', kaynakUrl);
+
+        // Belge veya Test ise dakikayı saniyeye çevirip gönder
+        if (icerikTipi !== 'video' && tahminiSureDk) {
+            formData.append('sure_saniye', parseInt(tahminiSureDk) * 60);
         }
 
-        console.log('[LESSON ADD] FormData gönderiliyor');
-
-        const token = localStorage.getItem('edunex_token');
-        const response = await fetch('/api/curriculum/lessons', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            body: formData
-        });
-
-        // ✅ Response kontrolü
-        let result;
-        try {
-            result = await response.json();
-        } catch (e) {
-            throw new Error(`Sunucudan yanıt alınamadı: ${response.status}`);
+        // KRİTİK DÜZELTME: Backend "video" anahtarını bekliyor (upload.single('video'))
+        if (file) {
+            formData.append('video', file);
         }
 
-        if (!response.ok) {
-            throw new Error(result.message || `HTTP Error: ${response.status}`);
-        }
+        // Backend'e form data olarak gönder (true parametresi form-data olduğunu belirtir)
+        await ApiService.postFormData('/curriculum/lessons', formData);
 
-        console.log('[LESSON ADD] Başarı:', result);
-
-        if (result.status === 'success') {
-            // ✅ BAŞARILI BİLDİRİM
-            showToast('✅ Ders başarıyla eklendi!', 'success');
-            
-            if (result.data.processingNote) {
-                showToast(`ℹ️ ${result.data.processingNote}`, 'info');
-            }
-            
-            // Modal kapat
-            window.closeLessonModal();
-            
-            // Form temizle
-            document.getElementById('dersEkleForm').reset();
-            document.getElementById('ders_dosyasi').value = '';
-            
-            // Listeyi yenile
-            await loadCurriculum();
-        }
+        showToast('Ders başarıyla eklendi.', 'success');
+        window.closeLessonModal();
+        document.getElementById('dersEkleForm').reset();
+        await loadCurriculum();
 
     } catch (error) {
-        console.error('[LESSON ADD] HATA:', error.message);
-        showToast(`❌ Hata: ${error.message}`, 'error');
+        console.error('[LESSON ADD] Hata:', error.message);
+        showToast(`Hata: ${error.message}`, 'error');
+    } finally {
+        // İŞLEM BİTİNCE BUTONU AKTİF ET YADA HATAYA DÜŞSÜN
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
+        }
     }
 }
 
@@ -421,8 +407,19 @@ window.closeSectionModal = () => {
 };
 
 window.showLessonModal = (sectionId) => {
-    document.getElementById('secili_bolum_id').value = sectionId;
-    document.getElementById('dersEkleModal').style.display = 'flex';
+    // Tıklanan bölümün ID'sini gizli inputa yaz
+    const bolumInput = document.getElementById('secili_bolum_id');
+    if (bolumInput) {
+        bolumInput.value = sectionId;
+    }
+    
+    const modal = document.getElementById('dersEkleModal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeLessonModal = () => {
+    const modal = document.getElementById('dersEkleModal');
+    if (modal) modal.style.display = 'none';
 };
 
 window.closeLessonModal = () => {

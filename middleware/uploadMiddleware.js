@@ -28,25 +28,36 @@ const storage = multer.diskStorage({
 
 // === FILE FILTER ===
 const fileFilter = (req, file, cb) => {
-    // Video dosyaları kabul et
-    const validMimes = [
-        'video/mp4',
-        'video/x-msvideo',
-        'video/quicktime',
-        'video/x-matroska',
-        'video/webm',
-        'video/x-ms-wmv',
-        'application/octet-stream'  // Bazı tarayıcılar .mp4'ü buna dönüştürüyor
+    
+    // 1. Profil Fotoğrafı Yüklemesi İçin Kontrol
+    if (file.fieldname === 'avatar') {
+        const validImageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (validImageMimes.includes(file.mimetype)) {
+            return cb(null, true);
+        }
+        return cb(new Error('Geçersiz format! Profil için sadece JPG, PNG veya WEBP yükleyebilirsiniz.'), false);
+    }
+
+    // 2. Ders İçeriği (Video, PDF, Word, Quiz Resmi vb.) İçin Kontrol
+    const validLessonMimes = [
+        // Videolar
+        'video/mp4', 'video/x-msvideo', 'video/quicktime', 'video/x-matroska', 'video/webm', 'application/octet-stream',
+        // Belgeler
+        'application/pdf', 
+        'application/msword', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+        'application/vnd.ms-powerpoint', 
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+        // Quiz için Resimler
+        'image/jpeg', 'image/jpg', 'image/png'
     ];
     
-    const validExtensions = /\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i;
+    const validExtensions = /\.(mp4|avi|mov|mkv|webm|pdf|doc|docx|ppt|pptx|jpg|jpeg|png)$/i;
     
-    if (validMimes.includes(file.mimetype) || validExtensions.test(file.originalname)) {
-        console.log(`[MULTER] Dosya kabul edildi: ${file.originalname} (${file.mimetype})`);
+    if (validLessonMimes.includes(file.mimetype) || validExtensions.test(file.originalname)) {
         cb(null, true);
     } else {
-        console.error(`[MULTER] Dosya reddedildi: ${file.originalname} (${file.mimetype})`);
-        cb(new Error(`Geçersiz dosya tipi: ${file.mimetype}. İzin verilen: MP4, AVI, MOV, MKV, WebM`), false);
+        cb(new Error(`Geçersiz ders dosyası tipi. Video, PDF, Word, PPT veya Resim yükleyebilirsiniz.`), false);
     }
 };
 

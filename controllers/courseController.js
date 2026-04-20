@@ -6,6 +6,7 @@ const {
     LessonProgress,
     CourseEnrollment,
     Category,
+    InstructorDetail,
     Review
 } = require('../models');
 
@@ -146,29 +147,35 @@ exports.getCourseDetails = async (req, res, next) => {
         const { id } = req.params;
 
         const course = await Course.findOne({
-            where: { id, durum: 'yayinda' },
+            where: { id },
             include: [
                 {
-                    model: CourseSection,
-                    as: 'Sections',
-                    attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi'],
-                    include: [{
-                        model: Lesson,
-                        as: 'Lessons',
-                        attributes: ['id', 'baslik', 'sure_saniye', 'icerik_tipi', 'sira_numarasi'],
-                        order: [['sira_numarasi', 'ASC']]
-                    }],
-                    order: [['sira_numarasi', 'ASC']]
-                },
-                {
+                    // 1. Profil tablosundan temel ad ve soyad bilgilerini çekiyoruz
                     model: Profile,
                     as: 'Egitmen',
                     attributes: ['id', 'ad', 'soyad', 'profil_fotografi']
                 },
                 {
-                    model: Category,
-                    attributes: ['id', 'ad']
+                    // 2. Eğitmen detayları tablosundan unvan ve biyografiyi çekiyoruz
+                    model: InstructorDetail,
+                    attributes: ['unvan', 'biyografi']
+                },
+                {
+                    // 3. Müfredatı ve altındaki dersleri çekiyoruz
+                    model: CourseSection,
+                    as: 'Sections',
+                    include: [
+                        {
+                            model: Lesson,
+                            as: 'Lessons',
+                            attributes: ['id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi']
+                        }
+                    ]
                 }
+            ],
+            order: [
+                [{ model: CourseSection, as: 'Sections' }, 'sira_numarasi', 'ASC'],
+                [{ model: CourseSection, as: 'Sections' }, { model: Lesson, as: 'Lessons' }, 'sira_numarasi', 'ASC']
             ]
         });
 
@@ -179,11 +186,12 @@ exports.getCourseDetails = async (req, res, next) => {
         }
 
         return res.status(200).json({
-            status: 'success',
-            message: 'Kurs detayları başarıyla alındı.',
+            success: true,
             data: course
         });
+
     } catch (error) {
+        console.error(`[COURSE DETAIL] Hata: ${error.message}`);
         next(error);
     }
 };
