@@ -97,7 +97,7 @@ exports.createLesson = async (req, res, next) => {
             attributes: ['id', 'kurs_id'],
             include: [{
                 model: Course,
-                attributes: ['id', 'egitmen_id', 'durum'] // DÜZELTME: 'durum' eklendi
+                attributes: ['id', 'egitmen_id', 'durum']
             }]
         });
 
@@ -129,24 +129,31 @@ exports.createLesson = async (req, res, next) => {
         // === VIDEO UPLOAD LOGIC ===
         let finalVideoProvider = null;
 
+        console.log(`[LESSON CREATE] BAŞLANDI: ${baslik}`);
+        console.log(`[LESSON CREATE] İçerik Tipi: ${icerik_tipi}`);
+        console.log(`[LESSON CREATE] Dosya Yüklendi mi: ${uploadedFile ? 'EVET' : 'HAYIR'}`);
+
         if (uploadedFile) {
             tempFilePath = uploadedFile.path;
             
-            // Eğer içerik tipi video ise BunnyCDN'e yükle
             if (icerik_tipi === 'video') {
-                console.log(`[LESSON CREATE] Video yükleniyor (BunnyNet): ${baslik}`);
+                console.log(`[LESSON CREATE] Video BunnyCDN'e yükleniyor...`);
                 
-                const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
-                bunnyVideoGuid = bunnyResult.guid;
-                finalVideoProvider = bunnyVideoGuid;
-                
-                console.log(`[LESSON CREATE] Bunny Video GUID: ${bunnyVideoGuid}`);
+                try {
+                    const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
+                    bunnyVideoGuid = bunnyResult.guid;
+                    finalVideoProvider = bunnyVideoGuid;
+                    
+                    console.log(`[LESSON CREATE] ✅ Bunny Video GUID: ${bunnyVideoGuid}`);
+                } catch (bunnyError) {
+                    console.error(`[LESSON CREATE] ❌ Bunny Upload Hata:`, bunnyError.message);
+                    finalVideoProvider = null;
+                }
             } 
-            // Eğer video değilse (PDF, Word, resim vs.) BunnyCDN'i yorma, direkt dosya yolunu veritabanına kaydet
             else {
-                console.log(`[LESSON CREATE] Belge/Döküman yükleniyor (Local): ${uploadedFile.filename}`);
-                // Sunucuda /uploads/temp/ dizininde tutulan dosyanın public URL'i
+                console.log(`[LESSON CREATE] Belge/Döküman kaydediliyor (Local)`);
                 finalVideoProvider = `/uploads/temp/${uploadedFile.filename}`;
+                console.log(`[LESSON CREATE] ✅ Dosya Path: ${finalVideoProvider}`);
             }
             
         } else if (kaynak_url) {
@@ -173,7 +180,14 @@ exports.createLesson = async (req, res, next) => {
             
             urlValidation(kaynak_url);
             finalVideoProvider = kaynak_url;
+            console.log(`[LESSON CREATE] Kaynak URL kullanılıyor: ${finalVideoProvider}`);
+        } else {
+            console.log(`[LESSON CREATE] ⚠️ Dosya veya Kaynak URL YÜKLENMEDİ!`);
+            finalVideoProvider = null;
         }
+
+        console.log(`[LESSON CREATE] Final Video Provider: ${finalVideoProvider}`);
+        console.log(`[LESSON CREATE] Kaydediliyor - Video ID: ${finalVideoProvider}`);
 
         // === DERS OLUŞTUR ===
         const newLesson = await Lesson.create({
@@ -187,7 +201,7 @@ exports.createLesson = async (req, res, next) => {
             icerik_tipi: icerik_tipi || 'video'
         });
 
-        console.log(`[LESSON CREATE] Ders oluşturuldu: ${newLesson.id}`);
+        console.log(`[LESSON CREATE] ✅ Ders kaydedildi - ID: ${newLesson.id}, Video: ${newLesson.video_saglayici_id}`);
 
         return res.status(201).json({
             status: 'success',
@@ -217,7 +231,6 @@ exports.createLesson = async (req, res, next) => {
         next(error);
     }
 };
-
 /**
  * Bölüm Güncelleme
  * @route PUT /api/curriculum/sections/:id

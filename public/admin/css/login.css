@@ -1,6 +1,5 @@
 /**
  * EduNex Admin - Login Portal CSS
- * Yonetici giris ekraninin izole ve guvenli tasarimi.
  */
 
  :root {
@@ -156,6 +155,9 @@ body {
     color: var(--text-muted);
     text-decoration: none;
     transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .back-link:hover {
@@ -163,13 +165,12 @@ body {
 }
 
 .security-badge {
-    color: #10b981; /* Yesil guvenlik rengi */
+    color: #10b981;
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
-/* Mesaj Kutusu */
 .message-box {
     margin-top: 20px;
     padding: 12px;
@@ -180,6 +181,30 @@ body {
     font-weight: 500;
 }
 
-.message-box.active { display: block; }
-.message-box.error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
-.message-box.success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #6ee7b7; }
+.message-box.active {
+    display: block;
+}
+
+.message-box.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+}
+
+.message-box.success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #6ee7b7;
+}
+
+@media (max-width: 480px) {
+    .admin-login-card {
+        padding: 30px 20px;
+    }
+
+    .admin-login-footer {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}

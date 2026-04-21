@@ -68,9 +68,6 @@
                         <h2>Inceleme Bekleyen Basvurular</h2>
                         <p class="subtitle">Egitmenler tarafindan onaya gonderilen yeni kurslari buradan yonetebilirsiniz.</p>
                     </div>
-                    <div class="header-right">
-                        <span class="badge badge-pending-total" id="pendingCount">0 Kurs Bekliyor</span>
-                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -101,53 +98,40 @@
         </section>
     </main>
 
-    <div id="courseModal" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="header-title-group">
-                    <span class="modal-label">KURS INCELEME</span>
-                    <h2 id="modalTitle">Kurs Icerigi</h2>
-                </div>
-                <button type="button" onclick="closeModal()" class="close-btn" aria-label="Kapat">
-                    <i class="fas fa-times"></i>
-                </button>
+    <!-- TANRI MODU MODAL -->
+    <div id="godModeModal" class="god-mode-backdrop">
+        <div class="god-mode-modal">
+            <div class="god-mode-header">
+                <h2><span id="gmTitle">Yükleniyor...</span> <span id="gmPrice"></span></h2>
+                <button type="button" onclick="closeGodMode()" class="god-mode-close">&times;</button>
             </div>
             
-            <div class="modal-body">
-                <div class="modal-meta-grid">
-                    <div class="meta-item">
-                        <label>Egitmen Bilgisi</label>
-                        <p id="detayEgitmen"><i class="fas fa-user-circle"></i> --</p>
+            <div class="god-mode-body">
+                <div class="god-mode-grid">
+                    <div class="god-mode-card">
+                        <h4>Eğitmen Detayları</h4>
+                        <p><strong>Ad Soyad:</strong> <span id="gmInstructorName"></span></p>
+                        <p><strong>Unvan:</strong> <span id="gmInstructorTitle"></span></p>
                     </div>
-                    <div class="meta-item">
-                        <label>Basvuru Durumu</label>
-                        <span class="badge badge-status-pending">Inceleme Asamasinda</span>
+                    <div class="god-mode-card">
+                        <h4>Kurs Özeti</h4>
+                        <p><strong>Seviye:</strong> <span id="gmLevel"></span></p>
+                        <p><strong>Dil:</strong> <span id="gmLanguage"></span></p>
+                        <p><strong>Kategori:</strong> <span id="gmCategory"></span></p>
                     </div>
-                </div>
-                
-                <div class="modal-section">
-                    <label class="section-label"><i class="fas fa-align-left"></i> Kurs Tanitimi</label>
-                    <div id="detayAciklama" class="desc-box"></div>
                 </div>
 
-                <div class="modal-section">
-                    <label class="section-label"><i class="fas fa-stream"></i> Ders Mufredati (Bolumler & Dersler)</label>
-                    <div class="curriculum-preview-list">
-                        <ul id="detayMufredat">
-                            </ul>
-                    </div>
-                </div>
+                <h3 class="god-mode-curriculum-title">Müfredat Ağacı</h3>
+                <div id="gmCurriculumContainer"></div>
             </div>
 
-            <div class="modal-footer">
-                <button type="button" onclick="closeModal()" class="btn-secondary">Kapat</button>
-                <button type="button" id="modalApproveBtn" class="btn-primary-approve">
-                    <i class="fas fa-check-circle"></i> Kursu Onayla ve Yayina Al
-                </button>
+            <div class="god-mode-footer">
+                <button type="button" onclick="closeGodMode()" class="btn-secondary">Kapat</button>
             </div>
         </div>
     </div>
 
+    <!-- SCRIPTS -->
     <script src="/assets/js/api.js"></script>
     <script src="/admin/js/courses.js"></script>
 </body>

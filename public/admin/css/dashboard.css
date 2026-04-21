@@ -1,6 +1,5 @@
 /**
  * EduNex Admin - Dashboard Stats & Activity
- * Özet tablo kartları ve hızlı istatistiklerin stillerini barındırır.
  */
 
  .stat-grid {
@@ -37,26 +36,35 @@
     font-size: 1.5rem;
 }
 
-/* Renk Varyasyonları */
-.stat-icon.blue { background: #eff6ff; color: #3b82f6; }
-.stat-icon.green { background: #f0fdf4; color: #22c55e; }
-.stat-icon.orange { background: #fff7ed; color: #f97316; }
+.stat-icon.blue {
+    background: #eff6ff;
+    color: var(--admin-primary);
+}
 
-.stat-info h3 { 
-    font-size: 1.8rem; 
-    font-weight: 800; 
-    color: #0f172a; 
+.stat-icon.green {
+    background: #f0fdf4;
+    color: #22c55e;
+}
+
+.stat-icon.orange {
+    background: #fff7ed;
+    color: #f97316;
+}
+
+.stat-info h3 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main);
     line-height: 1;
     margin-bottom: 4px;
 }
 
-.stat-info p { 
-    color: var(--text-muted); 
-    font-size: 0.9rem; 
-    font-weight: 500; 
+.stat-info p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
-/* Aktivite Alanı Özel Düzenlemesi */
 .activity-card {
     background: var(--white);
     border-radius: 16px;
@@ -71,11 +79,78 @@
     margin-bottom: 25px;
 }
 
+.card-header-flex h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--text-main);
+    font-weight: 700;
+}
+
 .btn-text-link {
     color: var(--admin-primary);
     text-decoration: none;
     font-size: 0.85rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.btn-text-link:hover { text-decoration: underline; }
+.btn-text-link:hover {
+    text-decoration: underline;
+}
+
+.table-empty-state {
+    text-align: center;
+    padding: 40px !important;
+    color: var(--text-muted);
+}
+
+.table-empty-state i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+
+.activity-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.activity-table thead {
+    background: #f1f5f9;
+    border-bottom: 2px solid var(--border);
+}
+
+.activity-table th {
+    padding: 15px 20px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.activity-table td {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.activity-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-header-flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
