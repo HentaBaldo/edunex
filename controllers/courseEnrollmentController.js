@@ -75,7 +75,6 @@ exports.getMyEnrollments = async (req, res, next) => {
     try {
         const ogrenci_id = req.user.id;
 
-        // EAGER LOADING: CourseEnrollment -> Course -> Profile (Egitmen)
         const enrollments = await CourseEnrollment.findAll({
             where: { ogrenci_id },
             attributes: ['id', 'ogrenci_id', 'kurs_id', 'ilerleme_yuzdesi', 'kayit_tarihi'],
@@ -87,18 +86,16 @@ exports.getMyEnrollments = async (req, res, next) => {
                         {
                             model: Profile,
                             as: 'Egitmen',
-                            attributes: ['id', 'ad', 'soyad', 'profil_fotografi'],
-                            required: false
+                            attributes: ['id', 'ad', 'soyad', 'profil_fotografi']
                         }
                     ],
                     required: true
                 }
             ],
             order: [['kayit_tarihi', 'DESC']],
-            subQuery: false  // N+1 hatası önlemek için önemli
+            subQuery: false
         });
 
-        // Eğer kayıt yoksa boş array döndür
         if (enrollments.length === 0) {
             return res.status(200).json({
                 status: 'success',
@@ -112,15 +109,16 @@ exports.getMyEnrollments = async (req, res, next) => {
             message: 'Kayıtlı kurslarınız başarıyla alındı.',
             data: enrollments
         });
+
     } catch (error) {
         next(error);
     }
 };
 
 /**
- * Öğrencinin belirli bir kursun kayıt bilgisini getir
- * @route GET /api/enrollments/:courseId
- * EAGER LOADING + Ownership Check
+ * Öğrencinin kayıt olduğu tüm kursları getir
+ * @route GET /api/enrollments/my-courses
+ * EAGER LOADING: Course + Instructor (Profile) bilgisini tek sorguyla al
  */
 exports.getEnrollmentDetail = async (req, res, next) => {
     try {
@@ -147,16 +145,21 @@ exports.getEnrollmentDetail = async (req, res, next) => {
             ]
         });
 
+        // ✅ DÜZELTME: 404 yerine 200 + enrolled: false döndür
         if (!enrollment) {
-            const error = new Error('Bu kursa kayıt bulunmamaktadır.');
-            error.statusCode = 404;
-            throw error;
+            return res.status(200).json({
+                status: 'success',
+                message: 'Öğrenci bu kursa kayıtlı değildir.',
+                data: null,
+                enrolled: false  // ← ÖNEMLİ!
+            });
         }
 
         return res.status(200).json({
             status: 'success',
             message: 'Kayıt bilgisi başarıyla alındı.',
-            data: enrollment
+            data: enrollment,
+            enrolled: true  // ← ÖNEMLİ!
         });
     } catch (error) {
         next(error);
@@ -245,4 +248,12 @@ exports.unenrollCourse = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+module.exports = {
+    enrollCourse: exports.enrollCourse,
+    getMyEnrollments: exports.getMyEnrollments,
+    getEnrollmentDetail: exports.getEnrollmentDetail,
+    updateProgress: exports.updateProgress,
+    unenrollCourse: exports.unenrollCourse
 };

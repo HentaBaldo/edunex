@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentUserToken = localStorage.getItem('edunex_token');
 
     try {
-        const result = await ApiService.get(`/courses/details/${courseId}`);
+        const result = await ApiService.get(`/courses/${courseId}`);
         const course = result.data;
 
         if (!course) throw new Error("Kurs verisi bulunamadı.");
@@ -34,10 +34,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('courseInstructor').innerHTML = `<i class="fas fa-chalkboard-teacher"></i> Eğitmen: ${course.Egitmen.ad} ${course.Egitmen.soyad}`;
         document.getElementById('coursePrice').innerText = course.fiyat > 0 ? `${course.fiyat} ₺` : 'Ücretsiz';
 
-        // Enroll butonuna event listener ekle
+        // Fiyata göre buton gösterimi: ücretli -> Sepete Ekle, ücretsiz -> Direkt Kayıt
+        const isPaid = Number(course.fiyat) > 0;
         const enrollBtn = document.getElementById('enrollBtn');
-        if (enrollBtn) {
-            enrollBtn.addEventListener('click', handleEnrollClick);
+        const addToCartBtn = document.getElementById('addToCartBtn');
+        if (isPaid) {
+            if (enrollBtn) enrollBtn.style.display = 'none';
+            if (addToCartBtn) addToCartBtn.addEventListener('click', handleAddToCart);
+        } else {
+            if (addToCartBtn) addToCartBtn.style.display = 'none';
+            if (enrollBtn) {
+                enrollBtn.style.background = '';
+                enrollBtn.style.color = '';
+                enrollBtn.textContent = 'Kursa Kaydol';
+                enrollBtn.addEventListener('click', handleEnrollClick);
+            }
         }
 
         // Öğrenci zaten kayıtlı mı kontrol et
@@ -89,6 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
  * ✅ REAL DATA: /api/enrollments/:courseId endpoint'ine GET isteği
  * @param {string} courseId - Kontrol edilecek kurs ID'si
  */
+// ❌ YANLIŞ (SAT. 84-104):
 async function checkEnrollmentStatus(courseId) {
     try {
         const result = await ApiService.get(`/enrollments/${courseId}`);
@@ -113,12 +125,85 @@ async function checkEnrollmentStatus(courseId) {
     }
 }
 
+// ✅ DOĞRU (SAT. 84-110):
+async function checkEnrollmentStatus(courseId) {
+    try {
+        const result = await ApiService.get(`/enrollments/${courseId}`);
+        
+        // ✅ DÜZELTME: enrolled flag'ine bak
+        if (result.status === 'success') {
+            if (result.enrolled === true && result.data) {
+                // Öğrenci zaten kayıtlı - tüm butonları "Kayıtlısınız" olarak güncelle
+                const enrollBtn = document.getElementById('enrollBtn');
+                const addToCartBtn = document.getElementById('addToCartBtn');
+                if (addToCartBtn) addToCartBtn.style.display = 'none';
+                if (enrollBtn) {
+                    enrollBtn.style.display = 'block';
+                    enrollBtn.textContent = '✓ Kayıtlısınız';
+                    enrollBtn.disabled = true;
+                    enrollBtn.style.backgroundColor = '#10b981';
+                    enrollBtn.style.color = '#fff';
+                    enrollBtn.style.cursor = 'default';
+                }
+            } else if (result.enrolled === false) {
+                // Öğrenci kayıtlı değil - düğme normal durumda kalsın
+                console.log('[ENROLLMENT] Öğrenci bu kursa kayıtlı değildir.');
+            }
+        }
+    } catch (error) {
+        // Sadece gerçek hatalar için uyar
+        console.warn('[ENROLLMENT CHECK] Hata:', error.message);
+    }
+}
+
+/**
+ * Sepete Ekle butonuna tıklandığında çalışır.
+ * Ücretli kurslar için iyzico akışının başlangıcı.
+ */
+async function handleAddToCart() {
+    const token = localStorage.getItem('edunex_token');
+    if (!token) {
+        alert('Sepete eklemek için lütfen giriş yapınız.');
+        window.location.href = '/auth/index.html';
+        return;
+    }
+
+    const btn = document.getElementById('addToCartBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ekleniyor...';
+
+    try {
+        const result = await ApiService.post('/cart/items', { kurs_id: currentCourseId });
+        if (result.status === 'success') {
+            showSuccessToast(result.message || 'Sepete eklendi.');
+            btn.innerHTML = '<i class="fas fa-check"></i> Sepete Gitmek İçin Tıklayın';
+            btn.onclick = () => { window.location.href = '/student/cart.html'; };
+            btn.disabled = false;
+        }
+    } catch (error) {
+        console.error('[CART ADD ERROR]', error.message);
+        if (error.message.includes('zaten sepetinizde')) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Sepete Gitmek İçin Tıklayın';
+            btn.onclick = () => { window.location.href = '/student/cart.html'; };
+            btn.disabled = false;
+            showErrorToast('Bu kurs zaten sepetinizde.');
+        } else if (error.message.includes('zaten kayitli') || error.message.includes('zaten kayıtlı')) {
+            btn.style.display = 'none';
+            showErrorToast('Bu kursa zaten kayıtlısınız.');
+        } else {
+            showErrorToast(`Sepete eklenemedi: ${error.message}`);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
 /**
  * Enroll butonuna tıklandığında çalışan ana fonksiyon
  * ✅ REAL DATA: /api/enrollments endpoint'ine POST isteği
  */
 async function handleEnrollClick() {
-    // Giriş kontrolü
     const token = localStorage.getItem('edunex_token');
     if (!token) {
         alert('Kursa kaydolmak için lütfen giriş yapınız.');
@@ -128,53 +213,46 @@ async function handleEnrollClick() {
 
     const enrollBtn = document.getElementById('enrollBtn');
     
-    // Çift tıklamayı engelle
     if (enrollBtn.disabled) {
         return;
     }
 
-    // Buton durumunu "Kaydediliyor..." olarak değiştir
     const originalText = enrollBtn.textContent;
     enrollBtn.disabled = true;
     enrollBtn.textContent = '⏳ Kaydediliyor...';
 
     try {
-        // ✅ BACKEND API ÇAĞRISI: Kursa kayıt et
         const result = await ApiService.post('/enrollments', {
             kurs_id: currentCourseId
         });
 
         if (result.status === 'success') {
-            // Başarılı kayıt
             enrollBtn.textContent = '✓ Kayıtlısınız';
             enrollBtn.style.backgroundColor = '#10b981';
             enrollBtn.disabled = true;
-
-            // Kullanıcıyı bilgilendir
             showSuccessToast(result.message || 'Kursa başarıyla kaydoldunuz!');
-
-            // 2 saniye sonra öğrenci paneline yönlendir
+            
+            // ✅ BURASI DÜZELTILDI: 2 saniye sonra Learning Room'a git
             setTimeout(() => {
-                window.location.href = '/student/dashboard.html';
+                window.location.href = `/student/learning-room.html?id=${currentCourseId}`;
             }, 2000);
         }
     } catch (error) {
-        // Hata yönetimi
         console.error('[ENROLL ERROR]', error.message);
 
-        // Unique constraint hatası (zaten kayıtlı)
         if (error.message.includes('Zaten bu kursa kayıtlısınız')) {
             enrollBtn.textContent = '✓ Kayıtlısınız';
             enrollBtn.style.backgroundColor = '#10b981';
             enrollBtn.disabled = true;
             showErrorToast('Zaten bu kursa kayıtlısınız.');
-        } 
-        // Kurs bulunamadı
-        else if (error.message.includes('Kurs bulunamadı')) {
+            
+            // ✅ BURAYA EKLE: Zaten kayıtlı ise de Learning Room'a git
+            setTimeout(() => {
+                window.location.href = `/student/learning-room.html?id=${currentCourseId}`;
+            }, 1500);
+        } else if (error.message.includes('Kurs bulunamadı')) {
             showErrorToast('Kurs bulunamadı veya yayında değildir.');
-        }
-        // Diğer hatalar
-        else {
+        } else {
             showErrorToast(`Kayıt işlemi başarısız: ${error.message}`);
             enrollBtn.textContent = originalText;
             enrollBtn.disabled = false;
@@ -255,17 +333,27 @@ function checkAuth() {
                 ? '/instructor/dashboard.html' 
                 : '/student/dashboard.html';
 
+            const isStudent = user.rol === 'ogrenci';
+            const cartIconHtml = isStudent ? `
+                <a href="/student/cart.html" class="nav-cart-link" title="Sepetim" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;color:#0f172a;text-decoration:none;margin-right:8px;">
+                    <i class="fas fa-shopping-cart" style="font-size:1.15rem;"></i>
+                    <span id="cartCountBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ef4444;color:#fff;font-size:0.7rem;font-weight:700;line-height:18px;text-align:center;"></span>
+                </a>
+            ` : '';
+
             authContainer.innerHTML = `
+                ${cartIconHtml}
                 <div class="user-dropdown">
                     <button class="dropdown-trigger">
-                        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i> 
-                        ${user.ad} 
+                        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i>
+                        ${user.ad}
                         <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 5px;"></i>
                     </button>
-                    
+
                     <div class="dropdown-content">
                         <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
                         <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
+                        ${isStudent ? '<a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a><a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>' : ''}
                         <hr>
                         <button onclick="logout()" class="text-danger">
                             <i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap
@@ -273,6 +361,17 @@ function checkAuth() {
                     </div>
                 </div>
             `;
+
+            if (isStudent) {
+                (async () => {
+                    try {
+                        const r = await ApiService.get('/cart');
+                        const c = r?.data?.kalem_sayisi || 0;
+                        const b = document.getElementById('cartCountBadge');
+                        if (b && c > 0) { b.textContent = c > 99 ? '99+' : c; b.style.display = 'inline-block'; }
+                    } catch (_) {}
+                })();
+            }
         } catch (error) {
             console.error('[HATA] Kullanıcı verisi okunamadı.');
             logout(); 

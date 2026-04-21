@@ -34,6 +34,9 @@
                     <button type="button" class="active" onclick="window.switchTab('mufredat')">
                         <i class="fas fa-list-ul"></i> Müfredat Yönetimi
                     </button>
+                    <button type="button" onclick="window.switchTab('canli_dersler')">
+                        <i class="fas fa-video"></i> Canlı Dersler
+                    </button>
                     <button type="button" onclick="window.switchTab('ayarlar')">
                         <i class="fas fa-cog"></i> Kurs Ayarları
                     </button>
@@ -63,6 +66,23 @@
 
                     <div id="mufredatListesi" class="curriculum-container">
                         <p class="loading-text">Müfredat yükleniyor...</p>
+                    </div>
+                </article>
+
+                <!-- Canlı Dersler Tab -->
+                <article id="canli_dersler" class="tab-content form-card">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="form-section-title">Canlı Dersler</h2>
+                            <p class="subtitle">Jitsi üzerinden canlı ders oturumları planlayın ve öğrenci katılımını takip edin.</p>
+                        </div>
+                        <button type="button" class="btn-primary-lg-alt" onclick="window.showLiveSessionModal()">
+                            <i class="fas fa-plus-circle"></i> Yeni Oturum Oluştur
+                        </button>
+                    </div>
+
+                    <div id="canliOturumListesi" class="curriculum-container">
+                        <p class="loading-text">Canlı oturumlar yükleniyor...</p>
                     </div>
                 </article>
 
@@ -99,52 +119,110 @@
         </div>
     </div>
 
-    <!-- Ders Ekleme Modalı -->
-    <div id="dersEkleModal" class="modal-overlay">
+        <!-- Ders Ekleme Modalı -->
+        <div id="dersEkleModal" class="modal-overlay">
+            <div class="modal-box">
+                <h3 class="modal-title">Yeni Ders Ekle</h3>
+                <form id="dersEkleForm" class="modal-form">
+                    <input type="hidden" id="secili_bolum_id">
+                    
+                    <div class="form-group">
+                        <label for="ders_baslik" class="form-label">Ders Başlığı</label>
+                        <input type="text" id="ders_baslik" class="form-control" required placeholder="Orn: Değişkenler ve Veri Tipleri">
+                    </div>
+    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="icerik_tipi" class="form-label">İçerik Tipi</label>
+                            <select id="icerik_tipi" class="form-control">
+                                <option value="video">Video</option>
+                                <option value="metin">Belge / Döküman</option>
+                                <option value="quiz">Test / Quiz</option>
+                            </select>
+                        </div>
+                        
+                        <!-- TAHMİNİ SÜRE ALANI (Sadece Belge ve Quiz için) -->
+                        <div class="form-group" id="tahminiSureContainer" style="display: none;">
+                            <label for="tahmini_sure" class="form-label">Tahmini Süre (Dakika)</label>
+                            <input type="number" id="tahmini_sure" class="form-control" value="0" min="0">
+                        </div>
+                    </div>
+    
+                    <!-- DOSYA YÜKLEME ALANI (Hepsi için ortak) -->
+                    <div class="form-group" id="dosyaInputContainer">
+                        <label for="ders_dosyasi" id="ders_dosyasi_label" class="form-label">Ders Dosyası (Video)</label>
+                        <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/webm">
+                    </div>
+    
+                    <!-- AÇIKLAMA ALANI (Hepsi için ortak) -->
+                    <div class="form-group" id="aciklamaContainer">
+                        <label for="ders_aciklama" class="form-label">Ders Açıklaması / İçerik Görünümü</label>
+                        <textarea id="ders_aciklama" class="form-control" rows="4" placeholder="Ders notlarını, soruları veya içeriği buraya yazın (Zorunlu değil)..."></textarea>
+                    </div>
+    
+                    <div class="form-group">
+                        <label for="kaynak_url" class="form-label">Dış Kaynak Linki (Opsiyonel)</label>
+                        <input type="url" id="kaynak_url" class="form-control" placeholder="Örn: Harici bir websitesi, Github linki vs.">
+                    </div>
+                    <div class="form-group form-group-checkbox">
+                        <input type="checkbox" id="onizleme_mi">
+                        <label for="onizleme_mi">Bu dersi "Ücretsiz Önizleme"ye aç</label>
+                    </div>
+    
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-primary-lg-alt" id="dersSubmitBtn">Kaydet</button>
+                        <button type="button" onclick="window.closeLessonModal()" class="btn-logout-alt">İptal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    <!-- Canlı Oturum Modal -->
+    <div id="canliOturumModal" class="modal-overlay">
         <div class="modal-box">
-            <h3 class="modal-title">Yeni Ders Ekle</h3>
-            <form id="dersEkleForm" class="modal-form">
-                <input type="hidden" id="secili_bolum_id">
-                
+            <h3 class="modal-title" id="canliOturumModalTitle">Yeni Canlı Oturum</h3>
+            <form id="canliOturumForm" class="modal-form">
+                <input type="hidden" id="canli_oturum_id">
+
                 <div class="form-group">
-                    <label for="ders_baslik" class="form-label">Ders Başlığı</label>
-                    <input type="text" id="ders_baslik" class="form-control" required placeholder="Orn: Değişkenler ve Veri Tipleri">
+                    <label for="cs_baslik" class="form-label">Oturum Başlığı</label>
+                    <input type="text" id="cs_baslik" class="form-control" required placeholder="Orn: Hafta 3 Canlı Soru-Cevap">
+                </div>
+
+                <div class="form-group">
+                    <label for="cs_aciklama" class="form-label">Açıklama (Opsiyonel)</label>
+                    <textarea id="cs_aciklama" class="form-control" rows="3" placeholder="Oturumun içeriği / gündemi"></textarea>
                 </div>
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="icerik_tipi" class="form-label">İçerik Tipi</label>
-                        <select id="icerik_tipi" class="form-control">
-                            <option value="video">Video</option>
-                            <option value="metin">Metin</option>
-                            <option value="quiz">Quiz</option>
-                        </select>
+                        <label for="cs_tarih" class="form-label">Başlangıç Tarihi ve Saati</label>
+                        <input type="datetime-local" id="cs_tarih" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label for="sure_saniye" class="form-label">Süre (Saniye)</label>
-                        <input type="number" id="sure_saniye" class="form-control" value="0" min="0">
+                        <label for="cs_sure" class="form-label">Süre (Dakika)</label>
+                        <input type="number" id="cs_sure" class="form-control" min="15" max="480" value="60" required>
                     </div>
-                </div>
-                <div class="form-group" id="dosya_yukleme_grubu">
-                    <label for="ders_dosyasi" class="form-label">Ders Dosyası (Video / Belge)</label>
-                    <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/webm,application/pdf,.doc,.docx,.txt">
-                    <small style="color: #64748b; margin-top: 5px; display: block;">Lütfen seçtiğiniz içerik tipine uygun bir dosya yükleyin.</small>
-                </div>
-                <div class="form-group">
-                    <label for="kaynak_url" class="form-label">Kaynak Linki</label>
-                    <input type="url" id="kaynak_url" class="form-control" placeholder="Orn: Github linki veya ek PDF">
-                </div>
-
-                <div class="form-group form-group-checkbox">
-                    <input type="checkbox" id="onizleme_mi">
-                    <label for="onizleme_mi">Bu dersi "Ücretsiz Önizleme"ye aç</label>
                 </div>
 
                 <div class="modal-actions">
                     <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
-                    <button type="button" onclick="window.closeLessonModal()" class="btn-logout-alt">İptal</button>
+                    <button type="button" onclick="window.closeLiveSessionModal()" class="btn-logout-alt">İptal</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Yoklama Modal -->
+    <div id="yoklamaModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 640px;">
+            <h3 class="modal-title" id="yoklamaModalTitle">Katılım Raporu</h3>
+            <div id="yoklamaContent" style="max-height: 60vh; overflow-y: auto;">
+                <p class="loading-text">Yoklama yükleniyor...</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="window.closeAttendanceModal()" class="btn-logout-alt">Kapat</button>
+            </div>
         </div>
     </div>
 
@@ -152,5 +230,6 @@
 
     <script src="/assets/js/api.js"></script>
     <script type="module" src="/instructor/js/edit-course.js"></script>
+    <script type="module" src="/instructor/js/live-sessions.js"></script>
 </body>
 </html>

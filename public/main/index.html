@@ -85,6 +85,58 @@
             </div>
         </section>
 
+    <!-- ========================================
+     ÖNERİ SİSTEMİ BÖLÜMÜ
+     ======================================== -->
+
+        <!-- 1. SİZİN İÇİN ÖNERİLENLER (Giriş yapmış öğrenciler için) -->
+        <section id="recommendedSection" class="recommendations-section" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 0; margin: 40px 0;">
+            <div class="container">
+                <header class="section-header" style="color: white; margin-bottom: 40px;">
+                    <h2 style="color: white;">✨ Sizin İçin Önerilenenler</h2>
+                    <p style="color: rgba(255, 255, 255, 0.9);">Sizin ilgi alanlarınıza göre özel olarak seçilen kurslar</p>
+                </header>
+                
+                <div id="recommendedGrid" class="course-grid" style="gap: 20px;">
+                    <div class="loading-state" style="grid-column: 1/-1; color: white;">
+                        <p>Öneriler hazırlanıyor...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. TREND OLAN KURSLAR (Herkese açık) -->
+        <section class="trending-section" style="background: #f8f9fa; padding: 60px 0; margin: 40px 0;">
+            <div class="container">
+                <header class="section-header" style="margin-bottom: 40px;">
+                    <h2>🔥 Trend Olan Kurslar</h2>
+                    <p>Bu hafta en çok kayıt olunan, en popüler kurslar</p>
+                </header>
+                
+                <div id="trendingGrid" class="course-grid" style="gap: 20px;">
+                    <div class="loading-state" style="grid-column: 1/-1;">
+                        <p>Trend kurslar yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. EN YÜKSEK PUANLI KURSLAR (Herkese açık) -->
+        <section class="top-rated-section" style="padding: 60px 0; margin: 40px 0;">
+            <div class="container">
+                <header class="section-header" style="margin-bottom: 40px;">
+                    <h2>⭐ En Yüksek Puanlılar</h2>
+                    <p>Kullanıcılar tarafından en yüksek puan alan, kaliteli kurslar</p>
+                </header>
+                
+                <div id="topRatedGrid" class="course-grid" style="gap: 20px;">
+                    <div class="loading-state" style="grid-column: 1/-1;">
+                        <p>En yüksek puanlı kurslar yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+        </section>        
+
         <section class="features">
             <div class="container features-grid">
                 <div class="feature-card">

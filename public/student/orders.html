@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siparişlerim - EduNex</title>
+
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/student/css/student.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        .orders-wrap { max-width: 960px; margin: 40px auto; padding: 0 16px; }
+        .orders-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .orders-header h1 { margin: 0; color: #0f172a; }
+        .order-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+        .order-head { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #f1f5f9; background: #f8fafc; }
+        .order-head .meta { font-size: 0.85rem; color: #64748b; }
+        .order-head .meta strong { color: #0f172a; }
+        .order-head .right { text-align: right; }
+        .order-head .amount { font-weight: 800; font-size: 1.2rem; color: #0f172a; }
+        .status-pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+        .status-tamamlandi { background: #d1fae5; color: #065f46; }
+        .status-beklemede { background: #fef3c7; color: #92400e; }
+        .status-basarisiz { background: #fee2e2; color: #991b1b; }
+        .status-iade_edildi { background: #e0e7ff; color: #3730a3; }
+        .order-items { padding: 8px 20px 16px; }
+        .order-item-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px dashed #f1f5f9; }
+        .order-item-row:last-child { border-bottom: 0; }
+        .order-item-row .title { color: #0f172a; font-weight: 600; }
+        .order-item-row .price { color: #334155; min-width: 80px; text-align: right; }
+        .order-item-row .action a { color: #2563eb; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; background: #fff; border: 1px dashed #e2e8f0; border-radius: 12px; }
+        .empty-state i { font-size: 3rem; color: #cbd5e1; margin-bottom: 12px; display: block; }
+        .ref-id { font-family: monospace; color: #64748b; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
+
+    <main class="orders-wrap">
+        <div class="orders-header">
+            <h1><i class="fas fa-receipt"></i> Siparişlerim</h1>
+            <a href="/student/dashboard.html" class="btn-auth-blue" style="text-decoration:none;">Panelime Dön</a>
+        </div>
+
+        <div id="ordersRoot">
+            <p>Siparişleriniz yükleniyor...</p>
+        </div>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/main/js/main.js"></script>
+    <script src="/main/js/loadNavbar.js"></script>
+    <script src="/student/js/orders.js"></script>
+</body>
+</html>

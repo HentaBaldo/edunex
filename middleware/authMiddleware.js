@@ -24,13 +24,14 @@ exports.verifyToken = (req, res, next) => {
 
     try {
         // Token dogrulamasi (SECRET_KEY .env dosyasindan okunur)
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
         
         // Decoded veriyi (id, rol vb.) sonraki islemlerde kullanmak uzere req nesnesine ata
         req.user = decoded; 
         
         next();
     } catch (error) {
+        console.error('[AUTH] Token dogrulama hatasi:', error.message);
         return res.status(401).json({ 
             success: false, 
             message: 'Oturum sureniz dolmus veya gecersiz token. Lutfen tekrar giris yapin.' 
@@ -58,12 +59,27 @@ exports.isInstructor = (req, res, next) => {
  * Not: verifyToken middleware'inden sonra kullanilmalidir.
  */
 exports.isAdmin = (req, res, next) => {
+    // ✅ DOĞRU: req.user.rol === 'admin' kontrolü yapıyor
     if (req.user && req.user.rol === 'admin') {
         next();
     } else {
         return res.status(403).json({ 
             success: false, 
             message: 'Bu alan sadece sistem yoneticilerinin erisimine aciktir.' 
+        });
+    }
+};
+
+/**
+ * Opsiyonel: Student Rol Kontrolü
+ */
+exports.isStudent = (req, res, next) => {
+    if (req.user && req.user.rol === 'ogrenci') {
+        next();
+    } else {
+        return res.status(403).json({ 
+            success: false, 
+            message: 'Bu alan sadece ogrencilerin erisimine aciktir.' 
         });
     }
 };

@@ -130,3 +130,17 @@
 /* --- Footer --- */
 .footer { background: #0f172a; color: #94a3b8; padding: 40px 0; text-align: center; }
 .footer-logo { font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 10px; }
+.course-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.course-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+    .course-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+    }
+}

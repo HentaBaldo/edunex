@@ -17,6 +17,11 @@ const Review = require('./Review')(sequelize, DataTypes);
 const InstructorEarning = require('./InstructorEarning')(sequelize, DataTypes);
 const InstructorExpertise = require('./InstructorExpertise')(sequelize, DataTypes);
 const StudentInterest = require('./StudentInterest')(sequelize, DataTypes);
+const Cart = require('./Cart')(sequelize, DataTypes);
+const CartItem = require('./CartItem')(sequelize, DataTypes);
+const PaymentTransaction = require('./PaymentTransaction')(sequelize, DataTypes);
+const LiveSession = require('./LiveSession')(sequelize, DataTypes);
+const LiveSessionAttendance = require('./LiveSessionAttendance')(sequelize, DataTypes);
 
 // --- PROFİL İLİŞKİLERİ ---
 Profile.hasOne(StudentDetail, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -109,6 +114,35 @@ Category.belongsToMany(InstructorDetail, { through: InstructorExpertise, foreign
 StudentDetail.belongsToMany(Category, { through: StudentInterest, foreignKey: 'ogrenci_id', otherKey: 'kategori_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Category.belongsToMany(StudentDetail, { through: StudentInterest, foreignKey: 'kategori_id', otherKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+// --- SEPET İLİŞKİLERİ ---
+Profile.hasOne(Cart, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Cart.belongsTo(Profile, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+Cart.hasMany(CartItem, { as: 'Items', foreignKey: 'sepet_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+CartItem.belongsTo(Cart, { foreignKey: 'sepet_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+Course.hasMany(CartItem, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+CartItem.belongsTo(Course, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// --- ÖDEME İŞLEMLERİ İLİŞKİLERİ ---
+Order.hasMany(PaymentTransaction, { foreignKey: 'siparis_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+PaymentTransaction.belongsTo(Order, { foreignKey: 'siparis_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// --- CANLI OTURUM İLİŞKİLERİ ---
+Course.hasMany(LiveSession, { as: 'LiveSessions', foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+LiveSession.belongsTo(Course, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+InstructorDetail.hasMany(LiveSession, { foreignKey: 'egitmen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+LiveSession.belongsTo(InstructorDetail, { foreignKey: 'egitmen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+LiveSession.belongsTo(Profile, { as: 'Egitmen', foreignKey: 'egitmen_id', constraints: false });
+
+LiveSession.hasMany(LiveSessionAttendance, { as: 'Attendances', foreignKey: 'canli_oturum_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+LiveSessionAttendance.belongsTo(LiveSession, { foreignKey: 'canli_oturum_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+Profile.hasMany(LiveSessionAttendance, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+LiveSessionAttendance.belongsTo(Profile, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 module.exports = {
   sequelize,
   Profile,
@@ -127,4 +161,9 @@ module.exports = {
   InstructorEarning,
   InstructorExpertise,
   StudentInterest,
+  Cart,
+  CartItem,
+  PaymentTransaction,
+  LiveSession,
+  LiveSessionAttendance,
 };

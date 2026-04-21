@@ -35,6 +35,23 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      saglayici: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+        defaultValue: 'iyzico',
+      },
+      conversation_id: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      odeme_token: {
+        type: DataTypes.STRING(512),
+        allowNull: true,
+      },
+      gateway_response: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
       olusturulma_tarihi: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -43,7 +60,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'siparisler',
-      indexes: [{ fields: ['kullanici_id'] }],
+      indexes: [
+        { fields: ['kullanici_id'] },
+        { fields: ['conversation_id'] },
+      ],
     }
   );
 

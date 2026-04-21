@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Öğrenim Ekranı - EduNex</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        /* === HEADER === */
+        .learning-header {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .learning-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .learning-header-left a {
+            color: #3b82f6;
+            font-size: 1.2rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .learning-header-left a:hover {
+            color: #60a5fa;
+        }
+
+        .course-title-header {
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .learning-header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .progress-indicator {
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .progress-percent {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .progress-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        /* === MAIN CONTAINER === */
+        .learning-container {
+            display: flex;
+            margin-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* === VIDEO AREA (70%) === */
+        .video-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0f172a;
+            border-right: 1px solid #334155;
+            padding: 0;
+        }
+
+        .video-player-wrapper {
+            aspect-ratio: 16 / 9;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-player-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-player-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #64748b;
+        }
+
+        .video-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* === LESSON INFO === */
+        .lesson-info {
+            padding: 20px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+        }
+
+        .lesson-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .lesson-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #f1f5f9;
+            flex: 1;
+        }
+
+        .lesson-duration {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .lesson-description {
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+
+        .lesson-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-mark-complete {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-mark-complete:hover {
+            background: #059669;
+        }
+
+        .btn-mark-complete.completed {
+            background: #64748b;
+        }
+
+        /* === CURRICULUM PANEL (30%) === */
+        .curriculum-panel {
+            width: 35%;
+            background: #1e293b;
+            overflow-y: auto;
+            border-right: 1px solid #334155;
+            max-height: calc(100vh - 60px);
+        }
+
+        .curriculum-header {
+            padding: 15px;
+            border-bottom: 1px solid #334155;
+            background: #0f172a;
+        }
+
+        .curriculum-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* === ACCORDION (Bölümler) === */
+        .section-accordion {
+            border-bottom: 1px solid #334155;
+        }
+
+        .section-header {
+            padding: 15px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .section-header:hover {
+            background: #1e293b;
+        }
+
+        .section-header.active {
+            background: #1e293b;
+            border-bottom-color: #3b82f6;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
+
+        .section-toggle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            transition: transform 0.3s;
+        }
+
+        .section-header.active .section-toggle {
+            transform: rotate(180deg);
+        }
+
+        /* === LESSON LIST === */
+        .lesson-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .lesson-list.active {
+            max-height: 1000px;
+        }
+
+        .lesson-item {
+            padding: 12px 15px 12px 40px;
+            border-bottom: 1px solid #334155;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        .lesson-item:hover {
+            background: #0f172a;
+        }
+
+        .lesson-item.active {
+            background: #1e3a8a;
+            color: #60a5fa;
+            border-left: 3px solid #3b82f6;
+            padding-left: 37px;
+        }
+
+        .lesson-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .lesson-name i {
+            font-size: 0.85rem;
+            color: #3b82f6;
+        }
+
+        .lesson-completed {
+            color: #10b981;
+            font-size: 1rem;
+        }
+
+        .lesson-duration-small {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-left: auto;
+        }
+
+        /* === LOADING STATE === */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: #94a3b8;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* === ERROR STATE === */
+        .error-state {
+            padding: 20px;
+            background: #7f1d1d;
+            color: #fecaca;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1024px) {
+            .curriculum-panel {
+                display: none;
+            }
+
+            .video-area {
+                width: 100%;
+                border-right: none;
+            }
+        }
+
+        /* === SCROLLBAR === */
+        .curriculum-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .curriculum-panel::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        .curriculum-panel::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        .curriculum-panel::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body>
+    <!-- === HEADER === -->
+    <header class="learning-header">
+        <div class="learning-header-left">
+            <a href="/student/dashboard.html" title="Panele Dön">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <div class="course-title-header" id="courseTitle">Yükleniyor...</div>
+            </div>
+        </div>
+        <div class="learning-header-right">
+            <div class="progress-indicator">
+                <div class="progress-percent" id="progressPercent">0%</div>
+                <div class="progress-label">Tamamlama</div>
+            </div>
+            <a href="/student/dashboard.html" title="Çıkış Yap">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- === MAIN CONTENT === -->
+    <div class="learning-container">
+        <!-- === VIDEO AREA === -->
+        <div class="video-area">
+            <!-- Video Player -->
+            <div class="video-player-wrapper" id="videoPlayer">
+                <div class="video-placeholder">
+                    <i class="fas fa-video"></i>
+                    <p>Video seçilmedi</p>
+                </div>
+            </div>
+
+            <!-- Lesson Info -->
+            <div class="lesson-info" id="lessonInfo">
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Ders bilgileri yükleniyor...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- === CURRICULUM PANEL === -->
+        <div class="curriculum-panel" id="curriculumPanel">
+            <div class="curriculum-header">
+                <div class="curriculum-title">
+                    <i class="fas fa-book-open"></i>
+                    Müfredat
+                </div>
+            </div>
+            <div id="liveSessionsWidget" style="display:none; padding:12px 15px; border-bottom:1px solid #334155; background:#0b1120;">
+                <div style="color:#a78bfa; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                    <i class="fas fa-video"></i> CANLI DERSLER
+                </div>
+                <div id="liveSessionsList"></div>
+            </div>
+            <div id="curriculumContent">
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === SCRIPTS === -->
+    <script src="/assets/js/api.js"></script>
+    <script src="/student/js/learning.js"></script>
+    <script src="/student/js/learning-live.js"></script>
+</body>
+</html>

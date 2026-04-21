@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ödeme Başarılı - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .result-wrap { max-width: 560px; margin: 80px auto; padding: 40px; background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; text-align: center; }
+        .result-icon { font-size: 4rem; color: #10b981; margin-bottom: 16px; }
+        .result-wrap h1 { margin: 0 0 8px; color: #0f172a; }
+        .result-wrap p { color: #475569; line-height: 1.6; }
+        .btns { display: flex; gap: 10px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+        .btn { padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-secondary { background: #e2e8f0; color: #0f172a; }
+        .order-id { font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <main class="result-wrap">
+        <div class="result-icon"><i class="fas fa-circle-check"></i></div>
+        <h1>Ödeme Başarılı!</h1>
+        <p>Satın aldığınız kurslar hesabınıza tanımlandı. Artık "Panelim" üzerinden erişebilirsiniz.</p>
+        <p id="orderRef" style="margin-top:12px;"></p>
+        <div class="btns">
+            <a class="btn btn-primary" href="/student/dashboard.html">Panelime Git</a>
+            <a class="btn btn-secondary" href="/main/index.html">Ana Sayfa</a>
+        </div>
+    </main>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const siparis = params.get('siparis');
+        if (siparis) {
+            document.getElementById('orderRef').innerHTML = 'Sipariş No: <span class="order-id">' + siparis + '</span>';
+        }
+    </script>
+</body>
+</html>
