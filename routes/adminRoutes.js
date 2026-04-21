@@ -1,4 +1,4 @@
- /**
+/**
  * EduNex Admin Routes
  * Yönetici paneli - istatistikler, kurs onay, kullanıcı yönetimi
  */
@@ -38,10 +38,19 @@ router.use(verifyToken, isAdmin);
  */
 router.get('/stats', adminController.getDashboardStats);
 
+// --- Kurslar ---
+
 /**
  * GET /api/admin/pending-courses
  */
 router.get('/pending-courses', adminController.getPendingCourses);
+
+/**
+ * GET /api/admin/courses/pending
+ * (Alias) Eski/alternatif path kullanan client'lar için
+ * NOT: /courses/:id'ten ÖNCE tanımlanmalı
+ */
+router.get('/courses/pending', adminController.getPendingCourses);
 
 /**
  * GET /api/admin/courses
@@ -53,7 +62,7 @@ router.get('/courses', adminController.getAllCourses);
  */
 router.get('/courses/:id', adminController.getCourseDetail);
 
-// --- KURS ONAY / RED ROTASI (404 HATASININ ÇÖZÜLDÜĞÜ YER) ---
+// --- KURS ONAY / RED ---
 
 /**
  * PUT /api/admin/approve-course/:courseId

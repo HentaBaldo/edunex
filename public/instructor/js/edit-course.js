@@ -176,7 +176,31 @@ function setupEventListeners() {
             });
     
             // Sayfa açıldığında varsayılan seçime göre form arayüzünü ayarla
-            icerikTipiSelect.dispatchEvent(new Event('change'));
+            icerikTipiSelect.dispatchEvent(new Event('change'));// --- VİDEO SÜRESİNİ OTOMATİK HESAPLAMA ---
+            window.calculatedVideoDuration = 0; // Backend'e yollamak için süreyi burada tutacağız
+        
+            if (dersDosyasiInput) {
+                dersDosyasiInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    window.calculatedVideoDuration = 0; // Dosya değişirse süreyi sıfırla
+        
+                    if (file && file.type.startsWith('video/')) {
+                        const videoElement = document.createElement('video');
+                        videoElement.preload = 'metadata';
+        
+                        videoElement.onloadedmetadata = function() {
+                            window.URL.revokeObjectURL(videoElement.src); // Hafızayı temizle
+                            window.calculatedVideoDuration = Math.floor(videoElement.duration); // Saniye cinsinden kaydet
+                            
+                            // Eğitmene sağ altta şık bir bildirim çıkar
+                            let sureDk = Math.floor(window.calculatedVideoDuration / 60);
+                            let sureSn = window.calculatedVideoDuration % 60;
+                            showToast(`Video algılandı! Süre: ${sureDk} dk ${sureSn} sn`, 'info');
+                        }
+                        videoElement.src = URL.createObjectURL(file);
+                    }
+                });
+            }
         }
 
     // Ders Ekleme Formu
@@ -284,7 +308,14 @@ async function handleAddLesson() {
         if (kaynakUrl) formData.append('kaynak_url', kaynakUrl);
 
         // Belge veya Test ise dakikayı saniyeye çevirip gönder
-        if (icerikTipi !== 'video' && tahminiSureDk) {
+        // --- SÜRE HESAPLAMASINI FORMA EKLE ---
+        if (icerikTipi === 'video') {
+            // Eğer video ise arka planda hesapladığımız saniyeyi gönder
+            if (window.calculatedVideoDuration > 0) {
+                formData.append('sure_saniye', window.calculatedVideoDuration);
+            }
+        } else if (tahminiSureDk) {
+            // Belge veya Test ise eğitmenin girdiği dakikayı saniyeye çevirip gönder
             formData.append('sure_saniye', parseInt(tahminiSureDk) * 60);
         }
 

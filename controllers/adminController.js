@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Profile, Course, CourseSection, Lesson, Category } = require('../models');
+const { Profile, Course, InstructorDetail, CourseSection, Lesson, Category } = require('../models');
 
 /**
  * Yönetici Girişi (Admin Login)
@@ -111,34 +111,21 @@ exports.getDashboardStats = async (req, res, next) => {
  */
 exports.getPendingCourses = async (req, res, next) => {
     try {
-        console.log('[ADMIN] Bekleyen kurslar istendi');
-        
-        const pendingCourses = await Course.findAll({
+        const courses = await Course.findAll({
             where: { durum: 'onay_bekliyor' },
             include: [
-                {
-                    model: Profile,
-                    as: 'Egitmen',
-                    // İŞTE DÜZELTME BURADA: 'fotograf' sütununu sildik!
-                    attributes: ['id', 'ad', 'soyad', 'eposta']
-                }
+                { model: Profile, as: 'Egitmen', attributes: ['ad', 'soyad'] },
+                { model: Category, attributes: ['ad'] }
             ],
-            order: [['olusturulma_tarihi', 'DESC']],
-            attributes: ['id', 'baslik', 'alt_baslik', 'durum', 'olusturulma_tarihi', 'egitmen_id', 'fiyat', 'kategori_id']
+            order: [['olusturulma_tarihi', 'DESC']]
         });
         
         return res.status(200).json({
             success: true,
-            message: 'Bekleyen kurslar başarıyla listelendi',
-            courses: pendingCourses
+            courses: courses
         });
-        
     } catch (error) {
-        console.error(`[ADMIN PENDING COURSES DB ERROR]: ${error.message}`);
-        
-        const err = new Error('Onay bekleyen kurslar listelenirken sunucu hatası oluştu.');
-        err.statusCode = 500;
-        next(err);
+        next(error);
     }
 };
 
@@ -152,27 +139,73 @@ exports.getCourseDetail = async (req, res, next) => {
 
         console.log(`[ADMIN] Kurs detayı istendi: ${id}`);
 
-        const course = await Course.findByPk(id, {
-            include: [
-                { 
-                    model: Profile, 
-                    as: 'Egitmen',
-                    attributes: ['id', 'ad', 'soyad', 'eposta']
-                },
-                {
-                    model: CourseSection,
-                    as: 'Sections',
-                    attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi'],
-                    include: [{ 
-                        model: Lesson, 
-                        as: 'Lessons',
-                        attributes: ['id', 'baslik', 'video_saglayici_id', 'sure_saniye', 'sira_numarasi'],
-                        order: [['sira_numarasi', 'ASC']]
-                    }],
-                    order: [['sira_numarasi', 'ASC']]
-                }
-            ]
-        });
+        // controllers/adminController.js
+const course = await Course.findByPk(id, {
+    attributes: [
+      'id',
+      'egitmen_id',
+      'kategori_id',
+      'baslik',
+      'alt_baslik',
+      'dil',
+      'seviye',
+      'gereksinimler',
+      'fiyat',
+      'durum',
+      'olusturulma_tarihi',
+      'kazanimlar',
+    ],
+    include: [
+      {
+        model: Profile,
+        as: 'Egitmen',
+        attributes: ['id', 'ad', 'soyad'],
+        include: [
+          {
+            model: InstructorDetail,
+            attributes: ['unvan'],
+            required: false,
+          },
+        ],
+        required: false,
+      },
+      {
+        model: Category,
+        attributes: ['id', 'ad', 'slug'],
+        required: false,
+      },
+      {
+        model: CourseSection,
+        as: 'Sections',
+        // Eğer buradaki alan adları sizde farklıysa attributes'ı kaldırın
+        attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi'],
+        include: [
+            {
+                model: Lesson,
+                as: 'Lessons',
+                // Modelindeki tüm kritik alanları buraya ekledik!
+                attributes: [
+                  'id', 
+                  'baslik', 
+                  'icerik_tipi', 
+                  'sure_saniye', 
+                  'sira_numarasi', 
+                  'video_saglayici_id', 
+                  'kaynak_url', 
+                  'aciklama',
+                  'onizleme_mi'
+                ],
+                required: false,
+              },
+        ],
+        required: false,
+      },
+    ],
+    order: [
+      [{ model: CourseSection, as: 'Sections' }, 'sira_numarasi', 'ASC'],
+      [{ model: CourseSection, as: 'Sections' }, { model: Lesson, as: 'Lessons' }, 'sira_numarasi', 'ASC'],
+    ],
+  });
 
         if (!course) {
             const error = new Error('Talep edilen kurs bulunamadı.');
@@ -184,7 +217,8 @@ exports.getCourseDetail = async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            data: course
+            data: course,
+            bunnyLibraryId: process.env.BUNNY_LIBRARY_ID
         });
     } catch (error) {
         console.error(`[ADMIN] Kurs detay hatası: ${error.message}`);
@@ -194,7 +228,7 @@ exports.getCourseDetail = async (req, res, next) => {
 
 /**
  * Kursu Onaylama (Yayına Alma) İşlemi
- * @route PUT /api/admin/courses/:id/approve
+ * @route PUT /api/admin/approve-course/:courseId
  */
 exports.approveCourse = async (req, res, next) => {
     try {
@@ -231,11 +265,12 @@ exports.approveCourse = async (req, res, next) => {
 
 /**
  * Kursu Reddetme İşlemi
- * @route PUT /api/admin/courses/:id/reject
+ * @route PUT /api/admin/reject-course/:courseId
  */
 exports.rejectCourse = async (req, res, next) => {
     try {
         const { courseId } = req.params;
+        const { sebep } = req.body;
         
         const course = await Course.findByPk(courseId);
         
@@ -246,13 +281,14 @@ exports.rejectCourse = async (req, res, next) => {
             });
         }
         
+        // Kursu taslak haline geri al
         await course.update({ durum: 'taslak' });
         
-        console.log(`[ADMIN] Kurs ${courseId} reddedildi`);
+        console.log(`[ADMIN] Kurs ${courseId} reddedildi. Sebep: ${sebep || 'Belirtilmedi'}`);
         
         return res.status(200).json({
             success: true,
-            message: 'Kurs reddedildi',
+            message: 'Kurs reddedildi ve eğitmene geri gönderildi',
             course
         });
         
