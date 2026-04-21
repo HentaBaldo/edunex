@@ -6,6 +6,7 @@
 
 let currentCourseId = null;
 let currentUserToken = null;
+let isEnrolledStudent = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Navbar'daki giriş durumunu kontrol et
@@ -56,37 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await checkEnrollmentStatus(courseId);
         }
 
-        const curriculumDiv = document.getElementById('curriculumList');
-        curriculumDiv.innerHTML = ''; // Yükleniyor yazısını temizle
-
-        if (course.Sections && course.Sections.length > 0) {
-            course.Sections.forEach(section => {
-                const sectionHtml = `
-                    <div class="curriculum-section">
-                        <header class="section-title-box">
-                            <strong><i class="fas fa-folder-open"></i> ${section.baslik}</strong>
-                        </header>
-                        <div class="section-lessons">
-                            ${section.Lessons.map(lesson => `
-                                <div class="lesson-row">
-                                    <div class="lesson-left">
-                                        <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'} lesson-icon"></i>
-                                        <span class="lesson-name">${lesson.baslik}</span>
-                                    </div>
-                                    <div class="lesson-right">
-                                        <span class="lesson-time">${lesson.sure_saniye ? Math.floor(lesson.sure_saniye/60) + ' dk' : ''}</span>
-                                        <span class="lesson-lock">${lesson.onizleme_mi ? '<i class="fas fa-eye" style="color:var(--primary-color);"></i>' : '<i class="fas fa-lock" style="color:#94a3b8;"></i>'}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-                curriculumDiv.insertAdjacentHTML('beforeend', sectionHtml);
-            });
-        } else {
-            curriculumDiv.innerHTML = '<p class="info-message">Bu kurs için henüz müfredat eklenmemiş.</p>';
-        }
+        renderCurriculum(course.Sections || []);
 
     } catch (error) {
         console.error("[HATA] Kurs detayları çekilemedi:", error.message);
@@ -96,64 +67,149 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Öğrencinin bu kursa zaten kayıtlı olup olmadığını kontrol et
- * ✅ REAL DATA: /api/enrollments/:courseId endpoint'ine GET isteği
- * @param {string} courseId - Kontrol edilecek kurs ID'si
+ * Kayıtlı öğrenci için enroll check + ilerleme/kilitsiz modu aç.
  */
-// ❌ YANLIŞ (SAT. 84-104):
 async function checkEnrollmentStatus(courseId) {
     try {
         const result = await ApiService.get(`/enrollments/${courseId}`);
-        
-        if (result.status === 'success' && result.data) {
-            // Öğrenci zaten kayıtlı
-            const enrollBtn = document.getElementById('enrollBtn');
-            if (enrollBtn) {
-                enrollBtn.textContent = '✓ Kayıtlısınız';
-                enrollBtn.disabled = true;
-                enrollBtn.style.backgroundColor = '#10b981';
-                enrollBtn.style.cursor = 'default';
-            }
+
+        if (result.status === 'success' && result.enrolled === true && result.data) {
+            isEnrolledStudent = true;
+            applyEnrolledMode(courseId, result.data);
         }
     } catch (error) {
-        // 404 gelecek (kayıtlı değil), bu normal
-        if (error.message.includes('404')) {
-            console.log('Öğrenci bu kursa kayıtlı değil');
-        } else {
-            console.warn('Enrollment status kontrol hatası:', error.message);
-        }
+        console.warn('[ENROLLMENT CHECK] Hata:', error.message);
     }
 }
 
-// ✅ DOĞRU (SAT. 84-110):
-async function checkEnrollmentStatus(courseId) {
-    try {
-        const result = await ApiService.get(`/enrollments/${courseId}`);
-        
-        // ✅ DÜZELTME: enrolled flag'ine bak
-        if (result.status === 'success') {
-            if (result.enrolled === true && result.data) {
-                // Öğrenci zaten kayıtlı - tüm butonları "Kayıtlısınız" olarak güncelle
-                const enrollBtn = document.getElementById('enrollBtn');
-                const addToCartBtn = document.getElementById('addToCartBtn');
-                if (addToCartBtn) addToCartBtn.style.display = 'none';
-                if (enrollBtn) {
-                    enrollBtn.style.display = 'block';
-                    enrollBtn.textContent = '✓ Kayıtlısınız';
-                    enrollBtn.disabled = true;
-                    enrollBtn.style.backgroundColor = '#10b981';
-                    enrollBtn.style.color = '#fff';
-                    enrollBtn.style.cursor = 'default';
-                }
-            } else if (result.enrolled === false) {
-                // Öğrenci kayıtlı değil - düğme normal durumda kalsın
-                console.log('[ENROLLMENT] Öğrenci bu kursa kayıtlı değildir.');
-            }
-        }
-    } catch (error) {
-        // Sadece gerçek hatalar için uyar
-        console.warn('[ENROLLMENT CHECK] Hata:', error.message);
+/**
+ * Kayıtlı öğrenci modunu aktifleştir:
+ *  - Sepete Ekle / Kaydol butonları gizle, "Öğrenim Ekranına Git" göster
+ *  - İlerleme kartını göster (yüzde + bar)
+ */
+function applyEnrolledMode(courseId, enrollment) {
+    const addToCartBtn = document.getElementById('addToCartBtn');
+    const enrollBtn = document.getElementById('enrollBtn');
+    const goToLearningBtn = document.getElementById('goToLearningBtn');
+
+    if (addToCartBtn) addToCartBtn.style.display = 'none';
+    if (enrollBtn) enrollBtn.style.display = 'none';
+    if (goToLearningBtn) {
+        goToLearningBtn.style.display = 'flex';
+        goToLearningBtn.style.alignItems = 'center';
+        goToLearningBtn.style.justifyContent = 'center';
+        goToLearningBtn.style.gap = '8px';
+        goToLearningBtn.addEventListener('click', () => {
+            window.location.href = `/student/learning-room.html?id=${courseId}`;
+        });
     }
+
+    const progressCard = document.getElementById('progressCard');
+    if (progressCard) {
+        const yuzde = Math.max(0, Math.min(100, Number(enrollment.ilerleme_yuzdesi) || 0));
+        progressCard.style.display = 'block';
+        document.getElementById('progressPercent').textContent = `${yuzde}%`;
+        document.getElementById('progressBar').style.width = `${yuzde}%`;
+        const hint = document.getElementById('progressHint');
+        if (hint) {
+            hint.textContent = yuzde === 0
+                ? 'Öğrenime henüz başlamadınız. İlk dersi seçerek başlayabilirsiniz.'
+                : yuzde === 100
+                    ? 'Tebrikler! Bu kursu tamamladınız.'
+                    : 'Kaldığınız yerden devam edebilirsiniz.';
+        }
+    }
+
+    // Müfredatı kilitsiz, tıklanabilir hale getir
+    const curriculumDiv = document.getElementById('curriculumList');
+    if (curriculumDiv && curriculumDiv.dataset.sections) {
+        try {
+            const sections = JSON.parse(curriculumDiv.dataset.sections);
+            renderCurriculum(sections);
+        } catch (_) {}
+    }
+}
+
+/**
+ * Müfredatı render et — kayıtlı öğrenciler için tıklanabilir, değilse kilitli preview.
+ */
+function renderCurriculum(sections) {
+    const curriculumDiv = document.getElementById('curriculumList');
+    if (!curriculumDiv) return;
+
+    curriculumDiv.dataset.sections = JSON.stringify(sections);
+
+    if (!sections || sections.length === 0) {
+        curriculumDiv.innerHTML = '<p class="info-message">Bu kurs için henüz müfredat eklenmemiş.</p>';
+        return;
+    }
+
+    curriculumDiv.innerHTML = sections.map(section => {
+        const lessons = (section.Lessons || []).map(lesson => {
+            const icon = iconForLessonType(lesson.icerik_tipi);
+            const duration = lesson.sure_saniye ? Math.floor(lesson.sure_saniye / 60) + ' dk' : '';
+            const canOpen = isEnrolledStudent || lesson.onizleme_mi;
+
+            const rightIcon = canOpen
+                ? (isEnrolledStudent
+                    ? '<i class="fas fa-play" style="color:#10b981;" title="Derse Git"></i>'
+                    : '<i class="fas fa-eye" style="color:var(--primary-color);" title="Önizleme"></i>')
+                : '<i class="fas fa-lock" style="color:#94a3b8;" title="Kilitli"></i>';
+
+            const rowStyle = canOpen ? 'cursor:pointer;' : 'cursor:default; opacity:0.85;';
+            const dataAttrs = canOpen
+                ? `data-clickable="1" data-lesson-id="${escapeAttr(lesson.id)}"`
+                : '';
+
+            return `
+                <div class="lesson-row" ${dataAttrs} style="${rowStyle}">
+                    <div class="lesson-left">
+                        <i class="fas ${icon} lesson-icon"></i>
+                        <span class="lesson-name">${escapeHtml(lesson.baslik || '')}</span>
+                    </div>
+                    <div class="lesson-right">
+                        <span class="lesson-time">${duration}</span>
+                        <span class="lesson-lock">${rightIcon}</span>
+                    </div>
+                </div>`;
+        }).join('');
+
+        return `
+            <div class="curriculum-section">
+                <header class="section-title-box">
+                    <strong><i class="fas fa-folder-open"></i> ${escapeHtml(section.baslik || '')}</strong>
+                </header>
+                <div class="section-lessons">${lessons}</div>
+            </div>`;
+    }).join('');
+
+    // Tıklanabilir satırlara listener ekle
+    curriculumDiv.querySelectorAll('[data-clickable="1"]').forEach(row => {
+        row.addEventListener('click', () => {
+            const lessonId = row.dataset.lessonId;
+            if (!lessonId) return;
+            window.location.href = `/student/learning-room.html?id=${currentCourseId}&lesson_id=${lessonId}`;
+        });
+    });
+}
+
+function iconForLessonType(tip) {
+    switch ((tip || 'video').toLowerCase()) {
+        case 'video': return 'fa-play-circle';
+        case 'quiz': return 'fa-clipboard-question';
+        case 'metin': return 'fa-file-lines';
+        default: return 'fa-file-alt';
+    }
+}
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function escapeAttr(text) {
+    return String(text).replace(/"/g, '&quot;');
 }
 
 /**

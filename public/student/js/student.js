@@ -135,9 +135,8 @@ async function loadEnrolledCourses() {
                         </div>
                         
                         <div class="card-actions">
-                            <!-- ✅ BURASI DÜZELTILDI: /student/learning-room.html -->
-                            <a href="/student/learning-room.html?id=${course.id}" class="btn-continue">
-                                <i class="fas fa-play"></i> Öğrenmeye Devam Et
+                            <a href="/main/course-detail.html?id=${course.id}" class="btn-continue">
+                                <i class="fas fa-book-open"></i> Kursa Git
                             </a>
                             <button onclick="unenrollCourse('${course.id}')" class="btn-unenroll" title="Kurstan Ayrıl">
                                 <i class="fas fa-times"></i>
@@ -302,7 +301,7 @@ function renderStudentCourseCard(course) {
     const safeInstructor = escapeHtml(instructorName);
 
     return `
-        <a href="/student/learning-room.html?id=${courseId}" style="text-decoration: none; color: inherit;">
+        <a href="/main/course-detail.html?id=${courseId}" style="text-decoration: none; color: inherit;">
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.2s; cursor: pointer;" 
                  onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'"
                  onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)'">

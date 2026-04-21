@@ -259,10 +259,10 @@ function loadLesson(lessonId) {
 
     currentLessonId = lessonId;
 
-    console.log(`[LEARNING] Ders yükleniyor: ${selectedLesson.baslik}`);
+    console.log(`[LEARNING] Ders yükleniyor: ${selectedLesson.baslik} (tip: ${selectedLesson.icerik_tipi || 'video'})`);
 
-    // Video'yu yükle
-    loadVideo(selectedLesson);
+    // İçerik tipine göre uygun render fonksiyonunu çağır
+    loadLessonContent(selectedLesson);
 
     // Ders bilgisini güncelle
     updateLessonInfo(selectedLesson);
@@ -277,8 +277,112 @@ function loadLesson(lessonId) {
 }
 
 /**
+ * İçerik tipine göre uygun render fonksiyonunu seç
+ * @param {Object} lesson - Ders nesnesi
+ */
+function loadLessonContent(lesson) {
+    const tip = (lesson.icerik_tipi || 'video').toLowerCase();
+
+    if (tip === 'quiz') return renderQuizPlaceholder(lesson);
+    if (tip === 'video') return loadVideo(lesson);
+    // metin, belge, pdf vb. — döküman görüntüleyici
+    return loadDocument(lesson);
+}
+
+/**
+ * Quiz placeholder (quiz sistemi ileride geliştirilecek)
+ */
+function renderQuizPlaceholder(lesson) {
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (!videoPlayer) return;
+    const wrapper = videoPlayer.parentElement;
+    if (wrapper) wrapper.style.aspectRatio = '';
+    videoPlayer.innerHTML = `
+        <div class="video-placeholder" style="padding: 40px; text-align: center;">
+            <i class="fas fa-clipboard-question" style="font-size: 3rem; color: #f59e0b; margin-bottom: 16px;"></i>
+            <h3 style="color:#f1f5f9; margin-bottom: 8px;">${escapeHtml(lesson.baslik || 'Quiz')}</h3>
+            <p style="color:#94a3b8;">Quiz/test sistemi yakında eklenecek.</p>
+        </div>
+    `;
+}
+
+/**
+ * Döküman görüntüleyici (PDF / resim / indirilebilir dosya / metin)
+ */
+function loadDocument(lesson) {
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (!videoPlayer) return;
+    const wrapper = videoPlayer.parentElement;
+
+    const src = lesson.video_saglayici_id || lesson.kaynak_url || '';
+    const ext = extractExtension(src);
+
+    // Dosya yok — açıklama metnini göster
+    if (!src) {
+        if (wrapper) wrapper.style.aspectRatio = '';
+        videoPlayer.innerHTML = `
+            <div class="video-placeholder" style="padding: 40px; text-align: left; overflow-y: auto;">
+                <h3 style="color:#f1f5f9; margin-bottom: 12px;">${escapeHtml(lesson.baslik || '')}</h3>
+                ${lesson.aciklama
+                    ? `<div style="color:#cbd5e1; line-height:1.6; white-space:pre-wrap;">${escapeHtml(lesson.aciklama)}</div>`
+                    : `<p style="color:#94a3b8;"><i class="fas fa-info-circle"></i> Bu ders için içerik eklenmemiş.</p>`
+                }
+            </div>
+        `;
+        return;
+    }
+
+    // PDF — iframe ile göster
+    if (ext === 'pdf') {
+        if (wrapper) wrapper.style.aspectRatio = '';
+        videoPlayer.innerHTML = `
+            <iframe src="${escapeHtml(src)}#toolbar=1"
+                style="width:100%; height:75vh; border:0; background:#fff;"
+                title="PDF Görüntüleyici"></iframe>
+        `;
+        return;
+    }
+
+    // Resim dosyası
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
+        if (wrapper) wrapper.style.aspectRatio = '';
+        videoPlayer.innerHTML = `
+            <div style="width:100%; min-height:60vh; display:flex; align-items:center; justify-content:center; background:#000; padding:20px;">
+                <img src="${escapeHtml(src)}" alt="${escapeHtml(lesson.baslik || '')}"
+                    style="max-width:100%; max-height:75vh; object-fit:contain;">
+            </div>
+        `;
+        return;
+    }
+
+    // İndirilebilir belge (doc, docx, xlsx, ppt, txt, vb.)
+    if (wrapper) wrapper.style.aspectRatio = '';
+    videoPlayer.innerHTML = `
+        <div class="video-placeholder" style="padding: 40px; text-align: center;">
+            <i class="fas fa-file-alt" style="font-size: 3rem; color: #3b82f6; margin-bottom: 16px;"></i>
+            <h3 style="color:#f1f5f9; margin-bottom: 8px;">${escapeHtml(lesson.baslik || 'Ders Dosyası')}</h3>
+            <p style="color:#94a3b8; margin-bottom: 20px;">Bu içerik tarayıcıda görüntülenemiyor. İndirip açabilirsiniz.</p>
+            <a href="${escapeHtml(src)}" target="_blank" download
+                style="background:#3b82f6; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                <i class="fas fa-download"></i> Dosyayı İndir
+            </a>
+        </div>
+    `;
+}
+
+/**
+ * URL/dosya yolundan uzantı çıkar (sorgu stringini atla)
+ */
+function extractExtension(url) {
+    if (!url) return '';
+    const clean = String(url).split('?')[0].split('#')[0];
+    const idx = clean.lastIndexOf('.');
+    if (idx === -1 || idx < clean.lastIndexOf('/')) return '';
+    return clean.slice(idx + 1).toLowerCase();
+}
+
+/**
  * Video'yu yükle (Bunny.net Stream + HTML5 + YouTube + Vimeo)
- * DÜZELTME: Bunny.net UUID'sini doğru iframe URL'sine dönüştür
  * @param {Object} lesson - Ders nesnesi
  */
 function loadVideo(lesson) {
@@ -288,6 +392,10 @@ function loadVideo(lesson) {
         console.error('[LEARNING] videoPlayer DOM element bulunamadı');
         return;
     }
+
+    // Video ise 16/9 oranını geri getir
+    const wrapper = videoPlayer.parentElement;
+    if (wrapper) wrapper.style.aspectRatio = '16 / 9';
 
     // Video kaynağı kontrol et (video_saglayici_id veya kaynak_url)
     const videoSource = lesson.video_saglayici_id || lesson.kaynak_url;
