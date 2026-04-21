@@ -30,6 +30,17 @@
                     </div>
                 </header>
 
+                <div id="progressCard" style="display:none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+                        <strong style="color:#0f172a;"><i class="fas fa-chart-line" style="color:#10b981;"></i> İlerlemeniz</strong>
+                        <span id="progressPercent" style="font-size:1.1rem; font-weight:700; color:#10b981;">0%</span>
+                    </div>
+                    <div style="background:#f1f5f9; height:10px; border-radius:5px; overflow:hidden;">
+                        <div id="progressBar" style="background:linear-gradient(90deg, #10b981, #059669); height:100%; width:0%; transition:width 0.5s;"></div>
+                    </div>
+                    <p id="progressHint" style="margin-top:10px; color:#64748b; font-size:0.9rem;"></p>
+                </div>
+
                 <article class="curriculum-container">
                     <h3 class="section-heading">Kurs Müfredatı</h3>
                     <div id="curriculumList" class="curriculum-accordion">
@@ -45,6 +56,7 @@
                     </div>
                     <div class="enroll-card-content">
                         <div id="coursePrice" class="price-display">0 ₺</div>
+                        <button id="goToLearningBtn" class="btn-primary-full" style="display:none; margin-bottom: 8px; background:#10b981;"><i class="fas fa-play-circle"></i> Öğrenim Ekranına Git</button>
                         <button id="addToCartBtn" class="btn-primary-full" style="margin-bottom: 8px;"><i class="fas fa-cart-plus"></i> Sepete Ekle</button>
                         <button id="enrollBtn" class="btn-primary-full" style="background:#e2e8f0;color:#0f172a;">Ücretsiz Kayıt Ol</button>
                         <p class="guarantee-text"><i class="fas fa-shield-alt"></i> 30 gün iade garantisi.</p>

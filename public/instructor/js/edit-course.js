@@ -111,16 +111,18 @@ function renderLessons(lessons) {
     }
 
     return lessons.map(lesson => {
-        const durationText = lesson.sure_saniye 
-            ? `${Math.floor(lesson.sure_saniye / 60)}m` 
+        const durationText = lesson.sure_saniye
+            ? `${Math.floor(lesson.sure_saniye / 60)}m`
             : '';
-        
+        const sourceInfo = renderLessonSourceBadge(lesson);
+
         return `
             <div class="lesson-item" id="lesson-${lesson.id}">
                 <div class="lesson-info">
                     <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
                     <span>${escapeHtml(lesson.baslik)}</span>
-                    ${lesson.onizleme_mi ? '<i class="fas fa-eye" style="color: #2563eb; margin-left: auto; margin-right: 10px;"></i>' : ''}
+                    ${sourceInfo}
+                    ${lesson.onizleme_mi ? '<i class="fas fa-eye" style="color: #2563eb; margin-left: 8px;" title="Ücretsiz önizleme"></i>' : ''}
                     ${durationText ? `<span style="color: #64748b; font-size: 0.8rem; margin-left: 8px;">${durationText}</span>` : ''}
                 </div>
                 <button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil">
@@ -129,6 +131,45 @@ function renderLessons(lessons) {
             </div>
         `;
     }).join('');
+}
+
+/**
+ * Derse bağlı kaynak/dosya göstergesi:
+ *  - Bunny video GUID varsa "Video yüklendi" rozeti
+ *  - /uploads/... dosyası ise "Dosyayı Aç" linki
+ *  - Harici URL ise link rozeti
+ *  - Hiçbir kaynak yoksa "Kaynak yok" uyarısı
+ */
+function renderLessonSourceBadge(lesson) {
+    const src = lesson.video_saglayici_id || lesson.kaynak_url || '';
+    const tip = (lesson.icerik_tipi || 'video').toLowerCase();
+
+    const baseStyle = 'margin-left:auto; font-size:0.78rem; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:6px; text-decoration:none;';
+
+    if (!src) {
+        return `<span style="${baseStyle} background:#fef3c7; color:#92400e;"><i class="fas fa-exclamation-triangle"></i> Kaynak yok</span>`;
+    }
+
+    // Tam URL (http/https)
+    if (/^https?:\/\//i.test(src)) {
+        return `<a href="${escapeHtml(src)}" target="_blank" rel="noopener" style="${baseStyle} background:#dbeafe; color:#1e40af;" title="${escapeHtml(src)}">
+            <i class="fas fa-link"></i> Link
+        </a>`;
+    }
+
+    // Local uploads yolu
+    if (src.startsWith('/uploads/')) {
+        return `<a href="${escapeHtml(src)}" target="_blank" rel="noopener" style="${baseStyle} background:#dcfce7; color:#166534;" title="${escapeHtml(src)}">
+            <i class="fas fa-paperclip"></i> Dosyayı Aç
+        </a>`;
+    }
+
+    // Bunny video GUID (UUID formatında)
+    if (tip === 'video' && /^[a-f0-9-]{36}$/i.test(src)) {
+        return `<span style="${baseStyle} background:#ede9fe; color:#6d28d9;"><i class="fas fa-circle-check"></i> Video yüklendi</span>`;
+    }
+
+    return `<span style="${baseStyle} background:#e2e8f0; color:#475569;"><i class="fas fa-file"></i> Kaynak eklendi</span>`;
 }
 
 /**
