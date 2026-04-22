@@ -1,8 +1,7 @@
 /**
  * EduNex - Öğrenim Ekranı (Course Player)
- * Version: 1.0 (Production Ready)
- * 
- * Udemy tarzı video izleme, müfredat yönetimi ve ilerleme takibi
+ * Version: 2.1 (Full Uncut Version + Tam Hibrit Destek)
+ * * Udemy tarzı video izleme, müfredat yönetimi ve ilerleme takibi
  */
 
 // === GLOBAL VARIABLES ===
@@ -157,8 +156,6 @@ function renderCurriculum() {
 
 /**
  * Bölüm içindeki dersleri render et
- * @param {Array} lessons - Ders array'ı
- * @returns {string} HTML string
  */
 function renderLessons(lessons) {
     if (!lessons || lessons.length === 0) {
@@ -172,7 +169,7 @@ function renderLessons(lessons) {
 
     return lessons.map(lesson => {
         const isCompleted = lesson.tamamlandi_mi;
-        const isPreview = lesson.onizleme_mi; // ✅ PREVIEW KONTROL
+        const isPreview = lesson.onizleme_mi;
         const durationText = lesson.sure_saniye 
             ? `${Math.floor(lesson.sure_saniye / 60)}m`
             : 'N/A';
@@ -182,8 +179,6 @@ function renderLessons(lessons) {
                 <div class="lesson-name">
                     <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
                     <span>${escapeHtml(lesson.baslik)}</span>
-                    
-                    <!-- ✅ PREVIEW BADGE -->
                     ${isPreview ? '<span style="background: #dbeafe; color: #075985; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 5px; font-weight: 600;">ÖNİZLEME</span>' : ''}
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -197,7 +192,6 @@ function renderLessons(lessons) {
 
 /**
  * Bölüm açılır/kapanır
- * @param {HTMLElement} headerElement - Tıklanan header
  */
 function toggleSection(headerElement) {
     const sectionId = headerElement.getAttribute('data-section-id');
@@ -208,39 +202,32 @@ function toggleSection(headerElement) {
         return;
     }
 
-    // Açık/Kapalı durumu değiştir
     headerElement.classList.toggle('active');
     lessonList.classList.toggle('active');
 }
 
 /**
  * Derse tıklanıldığında yükle
- * @param {string} lessonId - Ders UUID
  */
 function selectLesson(lessonId) {
     console.log(`[LEARNING] Ders seçildi: ${lessonId}`);
 
-    // Önceki seçimi temizle
     document.querySelectorAll('.lesson-item.active').forEach(el => {
         el.classList.remove('active');
     });
 
-    // Yeni dersi seç
     const selectedLessonElement = document.querySelector(`.lesson-item[data-lesson-id="${lessonId}"]`);
     if (selectedLessonElement) {
         selectedLessonElement.classList.add('active');
     }
 
-    // Dersi yükle
     loadLesson(lessonId);
 }
 
 /**
  * Dersi yükle ve video'yu göster
- * @param {string} lessonId - Ders UUID
  */
 function loadLesson(lessonId) {
-    // Müfredattan dersi bul
     let selectedLesson = null;
 
     for (const section of currentCourseData.curriculum) {
@@ -261,13 +248,9 @@ function loadLesson(lessonId) {
 
     console.log(`[LEARNING] Ders yükleniyor: ${selectedLesson.baslik} (tip: ${selectedLesson.icerik_tipi || 'video'})`);
 
-    // İçerik tipine göre uygun render fonksiyonunu çağır
     loadLessonContent(selectedLesson);
-
-    // Ders bilgisini güncelle
     updateLessonInfo(selectedLesson);
 
-    // URL'yi güncelle (back button için)
     const courseId = new URLSearchParams(window.location.search).get('id');
     window.history.replaceState(
         {},
@@ -277,101 +260,7 @@ function loadLesson(lessonId) {
 }
 
 /**
- * İçerik tipine göre uygun render fonksiyonunu seç
- * @param {Object} lesson - Ders nesnesi
- */
-function loadLessonContent(lesson) {
-    const tip = (lesson.icerik_tipi || 'video').toLowerCase();
-
-    if (tip === 'quiz') return renderQuizPlaceholder(lesson);
-    if (tip === 'video') return loadVideo(lesson);
-    // metin, belge, pdf vb. — döküman görüntüleyici
-    return loadDocument(lesson);
-}
-
-/**
- * Quiz placeholder (quiz sistemi ileride geliştirilecek)
- */
-function renderQuizPlaceholder(lesson) {
-    const videoPlayer = document.getElementById('videoPlayer');
-    if (!videoPlayer) return;
-    const wrapper = videoPlayer.parentElement;
-    if (wrapper) wrapper.style.aspectRatio = '';
-    videoPlayer.innerHTML = `
-        <div class="video-placeholder" style="padding: 40px; text-align: center;">
-            <i class="fas fa-clipboard-question" style="font-size: 3rem; color: #f59e0b; margin-bottom: 16px;"></i>
-            <h3 style="color:#f1f5f9; margin-bottom: 8px;">${escapeHtml(lesson.baslik || 'Quiz')}</h3>
-            <p style="color:#94a3b8;">Quiz/test sistemi yakında eklenecek.</p>
-        </div>
-    `;
-}
-
-/**
- * Döküman görüntüleyici (PDF / resim / indirilebilir dosya / metin)
- */
-function loadDocument(lesson) {
-    const videoPlayer = document.getElementById('videoPlayer');
-    if (!videoPlayer) return;
-    const wrapper = videoPlayer.parentElement;
-
-    const src = lesson.video_saglayici_id || lesson.kaynak_url || '';
-    const ext = extractExtension(src);
-
-    // Dosya yok — açıklama metnini göster
-    if (!src) {
-        if (wrapper) wrapper.style.aspectRatio = '';
-        videoPlayer.innerHTML = `
-            <div class="video-placeholder" style="padding: 40px; text-align: left; overflow-y: auto;">
-                <h3 style="color:#f1f5f9; margin-bottom: 12px;">${escapeHtml(lesson.baslik || '')}</h3>
-                ${lesson.aciklama
-                    ? `<div style="color:#cbd5e1; line-height:1.6; white-space:pre-wrap;">${escapeHtml(lesson.aciklama)}</div>`
-                    : `<p style="color:#94a3b8;"><i class="fas fa-info-circle"></i> Bu ders için içerik eklenmemiş.</p>`
-                }
-            </div>
-        `;
-        return;
-    }
-
-    // PDF — iframe ile göster
-    if (ext === 'pdf') {
-        if (wrapper) wrapper.style.aspectRatio = '';
-        videoPlayer.innerHTML = `
-            <iframe src="${escapeHtml(src)}#toolbar=1"
-                style="width:100%; height:75vh; border:0; background:#fff;"
-                title="PDF Görüntüleyici"></iframe>
-        `;
-        return;
-    }
-
-    // Resim dosyası
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
-        if (wrapper) wrapper.style.aspectRatio = '';
-        videoPlayer.innerHTML = `
-            <div style="width:100%; min-height:60vh; display:flex; align-items:center; justify-content:center; background:#000; padding:20px;">
-                <img src="${escapeHtml(src)}" alt="${escapeHtml(lesson.baslik || '')}"
-                    style="max-width:100%; max-height:75vh; object-fit:contain;">
-            </div>
-        `;
-        return;
-    }
-
-    // İndirilebilir belge (doc, docx, xlsx, ppt, txt, vb.)
-    if (wrapper) wrapper.style.aspectRatio = '';
-    videoPlayer.innerHTML = `
-        <div class="video-placeholder" style="padding: 40px; text-align: center;">
-            <i class="fas fa-file-alt" style="font-size: 3rem; color: #3b82f6; margin-bottom: 16px;"></i>
-            <h3 style="color:#f1f5f9; margin-bottom: 8px;">${escapeHtml(lesson.baslik || 'Ders Dosyası')}</h3>
-            <p style="color:#94a3b8; margin-bottom: 20px;">Bu içerik tarayıcıda görüntülenemiyor. İndirip açabilirsiniz.</p>
-            <a href="${escapeHtml(src)}" target="_blank" download
-                style="background:#3b82f6; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
-                <i class="fas fa-download"></i> Dosyayı İndir
-            </a>
-        </div>
-    `;
-}
-
-/**
- * URL/dosya yolundan uzantı çıkar (sorgu stringini atla)
+ * URL/dosya yolundan uzantı çıkar
  */
 function extractExtension(url) {
     if (!url) return '';
@@ -382,125 +271,163 @@ function extractExtension(url) {
 }
 
 /**
- * Video'yu yükle (Bunny.net Stream + HTML5 + YouTube + Vimeo)
- * @param {Object} lesson - Ders nesnesi
+ * İçerik tipine göre uygun render fonksiyonunu seç (Akıllı Hibrit Yapı)
  */
-function loadVideo(lesson) {
+function loadLessonContent(lesson) {
     const videoPlayer = document.getElementById('videoPlayer');
+    if (!videoPlayer) return;
 
-    if (!videoPlayer) {
-        console.error('[LEARNING] videoPlayer DOM element bulunamadı');
-        return;
+    // CSS oranlarını iptal ediyoruz ki belge veya butonlar rahat sığsın
+    videoPlayer.style.aspectRatio = 'auto'; 
+    
+    const kaynak1 = lesson.video_saglayici_id; // Uploaded Bunny Video or Document Path
+    const kaynak2 = lesson.kaynak_url;         // External YouTube/Vimeo Link
+    const tip = (lesson.icerik_tipi || 'video').toLowerCase();
+
+    let htmlContent = `<div style="width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; overflow-y: auto;">`;
+    
+    let mainMedia = 'none';
+
+    // 1. Ana Sahnede Ne Oynayacağını Belirle (Hiyerarşi)
+    if (kaynak1 && isBunnyUUID(kaynak1)) {
+        mainMedia = 'bunny';
+    } else if (kaynak2 && isYoutubeUrl(kaynak2)) {
+        mainMedia = 'youtube';
+    } else if (kaynak2 && isVimeoUrl(kaynak2)) {
+        mainMedia = 'vimeo';
+    } else if (kaynak1 && !isBunnyUUID(kaynak1)) {
+        mainMedia = 'document';
     }
 
-    // Video ise 16/9 oranını geri getir
-    const wrapper = videoPlayer.parentElement;
-    if (wrapper) wrapper.style.aspectRatio = '16 / 9';
-
-    // Video kaynağı kontrol et (video_saglayici_id veya kaynak_url)
-    const videoSource = lesson.video_saglayici_id || lesson.kaynak_url;
-
-    if (!videoSource) {
-        videoPlayer.innerHTML = `
-            <div class="video-placeholder">
-                <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
-                <p>Video kaynağı bulunamadı</p>
+    // 2. Ana Sahneyi Çiz
+    if (mainMedia === 'bunny') {
+        const BUNNY_LIBRARY_ID = '640675';
+        htmlContent += `
+            <div style="position: relative; flex-grow: 1; min-height: 400px; display: flex;">
+                <iframe src="https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${kaynak1}?autoplay=false" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"></iframe>
+            </div>`;
+    } else if (mainMedia === 'youtube') {
+        const ytId = extractYoutubeId(kaynak2);
+        const directLink = `https://www.youtube.com/watch?v=${ytId}`;
+        htmlContent += `
+            <div style="padding: 10px 15px; background: #0f172a; text-align: right; flex-shrink: 0; border-bottom: 1px solid #1e293b;">
+                <a href="${directLink}" target="_blank" style="background: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;">
+                    <i class="fab fa-youtube"></i> Oynatıcı Hata Verirse Doğrudan Aç
+                </a>
+            </div>
+            <div style="position: relative; flex-grow: 1; min-height: 400px; display: flex;">
+                <iframe 
+                    src="https://www.youtube.com/embed/${ytId}" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    referrerpolicy="strict-origin-when-cross-origin" 
+                    allowfullscreen 
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;">
+                </iframe>
+            </div>`;
+    } else if (mainMedia === 'vimeo') {
+        const vimeoId = extractVimeoId(kaynak2);
+        htmlContent += `
+            <div style="position: relative; flex-grow: 1; min-height: 400px; display: flex;">
+                <iframe src="https://player.vimeo.com/video/${vimeoId}" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"></iframe>
+            </div>`;
+    } else if (mainMedia === 'document') {
+        const ext = extractExtension(kaynak1);
+        if (ext === 'pdf') {
+            htmlContent += `<iframe src="${escapeHtml(kaynak1)}#toolbar=1" style="width:100%; height:75vh; border:0; background:#fff; flex-shrink: 0;"></iframe>`;
+        } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+            htmlContent += `<div style="display:flex; justify-content:center; align-items:center; min-height:60vh; background:#000; padding:20px;"><img src="${escapeHtml(kaynak1)}" style="max-width:100%; max-height:75vh; object-fit:contain;"></div>`;
+        } else {
+            // İndirilebilir belge formatları (docx, pptx, rar)
+            htmlContent += `
+                <div style="display:flex; justify-content:center; align-items:center; min-height:400px; background:#000; color:white; flex-direction:column; gap:15px;">
+                    <i class="fas fa-file-alt" style="font-size:3.5rem; color:#3b82f6;"></i>
+                    <p style="font-size:1.1rem; color:#cbd5e1;">Bu belge türü tarayıcıda önizlenemiyor.</p>
+                    <a href="${escapeHtml(kaynak1)}" target="_blank" style="background:#3b82f6; padding:10px 24px; border-radius:6px; color:white; text-decoration:none; font-weight:600;"><i class="fas fa-download"></i> Dosyayı İndir</a>
+                </div>`;
+        }
+    } else {
+        htmlContent += `
+            <div style="padding: 40px; text-align: center; margin: auto;">
+                <i class="fas fa-inbox" style="font-size: 3rem; color: #64748b; margin-bottom: 16px;"></i>
+                <h3 style="color:#f1f5f9;">İçerik Bulunamadı</h3>
+                <p style="color:#94a3b8;">Bu ders için medya veya belge eklenmemiş.</p>
             </div>
         `;
-        return;
     }
 
-    console.log(`[LEARNING] Video kaynağı: ${videoSource}`);
+    // 3. Alt Eylem Barı (Ana ekrana çıkamayan veya ek olan tüm veriler buraya dizilecek)
+    let extraButtons = '';
+    
+    // Eğer ana sahnede Bunny Video varsa ve YT linki de varsa:
+    if (mainMedia === 'bunny' && kaynak2 && (isYoutubeUrl(kaynak2) || isVimeoUrl(kaynak2))) {
+        extraButtons += `<button onclick="window.open('${escapeHtml(kaynak2)}', '_blank')" style="background: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"><i class="fab fa-youtube"></i> Harici Videoyu İzle</button>`;
+    }
+    
+    // Eğer ana sahnede YouTube varsa ve sistemde yüklü bir Bunny videosu da varsa:
+    if ((mainMedia === 'youtube' || mainMedia === 'vimeo') && kaynak1 && isBunnyUUID(kaynak1)) {
+        const BUNNY_LIBRARY_ID = '640675';
+        const bunnyUrl = `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${kaynak1}`;
+        extraButtons += `<button onclick="window.open('${bunnyUrl}', '_blank')" style="background: #3b82f6; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"><i class="fas fa-play"></i> Yüklü Videoyu İzle</button>`;
+    }
 
-    // === BUNNY.NET STREAM (UUID) ===
-    // Eğer video_saglayici_id UUID formatında ise (49887b68-c7c6-4f49-bd0c-5efcc70bbf30)
-    if (isBunnyUUID(videoSource)) {
-        const BUNNY_LIBRARY_ID = '640675'; // .env'den BUNNY_LIBRARY_ID
-        const bunnyStreamUrl = `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoSource}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`;
-        
-        console.log(`[LEARNING] Bunny.net video yükleniyor: ${bunnyStreamUrl}`);
-        
-        videoPlayer.innerHTML = `
-            <iframe
-                src="${bunnyStreamUrl}"
-                loading="lazy"
-                style="border:0;position:absolute;top:0;height:100%;width:100%;"
-                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-                allowfullscreen="true">
-            </iframe>
+    // Eğer ana sahnede Herhangi bir Video varsa ve sisteme bir belge yüklendiyse (PDF vb.)
+    if (mainMedia !== 'document' && kaynak1 && !isBunnyUUID(kaynak1)) {
+        extraButtons += `<button onclick="window.open('${escapeHtml(kaynak1)}', '_blank')" style="background: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"><i class="fas fa-file-download"></i> Ders Belgesini Aç/İndir</button>`;
+    }
+
+    // Normal düz bir web sitesi linkiyse
+    if (kaynak2 && !isYoutubeUrl(kaynak2) && !isVimeoUrl(kaynak2)) {
+         extraButtons += `<button onclick="window.open('${escapeHtml(kaynak2)}', '_blank')" style="background: #8b5cf6; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"><i class="fas fa-external-link-alt"></i> Ek Kaynağa Git</button>`;
+    }
+
+    if (extraButtons || lesson.aciklama || tip === 'quiz') {
+        htmlContent += `
+            <div style="padding: 20px; background: #1e293b; border-top: 1px solid #334155; flex-shrink: 0;">
+                ${tip === 'quiz' ? `<div style="color: #f59e0b; margin-bottom: 15px; font-weight: bold;"><i class="fas fa-clipboard-list"></i> Bu bir Quiz bölümüdür.</div>` : ''}
+                ${extraButtons ? `<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">${extraButtons}</div>` : ''}
+                ${lesson.aciklama ? `<div style="color: #cbd5e1; line-height: 1.6; font-size: 0.95rem; white-space: pre-wrap;">${escapeHtml(lesson.aciklama)}</div>` : ''}
+            </div>
         `;
-        return;
     }
 
-    // === YOUTUBE ===
-    if (isYoutubeUrl(videoSource)) {
-        const videoId = extractYoutubeId(videoSource);
-        videoPlayer.innerHTML = `
-            <iframe 
-                src="https://www.youtube.com/embed/${videoId}" 
-                allowfullscreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                style="width: 100%; height: 100%; border: none;"
-            ></iframe>
-        `;
-        return;
-    }
-
-    // === VIMEO ===
-    if (isVimeoUrl(videoSource)) {
-        const videoId = extractVimeoId(videoSource);
-        videoPlayer.innerHTML = `
-            <iframe 
-                src="https://player.vimeo.com/video/${videoId}" 
-                allowfullscreen
-                allow="autoplay; fullscreen; picture-in-picture"
-                style="width: 100%; height: 100%; border: none;"
-            ></iframe>
-        `;
-        return;
-    }
-
-    // === HTML5 VIDEO (MP4 / WebM) ===
-    videoPlayer.innerHTML = `
-        <video controls style="width: 100%; height: 100%; object-fit: contain;">
-            <source src="${escapeHtml(videoSource)}" type="video/mp4">
-            Tarayıcınız HTML5 video etiketini desteklemiyor.
-        </video>
-    `;
+    htmlContent += `</div>`;
+    videoPlayer.innerHTML = htmlContent;
 }
 
 /**
  * UUID formatını kontrol et (Bunny.net video GUID)
- * Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
- * @param {string} str - Kontrol edilecek string
- * @returns {boolean}
  */
 function isBunnyUUID(str) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(str);
 }
 
-/**
- * YouTube URL'si kontrol et
- * @param {string} url - URL
- * @returns {boolean}
- */
 function isYoutubeUrl(url) {
     return url.includes('youtube.com') || url.includes('youtu.be');
 }
 
-/**
- * Vimeo URL'si kontrol et
- * @param {string} url - URL
- * @returns {boolean}
- */
 function isVimeoUrl(url) {
     return url.includes('vimeo.com');
 }
 
+function extractYoutubeId(url) {
+    let videoId = '';
+    if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0] || '';
+    } else {
+        videoId = new URLSearchParams(url.split('?')[1]).get('v') || url.split('v=')[1]?.split('&')[0] || '';
+    }
+    return videoId;
+}
+
+function extractVimeoId(url) {
+    return url.split('/').pop()?.split('?')[0] || '';
+}
+
 /**
  * Ders bilgisini güncelle
- * @param {Object} lesson - Ders nesnesi
  */
 function updateLessonInfo(lesson) {
     const lessonInfo = document.getElementById('lessonInfo');
@@ -537,7 +464,6 @@ function updateLessonInfo(lesson) {
 
 /**
  * Dersi tamamlandı olarak işaretle
- * @param {string} lessonId - Ders UUID
  */
 async function markLessonComplete(lessonId) {
     try {
@@ -552,14 +478,12 @@ async function markLessonComplete(lessonId) {
 
         console.log('[LEARNING] Ders tamamlandı:', response);
 
-        // UI'yi güncelle
         const button = event.target.closest('.btn-mark-complete');
         if (button) {
             button.classList.add('completed');
             button.innerHTML = '<i class="fas fa-check-circle"></i> Tamamlandı';
         }
 
-        // Müfredatta da işaretle
         const lessonItem = document.querySelector(`.lesson-item[data-lesson-id="${lessonId}"]`);
         if (lessonItem) {
             const lessonNameSpan = lessonItem.querySelector('.lesson-name span');
@@ -578,7 +502,6 @@ async function markLessonComplete(lessonId) {
             `;
         }
 
-        // Başarı mesajı
         showNotification('Ders tamamlandı olarak işaretlendi!', 'success');
 
     } catch (error) {
@@ -588,55 +511,7 @@ async function markLessonComplete(lessonId) {
 }
 
 /**
- * Yardımcı Fonksiyonlar
- */
-
-/**
- * YouTube URL'si kontrol et
- * @param {string} url - URL
- * @returns {boolean}
- */
-function isYoutubeUrl(url) {
-    return url.includes('youtube.com') || url.includes('youtu.be');
-}
-
-/**
- * Vimeo URL'si kontrol et
- * @param {string} url - URL
- * @returns {boolean}
- */
-function isVimeoUrl(url) {
-    return url.includes('vimeo.com');
-}
-
-/**
- * YouTube video ID'sini çıkar
- * @param {string} url - URL
- * @returns {string}
- */
-function extractYoutubeId(url) {
-    let videoId = '';
-    if (url.includes('youtu.be/')) {
-        videoId = url.split('youtu.be/')[1]?.split('?')[0] || '';
-    } else {
-        videoId = new URLSearchParams(url.split('?')[1]).get('v') || url.split('v=')[1]?.split('&')[0] || '';
-    }
-    return videoId;
-}
-
-/**
- * Vimeo video ID'sini çıkar
- * @param {string} url - URL
- * @returns {string}
- */
-function extractVimeoId(url) {
-    return url.split('/').pop()?.split('?')[0] || '';
-}
-
-/**
  * XSS Koruması - HTML escape
- * @param {string} text - Metin
- * @returns {string}
  */
 function escapeHtml(text) {
     if (!text) return '';
@@ -647,16 +522,10 @@ function escapeHtml(text) {
 
 /**
  * Hata mesajı göster
- * @param {string} message - Mesaj
- * @param {string} containerId - Container ID
  */
 function showError(message, containerId) {
     const container = document.getElementById(containerId);
-    
-    if (!container) {
-        console.error('[LEARNING] Error container bulunamadı:', containerId);
-        return;
-    }
+    if (!container) return;
 
     container.innerHTML = `
         <div class="error-state">
@@ -668,8 +537,6 @@ function showError(message, containerId) {
 
 /**
  * Bildirim göster (Toast)
- * @param {string} message - Mesaj
- * @param {string} type - Tip ('success' veya 'error')
  */
 function showNotification(message, type = 'info') {
     const toast = document.createElement('div');
@@ -695,31 +562,18 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// CSS for toast animations (eğer daha önce eklenmemişse)
+// Toast Animasyonları
 if (!document.querySelector('style[data-toast-animations]')) {
     const style = document.createElement('style');
     style.setAttribute('data-toast-animations', 'true');
     style.textContent = `
         @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-        
         @keyframes slideOut {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(400px);
-                opacity: 0;
-            }
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
         }
     `;
     document.head.appendChild(style);

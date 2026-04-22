@@ -312,6 +312,9 @@ async function handleAddSection() {
 /**
  * Ders ekleme işlemi - UPLOAD SPAM ENGELLEME VE DİNAMİK VERİ (GÖREV 3)
  */
+/**
+ * Ders ekleme işlemi - YENİ ASENKRON (BEKLETMEYEN) YAPI
+ */
 async function handleAddLesson() {
     const bolumId = document.getElementById('secili_bolum_id')?.value;
     const baslik = document.getElementById('ders_baslik')?.value.trim();
@@ -329,60 +332,133 @@ async function handleAddLesson() {
         return;
     }
 
-    // BUTON KİLİTLEME MANTIĞI (SPAM ENGELLEYİCİ)
-    const submitBtn = document.getElementById('dersSubmitBtn');
-    const originalBtnText = submitBtn ? submitBtn.innerText : 'Kaydet';
+    const formData = new FormData();
+    formData.append('bolum_id', bolumId);
+    formData.append('baslik', baslik);
+    formData.append('icerik_tipi', icerikTipi);
+    formData.append('onizleme_mi', onizlemeMi);
     
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerText = 'Yükleniyor, Lütfen Bekleyin...';
+    if (aciklama) formData.append('aciklama', aciklama);
+    if (kaynakUrl) formData.append('kaynak_url', kaynakUrl);
+
+    if (icerikTipi === 'video' && window.calculatedVideoDuration > 0) {
+        formData.append('sure_saniye', window.calculatedVideoDuration);
+    } else if (tahminiSureDk) {
+        formData.append('sure_saniye', parseInt(tahminiSureDk) * 60);
     }
 
-    try {
-        const formData = new FormData();
-        formData.append('bolum_id', bolumId);
-        formData.append('baslik', baslik);
-        formData.append('icerik_tipi', icerikTipi);
-        formData.append('onizleme_mi', onizlemeMi);
-        
-        if (aciklama) formData.append('aciklama', aciklama);
-        if (kaynakUrl) formData.append('kaynak_url', kaynakUrl);
+    if (file) {
+        formData.append('video', file);
+    }
 
-        // Belge veya Test ise dakikayı saniyeye çevirip gönder
-        // --- SÜRE HESAPLAMASINI FORMA EKLE ---
-        if (icerikTipi === 'video') {
-            // Eğer video ise arka planda hesapladığımız saniyeyi gönder
-            if (window.calculatedVideoDuration > 0) {
-                formData.append('sure_saniye', window.calculatedVideoDuration);
+    // ==========================================
+    // ATEŞLE VE UNUT (FIRE & FORGET) MANTIĞI
+    // ==========================================
+    
+    // 1. Modalı hemen kapat ve formu temizle (Eğitmen kesinlikle beklemesin)
+    window.closeLessonModal();
+    document.getElementById('dersEkleForm').reset();
+    window.calculatedVideoDuration = 0; // Süreyi sıfırla
+
+    // 2. Sağ üstte yükleme barını oluştur ve arka planda API'ye gönder!
+    createUploadProgressBox(baslik, formData);
+}
+
+/**
+ * Sağ Üstte Çıkan Dinamik Yükleme Kutucukları (Progress Bar)
+ */
+function createUploadProgressBox(baslik, formData) {
+    // Container yoksa sayfanın sağ üstüne oluştur
+    let container = document.getElementById('uploadProgressContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'uploadProgressContainer';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none;';
+        document.body.appendChild(container);
+    }
+
+    // Her video yüklemesi için benzersiz bir kutu oluştur
+    const uploadId = 'upload-' + Date.now();
+    const box = document.createElement('div');
+    box.id = uploadId;
+    box.style.cssText = 'background: white; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 16px; width: 320px; border-left: 5px solid #3b82f6; pointer-events: auto; transform: translateX(120%); animation: slideIn 0.3s forwards;';
+    
+    box.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center;">
+            <strong style="font-size: 0.95rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;"><i class="fas fa-cloud-upload-alt" style="color: #3b82f6; margin-right: 5px;"></i> ${escapeHtml(baslik)}</strong>
+            <span id="pct-${uploadId}" style="font-size: 0.85rem; font-weight: 600; color: #3b82f6;">0%</span>
+        </div>
+        <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+            <div id="bar-${uploadId}" style="background: #3b82f6; width: 0%; height: 100%; transition: width 0.1s linear;"></div>
+        </div>
+        <div id="status-${uploadId}" style="font-size: 0.8rem; color: #64748b; margin-top: 10px; font-weight: 500;">Sisteme iletiliyor...</div>
+    `;
+    
+    container.appendChild(box);
+
+    // Animasyon CSS'i sayfada yoksa ekle
+    if (!document.getElementById('uploadAnimStyles')) {
+        const style = document.createElement('style');
+        style.id = 'uploadAnimStyles';
+        style.innerHTML = `
+            @keyframes slideIn { to { transform: translateX(0); } }
+            @keyframes fadeOut { to { opacity: 0; transform: translateX(100%); } }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Dosyayı sunucuya gönderme işlemi (İlerleme çubuğunu doldurur)
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/curriculum/lessons', true);
+    xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('edunex_token')}`);
+    
+    // Yükleme sırasında yüzdelik dilimi güncelle
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const percentComplete = Math.floor((e.loaded / e.total) * 100);
+            document.getElementById(`bar-${uploadId}`).style.width = percentComplete + '%';
+            document.getElementById(`pct-${uploadId}`).innerText = percentComplete + '%';
+            
+            if (percentComplete === 100) {
+                document.getElementById(`status-${uploadId}`).innerText = 'Arka planda işleniyor...';
             }
-        } else if (tahminiSureDk) {
-            // Belge veya Test ise eğitmenin girdiği dakikayı saniyeye çevirip gönder
-            formData.append('sure_saniye', parseInt(tahminiSureDk) * 60);
         }
+    };
 
-        // KRİTİK DÜZELTME: Backend "video" anahtarını bekliyor (upload.single('video'))
-        if (file) {
-            formData.append('video', file);
+    // Yükleme başarıyla bittiğinde
+    xhr.onload = async () => {
+        const response = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status >= 200 && xhr.status < 300) {
+            document.getElementById(`bar-${uploadId}`).style.background = '#10b981'; // Yeşil bar
+            document.getElementById(`pct-${uploadId}`).style.color = '#10b981';
+            document.getElementById(`status-${uploadId}`).innerText = '✓ Ders eklendi (İşleniyor)';
+            
+            // Arka planda müfredat listesini sessizce yenile
+            await loadCurriculum();
+            
+            // 5 saniye sonra kutucuğu kaydırarak yok et
+            setTimeout(() => {
+                box.style.animation = 'fadeOut 0.4s forwards';
+                setTimeout(() => box.remove(), 400);
+            }, 5000);
+        } else {
+            // Hata Durumu
+            document.getElementById(`bar-${uploadId}`).style.background = '#ef4444';
+            document.getElementById(`pct-${uploadId}`).style.color = '#ef4444';
+            document.getElementById(`status-${uploadId}`).innerText = '❌ Hata: ' + (response.message || 'Yüklenemedi');
+            setTimeout(() => box.remove(), 8000);
         }
+    };
 
-        // Backend'e form data olarak gönder (true parametresi form-data olduğunu belirtir)
-        await ApiService.postFormData('/curriculum/lessons', formData);
+    // İnternet koptuğunda
+    xhr.onerror = () => {
+        document.getElementById(`bar-${uploadId}`).style.background = '#ef4444';
+        document.getElementById(`status-${uploadId}`).innerText = '❌ Sunucu bağlantısı koptu!';
+        setTimeout(() => box.remove(), 8000);
+    };
 
-        showToast('Ders başarıyla eklendi.', 'success');
-        window.closeLessonModal();
-        document.getElementById('dersEkleForm').reset();
-        await loadCurriculum();
-
-    } catch (error) {
-        console.error('[LESSON ADD] Hata:', error.message);
-        showToast(`Hata: ${error.message}`, 'error');
-    } finally {
-        // İŞLEM BİTİNCE BUTONU AKTİF ET YADA HATAYA DÜŞSÜN
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerText = originalBtnText;
-        }
-    }
+    // Formu gönder
+    xhr.send(formData);
 }
 
 /**
