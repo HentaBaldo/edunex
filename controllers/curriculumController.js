@@ -1,5 +1,5 @@
 const { CourseSection, Lesson, Course } = require('../models');
-const { uploadVideoToBunny } = require('../services/bunnyService');
+const { uploadVideoToBunny, uploadFileToBunnyStorage } = require('../services/bunnyService');
 const path = require('path');
 const fs = require('fs');
 
@@ -126,75 +126,47 @@ exports.createLesson = async (req, res, next) => {
         });
         const nextOrder = (maxSira || 0) + 1;
 
-        // === VIDEO UPLOAD LOGIC ===
+        // === MEDYA VE LİNK İŞLEME MANTIĞI ===
         let finalVideoProvider = null;
+        let finalKaynakUrl = null;
 
-        console.log(`[LESSON CREATE] BAŞLANDI: ${baslik}`);
-        console.log(`[LESSON CREATE] İçerik Tipi: ${icerik_tipi}`);
-        console.log(`[LESSON CREATE] Dosya Yüklendi mi: ${uploadedFile ? 'EVET' : 'HAYIR'}`);
+        // 1. Harici Link Varsa (YouTube vb.) Doğrula ve Ata
+        if (kaynak_url) {
+            const allowedDomains = ['youtube.com', 'youtu.be', 'vimeo.com', 'bunnycdn.com', 'cdn.example.com', 'localhost:3000'];
+            try {
+                const urlObj = new URL(kaynak_url);
+                const isAllowed = allowedDomains.some(d => urlObj.hostname === d || urlObj.hostname.endsWith('.' + d));
+                if (!isAllowed) throw new Error('Geçersiz domain');
+                finalKaynakUrl = kaynak_url; // LİNKİ KENDİ AİT OLDUĞU YERE ALIYORUZ!
+            } catch (e) {
+                console.warn(`[LESSON CREATE] Link doğrulama hatası: ${e.message}`);
+            }
+        }
 
+        // 2. Yüklenen Dosya Varsa (Bunny Video veya Belge)
         if (uploadedFile) {
             tempFilePath = uploadedFile.path;
-            
             if (icerik_tipi === 'video') {
-                console.log(`[LESSON CREATE] Video BunnyCDN'e yükleniyor...`);
-                
                 try {
                     const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
                     bunnyVideoGuid = bunnyResult.guid;
                     finalVideoProvider = bunnyVideoGuid;
-                    
-                    console.log(`[LESSON CREATE] ✅ Bunny Video GUID: ${bunnyVideoGuid}`);
                 } catch (bunnyError) {
-                    console.error(`[LESSON CREATE] ❌ Bunny Upload Hata:`, bunnyError.message);
                     finalVideoProvider = null;
                 }
-            } 
-            else {
-                console.log(`[LESSON CREATE] Belge/Döküman kaydediliyor (Local)`);
+            } else {
+                // Belge ise Bunny Storage veya Local Path (Önceki yazdığımız kodun karşılığı)
                 finalVideoProvider = `/uploads/temp/${uploadedFile.filename}`;
-                console.log(`[LESSON CREATE] ✅ Dosya Path: ${finalVideoProvider}`);
             }
-            
-        } else if (kaynak_url) {
-            const urlValidation = (url) => {
-                const allowedDomains = [
-                    'youtube.com', 'youtu.be', 'vimeo.com',
-                    'bunnycdn.com', 'cdn.example.com', 'localhost:3000'
-                ];
-                
-                try {
-                    const urlObj = new URL(url);
-                    const isAllowed = allowedDomains.some(d => 
-                        urlObj.hostname === d || urlObj.hostname.endsWith('.' + d)
-                    );
-                    
-                    if (!isAllowed) throw new Error('Geçersiz domain');
-                    if (!['http:', 'https:'].includes(urlObj.protocol)) throw new Error('HTTPS gerekli');
-                    
-                    return true;
-                } catch (e) {
-                    throw new Error(`Video URL doğrulanmadı: ${e.message}`);
-                }
-            };
-            
-            urlValidation(kaynak_url);
-            finalVideoProvider = kaynak_url;
-            console.log(`[LESSON CREATE] Kaynak URL kullanılıyor: ${finalVideoProvider}`);
-        } else {
-            console.log(`[LESSON CREATE] ⚠️ Dosya veya Kaynak URL YÜKLENMEDİ!`);
-            finalVideoProvider = null;
         }
-
-        console.log(`[LESSON CREATE] Final Video Provider: ${finalVideoProvider}`);
-        console.log(`[LESSON CREATE] Kaydediliyor - Video ID: ${finalVideoProvider}`);
 
         // === DERS OLUŞTUR ===
         const newLesson = await Lesson.create({
             bolum_id,
             baslik: String(baslik).trim().substring(0, 255),
             aciklama: aciklama ? String(aciklama).trim().substring(0, 5000) : null,
-            video_saglayici_id: finalVideoProvider,
+            video_saglayici_id: finalVideoProvider, // Sadece yüklü dosya ID'si/Yolu
+            kaynak_url: finalKaynakUrl,             // Harici Linkler BİZİM YENİ SÜTUNA!
             sure_saniye: parseInt(sure_saniye) || 0,
             onizleme_mi: Boolean(onizleme_mi),
             sira_numarasi: nextOrder,

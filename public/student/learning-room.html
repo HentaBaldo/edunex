@@ -95,8 +95,9 @@
             padding: 0;
         }
 
+        /* DİKKAT: Aspect-ratio kaldırıldı, esnek yapı getirildi! */
         .video-player-wrapper {
-            aspect-ratio: 16 / 9;
+            flex-grow: 1;
             background: #000;
             display: flex;
             align-items: center;
@@ -386,9 +387,9 @@
             background: #475569;
         }
     </style>
+    <link rel="icon" href="data:,">
 </head>
 <body>
-    <!-- === HEADER === -->
     <header class="learning-header">
         <div class="learning-header-left">
             <a href="/student/dashboard.html" title="Panele Dön">
@@ -409,11 +410,8 @@
         </div>
     </header>
 
-    <!-- === MAIN CONTENT === -->
     <div class="learning-container">
-        <!-- === VIDEO AREA === -->
         <div class="video-area">
-            <!-- Video Player -->
             <div class="video-player-wrapper" id="videoPlayer">
                 <div class="video-placeholder">
                     <i class="fas fa-video"></i>
@@ -421,7 +419,6 @@
                 </div>
             </div>
 
-            <!-- Lesson Info -->
             <div class="lesson-info" id="lessonInfo">
                 <div class="loading-state">
                     <i class="fas fa-spinner fa-spin"></i>
@@ -430,7 +427,6 @@
             </div>
         </div>
 
-        <!-- === CURRICULUM PANEL === -->
         <div class="curriculum-panel" id="curriculumPanel">
             <div class="curriculum-header">
                 <div class="curriculum-title">
@@ -452,7 +448,6 @@
         </div>
     </div>
 
-    <!-- === SCRIPTS === -->
     <script src="/assets/js/api.js"></script>
     <script src="/student/js/learning.js"></script>
     <script src="/student/js/learning-live.js"></script>

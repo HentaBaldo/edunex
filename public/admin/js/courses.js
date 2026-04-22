@@ -108,64 +108,69 @@ async function viewCourseDetails(courseId) {
                             <span style="font-size: 0.85rem; background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px;">${dersCount} ders</span>
                         </div>
                         <ul style="list-style: none; padding-left: 0; margin: 0;">
-                            ${(sec.Lessons || []).length > 0 ? sec.Lessons.map(les => {
-                                let fileIcon = 'file';
-                                let actionButtons = '';
+                        ${(sec.Lessons || []).length > 0 ? sec.Lessons.map(les => {
+                            let fileIcon = 'file';
+                            let actionButtons = '';
 
-                                if (les.icerik_tipi === 'video') {
+                            // Yardımcı Fonksiyonlar
+                            const isBunny = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+                            const isYt = (str) => str && (str.includes('youtube.com') || str.includes('youtu.be'));
+                            const isVimeo = (str) => str && str.includes('vimeo.com');
+
+                            // --- 1. ANA DOSYA (BUNNY/PDF) VEYA ESKİ YANLIŞ KAYITLI LİNKLER ---
+                            if (les.video_saglayici_id) {
+                                if (isBunny(les.video_saglayici_id)) {
                                     fileIcon = 'video';
-                                    if (les.video_saglayici_id) {
-                                        actionButtons = `
-                                        <button onclick="viewVideo('${les.video_saglayici_id}', '${response.bunnyLibraryId}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-                                            <i class="fas fa-play"></i> İzle
-                                        </button>
-                                    `;
-                                    }
-                                } else if (les.icerik_tipi === 'metin') {
+                                    actionButtons += `<button onclick="viewVideo('${les.video_saglayici_id}', '${response.bunnyLibraryId}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;"><i class="fas fa-play"></i> Video İzle</button>`;
+                                } else if (isYt(les.video_saglayici_id) || isVimeo(les.video_saglayici_id)) {
+                                    // SİHİRLİ DOKUNUŞ: Eski kayıtlarda dosya sütununa yanlışlıkla kaydedilen YT linklerini kurtarıyoruz
+                                    fileIcon = 'youtube';
+                                    actionButtons += `<button onclick="viewExternalVideo('${les.video_saglayici_id}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;"><i class="fab fa-youtube"></i> Harici Video</button>`;
+                                } else {
                                     fileIcon = 'file-pdf';
-                                    if (les.video_saglayici_id) {
-                                        actionButtons = `
-                                            <button onclick="viewFile('${les.video_saglayici_id}')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;">
-                                                <i class="fas fa-eye"></i> Aç
-                                            </button>
-                                            <a href="${les.video_saglayici_id}" download style="background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                                                <i class="fas fa-download"></i> İndir
-                                            </a>
-                                        `;
-                                    }
-                                } else if (les.icerik_tipi === 'quiz') {
-                                    fileIcon = 'clipboard-list';
-                                    if (les.video_saglayici_id) {
-                                        actionButtons = `
-                                            <button onclick="viewFile('${les.video_saglayici_id}')" style="background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;">
-                                                <i class="fas fa-eye"></i> Aç
-                                            </button>
-                                            <a href="${les.video_saglayici_id}" download style="background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                                                <i class="fas fa-download"></i> İndir
-                                            </a>
-                                        `;
-                                    }
+                                    actionButtons += `<button onclick="viewFile('${les.video_saglayici_id}')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;"><i class="fas fa-file-alt"></i> Belgeyi Aç</button>`;
                                 }
+                            }
 
-                                return `
-                                    <li style="padding: 12px; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; flex-wrap: wrap; gap: 10px;">
-                                        <span>
-                                            <i class="fas fa-${fileIcon}" style="color: #64748b; margin-right: 8px;"></i> 
-                                            ${les.sira_numarasi}. ${les.baslik}
-                                            ${les.onizleme_mi ? '<span style="font-size:0.75rem; background:#10b981; color:white; padding:2px 6px; border-radius:3px; margin-left:6px;">Ücretsiz</span>' : ''}
+                            // --- 2. HARİCİ KAYNAK (YENİ VE DOĞRU KAYITLAR) ---
+                            // (Eski kayıtlarla aynı linkse iki buton basmaması için kontrol ekledik)
+                            if (les.kaynak_url && les.kaynak_url !== les.video_saglayici_id) {
+                                if (isYt(les.kaynak_url) || isVimeo(les.kaynak_url)) {
+                                    if (fileIcon === 'file') fileIcon = 'youtube';
+                                    actionButtons += `<button onclick="viewExternalVideo('${les.kaynak_url}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;"><i class="fab fa-youtube"></i> Harici Video</button>`;
+                                } else {
+                                    if (fileIcon === 'file') fileIcon = 'link';
+                                    actionButtons += `<a href="${les.kaynak_url}" target="_blank" style="background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;"><i class="fas fa-external-link-alt"></i> Ek Link</a>`;
+                                }
+                            }
+
+                            // --- 3. QUIZ ÖZEL DURUMU ---
+                            if (les.icerik_tipi === 'quiz') fileIcon = 'clipboard-list';
+
+                            // --- 4. HİBRİT ROZETİ ---
+                            const isHybrid = les.video_saglayici_id && les.kaynak_url && (les.video_saglayici_id !== les.kaynak_url);
+                            const hybridBadge = isHybrid ? '<span style="font-size:0.7rem; background:#f59e0b; color:white; padding:2px 6px; border-radius:3px; margin-left:6px;"><i class="fas fa-layer-group"></i> Hibrit</span>' : '';
+
+                            return `
+                                <li style="padding: 12px; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; flex-wrap: wrap; gap: 10px;">
+                                    <span>
+                                        <i class="fas fa-${fileIcon}" style="color: #64748b; margin-right: 8px;"></i> 
+                                        ${les.sira_numarasi}. ${les.baslik}
+                                        ${hybridBadge}
+                                        ${les.onizleme_mi ? '<span style="font-size:0.75rem; background:#10b981; color:white; padding:2px 6px; border-radius:3px; margin-left:6px;">Ücretsiz</span>' : ''}
+                                    </span>
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                        <span style="font-weight: 600; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; white-space: nowrap;">
+                                            ${les.icerik_tipi === 'video' 
+                                                ? (les.sure_saniye > 0 ? Math.floor(les.sure_saniye / 60) + ' dk' : 'Süre Yok')
+                                                : (les.sure_saniye > 0 ? Math.floor(les.sure_saniye / 60) + ' dk tahmini' : 'Süre Yok')
+                                            }
                                         </span>
-                                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-                                            <span style="font-weight: 600; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; white-space: nowrap;">
-                                                ${les.icerik_tipi === 'video' 
-                                                    ? (les.sure_saniye > 0 ? Math.floor(les.sure_saniye / 60) + ' dk' : 'Süre Yok')
-                                                    : (les.sure_saniye > 0 ? Math.floor(les.sure_saniye / 60) + ' dk tahmini' : 'Süre Yok')
-                                                }
-                                            </span>
-                                            ${actionButtons}
-                                        </div>
-                                    </li>
-                                `;
-                            }).join('') : '<li style="color:#ef4444; font-size:0.85rem; padding:8px;">Bu bölümde hiç ders yok!</li>'}
+                                        ${actionButtons}
+                                    </div>
+                                </li>
+                            `;
+                        }).join('') : '<li style="color:#ef4444; font-size:0.85rem; padding:8px;">Bu bölümde hiç ders yok!</li>'}
                         </ul>
                     </div>
                 `;
@@ -251,6 +256,75 @@ window.viewVideo = (videoGuid, libraryId) => {
     document.addEventListener('keydown', closeVideo);
 };
 
+/**
+ * Harici YouTube ve Vimeo Linklerini Akıllı Ayrıştırıcı ile Aç
+ */
+window.viewExternalVideo = (videoSource) => {
+    let videoUrl = "";
+    let directLink = videoSource; 
+    
+    console.log("[DEBUG] Ham Gelen URL:", videoSource);
+    
+    if (videoSource.includes('youtube.com') || videoSource.includes('youtu.be')) {
+        const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = videoSource.match(regExp);
+        const ytId = (match && match[2].length === 11) ? match[2] : null;
+        
+        console.log("[DEBUG] Ayrıştırılan YouTube ID:", ytId);
+
+        if (ytId) {
+            // SADELEŞTİRME: Autoplay, nocookie, rel=0 gibi tarayıcıyı tetikleyen tüm parametreleri sildik.
+            // Sadece saf YouTube Embed linki:
+            videoUrl = `https://www.youtube.com/embed/${ytId}`;
+            directLink = `https://www.youtube.com/watch?v=${ytId}`; 
+        } else {
+            alert("YouTube ID'si ayrıştırılamadı. Lütfen linki kontrol edin.");
+            return;
+        }
+    } else if (videoSource.includes('vimeo.com')) {
+        const vimeoId = videoSource.split('vimeo.com/')[1]?.split('/')[0]?.split('?')[0];
+        videoUrl = `https://player.vimeo.com/video/${vimeoId}`;
+        directLink = `https://vimeo.com/${vimeoId}`;
+    }
+
+    const videoModal = `
+        <div id="extVideoViewer" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.98); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center;" onclick="if(event.target.id === 'extVideoViewer') this.remove()">
+            
+            <div style="width: 90vw; max-width: 1100px; display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                <a href="${directLink}" target="_blank" style="background: #ef4444; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); transition: all 0.2s;">
+                    <i class="fab fa-youtube"></i> Oynatıcı Hata Verirse Doğrudan Aç
+                </a>
+            </div>
+
+            <div style="width: 90vw; max-width: 1100px; background: #000; border-radius: 16px; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.8); border: 1px solid #334155;">
+                <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+                    <iframe 
+                        src="${videoUrl}" 
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
+                        title="YouTube video player" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerpolicy="strict-origin-when-cross-origin" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+                <div style="padding: 12px; background: #0f172a; color: #94a3b8; text-align: center; font-size: 0.85rem; font-weight: 500;">
+                    <i class="fas fa-info-circle" style="color:#3b82f6;"></i> Kapatmak için dışarıya tıklayın veya ESC tuşuna basın
+                </div>
+            </div>
+
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', videoModal);
+    
+    const closeEsc = (e) => {
+        if (e.key === 'Escape') {
+            document.getElementById('extVideoViewer')?.remove();
+            document.removeEventListener('keydown', closeEsc);
+        }
+    };
+    document.addEventListener('keydown', closeEsc);
+};
 /**
  * Dosya Aç (PDF, Word, Resim vb.) - BÜYÜK EKRAN VERSİYONU
  */

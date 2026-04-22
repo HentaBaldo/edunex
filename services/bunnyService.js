@@ -208,68 +208,48 @@ const deleteVideo = async (videoGuid) => {
  * @returns {Promise<{guid: string, title: string, uploadedAt: Date}>}
  * @throws {Error} Upload başarısız ise
  */
+/**
+ * ANA FONKSIYON: Video'yu Bunny.net'e yükle (FIRE & FORGET MANTIKLI)
+ */
 const uploadVideoToBunny = async (filePath, title) => {
-    let videoGuid = null;
-    let fileDeleted = false;
-    
     try {
         console.log(`[BUNNY UPLOAD] Başlangıç: ${filePath}`);
         
-        // === ADIM 1: Video dosyasını doğrula ===
+        // 1. Video dosyasını doğrula
         const fileInfo = await validateVideoFile(filePath);
-        console.log(`[BUNNY UPLOAD] Dosya doğrulandı: ${fileInfo.size} bytes, ${fileInfo.extension}`);
         
-        // === ADIM 2: Bunny'de yeni video kaydı oluştur ===
-        videoGuid = await createVideoEntry(title);
+        // 2. Bunny'de GUID oluştur (Bu işlem saniyeler sürer)
+        const videoGuid = await createVideoEntry(title);
         
-        // === ADIM 3: Video dosyasını yükle ===
-        await uploadVideoFile(filePath, videoGuid);
+        // 3. ARKAPLAN İŞLEMİ (Ateşle ve Unut): Node.js videoyu Bunny'e arka planda yüklesin.
+        // DİKKAT: Başına 'await' KOYMUYORUZ! Böylece eğitmen asla bekletilmez.
+        uploadVideoFile(filePath, videoGuid)
+            .then(async () => {
+                // Yükleme bitince sunucudaki geçici dosyayı (temp) sil
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    console.log(`[BUNNY BACKGROUND] Geçici dosya silindi: ${filePath}`);
+                }
+                console.log(`[BUNNY BACKGROUND] Video başarıyla Bunny'e aktarıldı: ${videoGuid}`);
+            })
+            .catch(async (err) => {
+                console.error(`[BUNNY BACKGROUND] Yükleme Hatası:`, err.message);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                await deleteVideo(videoGuid); // Başarısız olursa Bunny'deki bozuk kaydı sil
+            });
         
-        // === ADIM 4: Geçici dosyayı sil ===
-        fs.unlinkSync(filePath);
-        fileDeleted = true;
-        console.log(`[BUNNY UPLOAD] Geçici dosya silindi: ${filePath}`);
-        
-        // === ADIM 5: Video processing durumunu kontrol et (3 dakika bekle) ===
-        const isReady = await checkVideoStatus(videoGuid, 36); // 36 * 5 saniye = 3 dakika
-        
-        if (!isReady) {
-            console.warn(
-                `[BUNNY UPLOAD] Video işleme devam ediyor (5 dakikayı aştı). ` +
-                `GUID: ${videoGuid} - Frontend'de "Processing" durumu göster`
-            );
-        }
-        
-        // === BAŞARILI DÖNÜŞ ===
-        const result = {
+        // 4. BEKLEMEDEN ANINDA CONTROLLER'A YANIT DÖN
+        return {
             guid: videoGuid,
             title: title,
             uploadedAt: new Date(),
-            processingComplete: isReady,
-            message: isReady 
-                ? 'Video başarıyla yüklendi ve hazır'
-                : 'Video yüklendi, şu an işleniyor (5+ dakika sürebilir)'
+            processingComplete: false,
+            message: 'Video başarıyla kuyruğa eklendi, arka planda yükleniyor.'
         };
         
-        console.log(`[BUNNY UPLOAD] BAŞARILI: ${JSON.stringify(result)}`);
-        return result;
-        
     } catch (error) {
-        // === ERROR HANDLING: ROLLBACK ===
-        console.error(`[BUNNY UPLOAD] HATA: ${error.message}`);
-        
-        // Video GUID oluşturulduysa Bunny'de sil
-        if (videoGuid) {
-            await deleteVideo(videoGuid);
-        }
-        
-        // Geçici dosya hala var ise sil
-        if (!fileDeleted && fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`[BUNNY UPLOAD] Rollback: Geçici dosya silindi`);
-        }
-        
-        // Öz hata at
+        console.error(`[BUNNY UPLOAD] BAŞLANGIÇ HATASI: ${error.message}`);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         throw error;
     }
 };
@@ -290,10 +270,42 @@ const updateVideoMetadata = async (videoGuid, metadata) => {
     }
 };
 
+/**
+ * Belgeleri (PDF, Image vb.) Bunny Storage'a Yükle
+ */
+const uploadFileToBunnyStorage = async (filePath, fileName) => {
+    try {
+        const STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
+        const STORAGE_KEY = process.env.BUNNY_STORAGE_ACCESS_KEY;
+
+        const fileStream = fs.createReadStream(filePath);
+        
+        // Yükleme yapacağımız Gizli API adresi
+        const uploadUrl = `https://storage.bunnycdn.com/${STORAGE_ZONE}/${fileName}`;
+
+        await axios.put(uploadUrl, fileStream, {
+            headers: {
+                AccessKey: STORAGE_KEY,
+                'Content-Type': 'application/octet-stream'
+            }
+        });
+
+        // Öğrencilerin/Adminin dosyayı okuyacağı Açık Link (Pull Zone)
+        // Eğer + Connect Pull Zone kısmında başka bir isim verdiysen burayı ona göre değiştir
+        const publicUrl = `https://${STORAGE_ZONE}.b-cdn.net/${fileName}`;
+        
+        console.log(`[BUNNY STORAGE] Belge kalıcı buluta yüklendi: ${publicUrl}`);
+        return publicUrl;
+    } catch (error) {
+        throw new Error(`Bunny Storage yükleme hatası: ${error.message}`);
+    }
+};
+
 module.exports = {
     uploadVideoToBunny,
     updateVideoMetadata,
     checkVideoStatus,
     deleteVideo,
-    validateVideoFile
+    validateVideoFile,
+    uploadFileToBunnyStorage
 };
