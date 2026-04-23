@@ -100,10 +100,19 @@ exports.updateProfile = async (req, res) => {
             }
 
         } else if (profile.rol === 'egitmen') {
-            await InstructorDetail.update(
-                { biyografi, baslik, unvan, deneyim_yili, iban_no },
-                { where: { kullanici_id: userId } }
-            );
+            // Sadece update yapmak yerine, kaydın varlığını kontrol ediyoruz
+            const [detail, created] = await InstructorDetail.findOrCreate({
+                where: { kullanici_id: userId },
+                defaults: { biyografi, baslik, unvan, deneyim_yili, iban_no }
+            });
+        
+            // Eğer kayıt zaten varsa (created false ise), verileri güncelle
+            if (!created) {
+                await InstructorDetail.update(
+                    { biyografi, baslik, unvan, deneyim_yili, iban_no },
+                    { where: { kullanici_id: userId } }
+                );
+            }
         }
 
         return res.status(200).json({ success: true, message: 'Profil başarıyla güncellendi.' });
