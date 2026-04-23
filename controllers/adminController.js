@@ -342,6 +342,91 @@ exports.getAllCourses = async (req, res, next) => {
     }
 };
 
+/**
+ * Yayındaki Kurslar ve Öğrenci İlerleme Raporu (Admin Paneli)
+ * @route GET /api/admin/published-courses-report
+ */
+exports.getPublishedCoursesReport = async (req, res, next) => {
+    try {
+        const { Course, Profile, CourseEnrollment, Category } = require('../models');
+        
+        console.log(`[ADMIN] Yayındaki kurslar raporu istendi`);
+
+        // Sadece "yayinda" olan kursları ve onlara kayıtlı öğrencileri getir
+        const courses = await Course.findAll({
+            where: { durum: 'yayinda' },
+            attributes: ['id', 'baslik', 'fiyat', 'olusturulma_tarihi'],
+            include: [
+                {
+                    model: Profile,
+                    as: 'Egitmen',
+                    attributes: ['ad', 'soyad']
+                },
+                {
+                    model: Category,
+                    attributes: ['ad']
+                },
+                {
+                    model: CourseEnrollment,
+                    as: 'CourseEnrollments',
+                    attributes: ['ilerleme_yuzdesi', 'kayit_tarihi'],
+                    include: [{
+                        model: Profile,
+                        as: 'Ogrenci',
+                        attributes: ['id', 'ad', 'soyad', 'eposta']
+                    }]
+                }
+            ],
+            order: [['olusturulma_tarihi', 'DESC']]
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: courses
+        });
+    } catch (error) {
+        console.error(`[ADMIN] Yayındaki kurslar rapor hatası: ${error.message}`);
+        next(error);
+    }
+};
+/**
+ * Kullanıcı Detaylarını Getir (İnceleme Ekranı)
+ * @route GET /api/admin/users/:id
+ */
+exports.getUserDetail = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { Profile, StudentDetail, InstructorDetail } = require('../models');
+
+        console.log(`[ADMIN] Kullanıcı detayı isteniyor: ${id}`);
+
+        const user = await Profile.findOne({
+            where: { id },
+            attributes: { exclude: ['sifre'] }, // Güvenlik için şifreyi çekmiyoruz
+            include: [
+                { model: StudentDetail },
+                { model: InstructorDetail }
+            ]
+        });
+
+        if (!user) {
+            const error = new Error('Kullanıcı bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        console.error(`[ADMIN] Kullanıcı detay hatası: ${error.message}`);
+        next(error);
+    }
+};
+
+// Modül export listesinde getUserDetail'in olduğundan emin ol:
+// 
 // ============================================
 // MODULE EXPORTS
 // ============================================
@@ -352,5 +437,7 @@ module.exports = {
     getCourseDetail: exports.getCourseDetail,
     approveCourse: exports.approveCourse,
     rejectCourse: exports.rejectCourse,
-    getAllCourses: exports.getAllCourses
+    getAllCourses: exports.getAllCourses,
+    getPublishedCoursesReport: exports.getPublishedCoursesReport,
+    getUserDetail : exports.getUserDetail
 };

@@ -23,8 +23,7 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: 'kategoriler',
-      indexes: [{ fields: ['ust_kategori_id'] }],
+      tableName: 'kategoriler'
     }
   );
 

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurs Takibi | EduNex Admin</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+    
+    <style>
+        .report-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .course-report-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .course-info-bar { padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .course-title-area h3 { margin: 0; font-size: 1.1rem; color: #0f172a; }
+        .course-meta { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
+        .student-list-table { width: 100%; border-collapse: collapse; }
+        .student-list-table th { text-align: left; padding: 12px 20px; background: #fff; color: #64748b; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; }
+        .student-list-table td { padding: 12px 20px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        .progress-wrapper { display: flex; align-items: center; gap: 10px; }
+        .progress-track { flex-grow: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.5s ease; }
+        .search-filter-box { background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; gap: 10px; }
+        .search-filter-box input { flex-grow: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
+            <a href="/admin/dashboard.html" class="nav-item">
+                <i class="fas fa-chart-pie"></i> Özet Tablo
+            </a>
+            <a href="/admin/courses.html" class="nav-item">
+                <i class="fas fa-video"></i> Kurs Onayları
+            </a>
+            <a href="/admin/published-courses.html" class="nav-item active">
+                <i class="fas fa-list-check"></i> Kurs Takibi
+            </a>
+            <a href="/admin/users.html" class="nav-item">
+                <i class="fas fa-users"></i> Kullanıcı Yönetimi
+            </a>
+            <a href="/admin/orders.html" class="nav-item">
+                <i class="fas fa-receipt"></i> Siparişler
+            </a>
+            <a href="/admin/categories.html" class="nav-item">
+                <i class="fas fa-tags"></i> Kategoriler
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h1>Kurs Takibi ve Öğrenci Raporları</h1>
+                <p class="subtitle">Sistemde yayında olan kursları ve kayıtlı öğrencilerin ilerleme yüzdelerini inceleyin.</p>
+            </div>
+            <div class="header-user">
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yönetici Yükleniyor...</span>
+                    <small>Sistem Yöneticisi</small>
+                </div>
+                <div class="admin-avatar-circle">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content">
+            <div class="search-filter-box">
+                <input type="text" id="courseSearch" placeholder="Kurs adına veya eğitmene göre ara..." oninput="filterReports()">
+                <button class="btn-primary" onclick="fetchPublishedReport()"><i class="fas fa-sync"></i> Yenile</button>
+            </div>
+
+            <div id="reportContainer" class="report-grid"></div>
+        </section>
+        <div id="courseDetailModal" class="modal-overlay" style="position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; padding:20px; backdrop-filter: blur(4px);">
+            <div style="background:#fff; border-radius:12px; max-width:900px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
+                <div style="padding:20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; position: sticky; top:0; z-index:10;">
+                    <div>
+                        <h2 id="modalCourseTitle" style="margin:0; font-size:1.2rem; color:#0f172a;">Kurs Müfredatı</h2>
+                        <p id="modalInstructorName" style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"></p>
+                    </div>
+                    <button onclick="closeModal('courseDetailModal')" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                </div>
+                <div id="courseContentBody" style="padding:20px;">
+                    </div>
+            </div>
+        </div>
+    
+        <div id="participantsModal" class="modal-overlay" style="position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; padding:20px; backdrop-filter: blur(4px);">
+            <div style="background:#fff; border-radius:12px; max-width:800px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
+                <div style="padding:20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                    <h2 style="margin:0; font-size:1.2rem; color:#0f172a;"><i class="fas fa-users" style="color:#3b82f6; margin-right:8px;"></i> Kayıtlı Öğrenciler</h2>
+                    <button onclick="closeModal('participantsModal')" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                </div>
+                <div id="participantsBody" style="padding:20px;">
+                    </div>
+            </div>
+        </div>
+    
+        <style>
+            .modal-section { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+            .modal-section-header { padding: 12px 15px; background: #f1f5f9; font-weight: 700; color: #334155; border-bottom: 1px solid #e2e8f0; }
+            .modal-lesson-item { padding: 10px 15px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: 0.2s; }
+            .modal-lesson-item:hover { background: #f8fafc; }
+            .lesson-meta { font-size: 0.8rem; color: #94a3b8; }
+            .btn-preview { padding: 4px 8px; font-size: 0.75rem; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; border-radius: 4px; cursor: pointer; }
+            .participant-table { width: 100%; border-collapse: collapse; }
+            .participant-table th { text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; font-size: 0.85rem; color: #64748b; }
+            .participant-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        </style>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/admin/js/published-courses.js"></script>
+</body>
+</html>

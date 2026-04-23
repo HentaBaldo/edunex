@@ -31,6 +31,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'egitmen_detaylari',
+      timestamps: false
     }
   );
 

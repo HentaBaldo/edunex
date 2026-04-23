@@ -22,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'ogrenci_detaylari',
+      timestamps: false
     }
   );
 

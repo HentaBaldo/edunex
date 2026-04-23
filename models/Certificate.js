@@ -24,8 +24,7 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: 'sertifikalar',
-      indexes: [{ unique: true, fields: ['sertifika_kodu'] }, { fields: ['kayit_id'] }],
+      tableName: 'sertifikalar'
     }
   );
 

@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Onay Merkezi | EduNex Admin</title>
+    <title>Kurs Onayları | EduNex Admin</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="/admin/css/layout.css">
@@ -19,20 +18,23 @@
 
     <aside class="admin-sidebar">
         <div class="sidebar-brand">
-            <i class="fas fa-graduation-cap"></i> EduNex Admin
+            <i class="fas fa-shield-halved"></i> EduNex Admin
         </div>
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
             <a href="/admin/dashboard.html" class="nav-item">
-                <i class="fas fa-chart-pie"></i> Ozet Tablo
+                <i class="fas fa-chart-pie"></i> Özet Tablo
             </a>
             <a href="/admin/courses.html" class="nav-item active">
-                <i class="fas fa-video"></i> Kurs Onaylari
+                <i class="fas fa-video"></i> Kurs Onayları
+            </a>
+            <a href="/admin/published-courses.html" class="nav-item">
+                <i class="fas fa-list-check"></i> Kurs Takibi
             </a>
             <a href="/admin/users.html" class="nav-item">
-                <i class="fas fa-users"></i> Kullanici Yonetimi
+                <i class="fas fa-users"></i> Kullanıcı Yönetimi
             </a>
             <a href="/admin/orders.html" class="nav-item">
-                <i class="fas fa-receipt"></i> Siparisler
+                <i class="fas fa-receipt"></i> Siparişler
             </a>
             <a href="/admin/categories.html" class="nav-item">
                 <i class="fas fa-tags"></i> Kategoriler
@@ -40,22 +42,23 @@
         </nav>
         <div class="sidebar-footer">
             <button type="button" onclick="adminLogout()" class="btn-logout">
-                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
             </button>
         </div>
     </aside>
 
     <main class="admin-main">
         <header class="admin-header">
-            <div class="header-breadcrumb">
-                <span class="muted">Panel /</span> Kurs Onay Merkezi
+            <div class="header-title">
+                <h1>Kurs Onay Merkezi</h1>
+                <p class="subtitle">Eğitmenler tarafından onaya gönderilen yeni kursları inceleyin ve yayınlayın.</p>
             </div>
             <div class="header-user">
-                <div class="user-info">
-                    <span id="adminName" class="admin-username">Yonetici</span>
-                    <small>Sistem Yoneticisi</small>
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yönetici Yükleniyor...</span>
+                    <small>Sistem Yöneticisi</small>
                 </div>
-                <div class="admin-avatar">
+                <div class="admin-avatar-circle">
                     <i class="fas fa-user-shield"></i>
                 </div>
             </div>
@@ -63,23 +66,16 @@
 
         <section class="admin-content">
             <article class="admin-card">
-                <div class="card-header">
-                    <div class="header-left">
-                        <h2>Inceleme Bekleyen Basvurular</h2>
-                        <p class="subtitle">Egitmenler tarafindan onaya gonderilen yeni kurslari buradan yonetebilirsiniz.</p>
-                    </div>
-                </div>
-
                 <div class="table-responsive">
                     <table class="admin-table" id="pendingTable">
                         <thead>
                             <tr>
-                                <th>Kurs Basligi</th>
-                                <th>Egitmen</th>
+                                <th>Kurs Başlığı</th>
+                                <th>Eğitmen</th>
                                 <th>Kategori</th>
                                 <th>Fiyat</th>
                                 <th>Durum</th>
-                                <th style="text-align: right;">Islemler</th>
+                                <th style="text-align: right;">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody id="pendingCoursesList">
@@ -87,7 +83,7 @@
                                 <td colspan="6" class="table-loading">
                                     <div class="spinner-container">
                                         <i class="fas fa-circle-notch fa-spin"></i>
-                                        <p>Veriler yukleniyor, lutfen bekleyin...</p>
+                                        <p>Veriler yükleniyor, lütfen bekleyin...</p>
                                     </div>
                                 </td>
                             </tr>
@@ -98,14 +94,12 @@
         </section>
     </main>
 
-    <!-- TANRI MODU MODAL -->
     <div id="godModeModal" class="god-mode-backdrop">
         <div class="god-mode-modal">
             <div class="god-mode-header">
                 <h2><span id="gmTitle">Yükleniyor...</span> <span id="gmPrice"></span></h2>
                 <button type="button" onclick="closeGodMode()" class="god-mode-close">&times;</button>
             </div>
-            
             <div class="god-mode-body">
                 <div class="god-mode-grid">
                     <div class="god-mode-card">
@@ -120,18 +114,15 @@
                         <p><strong>Kategori:</strong> <span id="gmCategory"></span></p>
                     </div>
                 </div>
-
                 <h3 class="god-mode-curriculum-title">Müfredat Ağacı</h3>
                 <div id="gmCurriculumContainer"></div>
             </div>
-
             <div class="god-mode-footer">
                 <button type="button" onclick="closeGodMode()" class="btn-secondary">Kapat</button>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPTS -->
     <script src="/assets/js/api.js"></script>
     <script src="/admin/js/courses.js"></script>
 </body>

@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex Admin - Kontrol Merkezi</title>
+    <title>Özet Tablo | EduNex Admin</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="/admin/css/layout.css">
     <link rel="stylesheet" href="/admin/css/dashboard.css">
 </head>
@@ -19,24 +22,27 @@
         </div>
         <nav class="sidebar-nav" aria-label="Ana Navigasyon">
             <a href="/admin/dashboard.html" class="nav-item active">
-                <i class="fas fa-chart-pie" aria-hidden="true"></i> Ozet Tablo
+                <i class="fas fa-chart-pie"></i> Özet Tablo
             </a>
             <a href="/admin/courses.html" class="nav-item">
-                <i class="fas fa-video" aria-hidden="true"></i> Kurs Onaylari
+                <i class="fas fa-video"></i> Kurs Onayları
+            </a>
+            <a href="/admin/published-courses.html" class="nav-item">
+                <i class="fas fa-list-check"></i> Kurs Takibi
             </a>
             <a href="/admin/users.html" class="nav-item">
-                <i class="fas fa-users" aria-hidden="true"></i> Kullanici Yonetimi
+                <i class="fas fa-users"></i> Kullanıcı Yönetimi
             </a>
             <a href="/admin/orders.html" class="nav-item">
-                <i class="fas fa-receipt" aria-hidden="true"></i> Siparisler
+                <i class="fas fa-receipt"></i> Siparişler
             </a>
             <a href="/admin/categories.html" class="nav-item">
-                <i class="fas fa-tags" aria-hidden="true"></i> Kategoriler
+                <i class="fas fa-tags"></i> Kategoriler
             </a>
         </nav>
         <div class="sidebar-footer">
             <button type="button" onclick="adminLogout()" class="btn-logout">
-                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
             </button>
         </div>
     </aside>
@@ -44,13 +50,13 @@
     <main class="admin-main">
         <header class="admin-header">
             <div class="header-title">
-                <h1>Sistem Ozeti</h1>
-                <p class="subtitle">Platformun genel durumunu ve bekleyen islemleri buradan takip edebilirsiniz.</p>
+                <h1>Özet Tablo</h1>
+                <p class="subtitle">Platformun genel durumunu ve bekleyen işlemleri buradan takip edebilirsiniz.</p>
             </div>
             <div class="header-user">
                 <div class="user-meta">
-                    <span id="adminName" class="admin-name">Yonetici Yukleniyor...</span>
-                    <small>Full Access</small>
+                    <span id="adminName" class="admin-name">Yönetici Yükleniyor...</span>
+                    <small>Sistem Yöneticisi</small>
                 </div>
                 <div class="admin-avatar-circle">
                     <i class="fas fa-user-shield"></i>
@@ -59,20 +65,19 @@
         </header>
 
         <section class="admin-content">
-            
             <div class="stat-grid">
                 <div class="stat-card">
                     <div class="stat-icon blue"><i class="fas fa-users"></i></div>
                     <div class="stat-info">
                         <h3 id="totalUsers">--</h3>
-                        <p>Toplam Kullanici</p>
+                        <p>Toplam Kullanıcı</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
                     <div class="stat-info">
                         <h3 id="activeCourses">--</h3>
-                        <p>Yayindaki Kurslar</p>
+                        <p>Yayındaki Kurslar</p>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -87,32 +92,31 @@
             <article class="admin-card activity-card">
                 <div class="card-header-flex">
                     <h2>Son Sistem Aktiviteleri</h2>
-                    <a href="/admin/courses.html" class="btn-text-link">Tumunu Gor <i class="fas fa-external-link-alt"></i></a>
+                    <a href="/admin/courses.html" class="btn-text-link">Tümünü Gör <i class="fas fa-external-link-alt"></i></a>
                 </div>
                 
                 <div class="table-responsive">
                     <table class="activity-table" id="recentActivityTable">
                         <thead>
                             <tr>
-                                <th>Kurs / Baslik</th>
-                                <th>Egitmen</th>
+                                <th>Kurs / Başlık</th>
+                                <th>Eğitmen</th>
                                 <th>Tarih</th>
                                 <th>Durum</th>
-                                <th style="text-align: right;">Islem</th>
+                                <th style="text-align: right;">İşlem</th>
                             </tr>
                         </thead>
                         <tbody id="activityList">
                             <tr>
                                 <td colspan="5" class="table-empty-state">
                                     <i class="fas fa-inbox"></i>
-                                    <p>Henuz yeni bir aktivite bulunmuyor.</p>
+                                    <p>Henüz yeni bir aktivite bulunmuyor.</p>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </article>
-
         </section>
     </main>
 

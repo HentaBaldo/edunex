@@ -80,7 +80,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'profiller',
-      indexes: [{ unique: true, fields: ['eposta'] }],
     }
   );
 
