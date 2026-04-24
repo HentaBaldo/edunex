@@ -1,16 +1,16 @@
 /**
  * EduNex Profil Yönetimi Scripti
- * Kullanıcı verilerini dinamik olarak çeker ve role göre arayüzü şekillendirir.
+ * Rol bazlı dinamik içerik, 3 Sütunlu İlgi Alanı Gezgini ve hesap yönetimi.
  */
 
+// ==========================================
+// 1. BAŞLANGIÇ VE PROFİL YÜKLEME
+// ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[SYSTEM] Profil sayfasi yuklendi.');
-    
-    // Doğru token ismini çağırıyoruz
+    console.log('[SYSTEM] Profil sayfası yüklendi.');
     const token = localStorage.getItem('edunex_token'); 
 
     if (!token) {
-        console.error('[AUTH ERROR] Token bulunamadi, giris sayfasina yonlendiriliyor.');
         window.location.href = '/auth/index.html'; 
         return;
     }
@@ -24,44 +24,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        if (response.status === 401) {
-            console.warn('[AUTH] Oturum gecersiz, temizleniyor...');
-            localStorage.removeItem('edunex_token'); // Temizlerken de doğru ismi kullanıyoruz
-            window.location.href = '/auth/index.html';
-            return;
-        }
-
         const result = await response.json();
 
         if (result.success) {
-            console.log('[API SUCCESS] Profil verileri basariyla alindi.');
             populateProfileForm(result.data);
-            
-            // Veriler yüklendikten sonra eğer URL'de bir #hash varsa o sekmeyi aç
             activateTabFromHash(); 
-        } else {
-            console.error('[API ERROR] Veri alinirken hata:', result.message);
         }
     } catch (error) {
-        console.error('[NETWORK ERROR] Sunucu baglantisi sirasinda hata olustu:', error);
+        console.error('[SYSTEM ERROR] Veriler yüklenemedi:', error);
     }
 });
 
-/**
- * Gelen verileri HTML formundaki ilgili alanlara dagitir.
- */
 function populateProfileForm(user) {
     document.getElementById('display_tam_ad').textContent = `${user.ad} ${user.soyad}`;
     document.getElementById('display_rol').textContent = user.rol.toUpperCase();
     
-    document.getElementById('display_profil_fotografi').src = user.profil_fotografi || '/assets/images/default-avatar.png';
+    // PP Yolu Çözümü
+    const ppElement = document.getElementById('display_profil_fotografi');
+    ppElement.src = user.profil_fotografi ? user.profil_fotografi : '/assets/images/default-avatar.png';
 
+    // Genel Bilgiler
     document.getElementById('ad').value = user.ad || '';
     document.getElementById('soyad').value = user.soyad || '';
     document.getElementById('eposta').value = user.eposta || '';
     document.getElementById('sehir').value = user.sehir || '';
     document.getElementById('website').value = user.website || '';
 
+    // Sosyal Medya
     document.getElementById('linkedin').value = user.linkedin || '';
     document.getElementById('instagram').value = user.instagram || '';
     document.getElementById('x_twitter').value = user.x_twitter || '';
@@ -69,6 +58,7 @@ function populateProfileForm(user) {
     document.getElementById('facebook').value = user.facebook || '';
     document.getElementById('tiktok').value = user.tiktok || '';
 
+    // Gizlilik Ayarları
     document.getElementById('profil_herkese_acik_mi').checked = user.profil_herkese_acik_mi;
     document.getElementById('alinan_kurslari_goster').checked = user.alinan_kurslari_goster;
 
@@ -90,17 +80,180 @@ function populateProfileForm(user) {
         document.getElementById('egitim_seviyesi').value = detail?.egitim_seviyesi || 'Lisans';
         document.getElementById('baslik').value = detail?.baslik || '';
         document.getElementById('biyografi').value = detail?.biyografi || '';
+        
+        // Öğrenci ise ilgi alanlarını (kategorileri) gezgine yükle
+        loadCategoriesAndCheckInterests(user.Interests || []);
+    }
+}
+
+
+// ==========================================
+// 2. MEGA MENÜ (3 SÜTUNLU GEZGİN) SİSTEMİ
+// ==========================================
+window.allCategories = [];
+window.selectedInterestIds = []; // Seçilen kutucukları sekme değişse de hafızada tutar
+
+function getParentId(cat) {
+    return cat.ust_kategori_id || cat.ustKategoriId || cat.KategoriId || cat.parentId || cat.parent_id || cat.ust_id || null;
+}
+
+/**
+ * Seçilen İlgi Alanlarını Metne Dönüştüren Yardımcı Fonksiyon
+ */
+function refreshSelectedInterestsText() {
+    const textArea = document.getElementById('selected_interests_text');
+    const container = document.getElementById('selected_interests_display_area');
+
+    if (window.selectedInterestIds.length > 0) {
+        // ID'leri isimlere çevir
+        const selectedNames = window.selectedInterestIds.map(id => {
+            const cat = window.allCategories.find(c => String(c.id) === String(id));
+            return cat ? cat.ad : null;
+        }).filter(name => name !== null);
+
+        textArea.innerText = selectedNames.join(', ');
+        container.style.display = 'block';
+    } else {
+        textArea.innerText = '-';
+        container.style.display = 'none';
     }
 }
 
 /**
- * Form Guncelleme Islemi
+ * Seçim Durumunu Güncelle (Override: Metin listesini tetikler)
  */
+window.updateSelectedState = (id, isChecked) => {
+    id = String(id);
+    if (isChecked) {
+        if (!window.selectedInterestIds.includes(id)) {
+            window.selectedInterestIds.push(id);
+        }
+    } else {
+        window.selectedInterestIds = window.selectedInterestIds.filter(sid => sid !== id);
+    }
+    
+    // Her seçim değişiminde metni yenile
+    refreshSelectedInterestsText();
+};
+
+/**
+ * Veriyi Çek ve Gezgini Başlat (Override: Başlangıçta metni yazdırır)
+ */
+async function loadCategoriesAndCheckInterests(userInterests) {
+    window.selectedInterestIds = userInterests.map(i => String(i.id));
+    const token = localStorage.getItem('edunex_token');
+    
+    try {
+        const response = await fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } });
+        const result = await response.json();
+        
+        if (result.success) {
+            window.allCategories = result.data;
+            renderProfileParentCategories();
+            // Sayfa yüklendiğinde mevcut seçimleri yazdır
+            refreshSelectedInterestsText();
+        }
+    } catch (e) { 
+        console.error('Kategori hatası:', e); 
+        document.getElementById('profileParentList').innerHTML = '<p class="text-danger p-3 small">Yüklenemedi</p>';
+    }
+}
+
+// 1. Sütun: Ana Kategoriler
+function renderProfileParentCategories() {
+    const list = document.getElementById('profileParentList');
+    const mainCategories = window.allCategories.filter(c => {
+        const pid = getParentId(c);
+        return pid === null || pid === "" || pid === 0;
+    });
+
+    list.innerHTML = mainCategories.map(p => {
+        const isChecked = window.selectedInterestIds.includes(String(p.id)) ? 'checked' : '';
+        const hasChildren = window.allCategories.some(c => String(getParentId(c)) === String(p.id));
+        
+        return `
+            <div class="explorer-item p-item" onmouseenter="showProfileChildCategories('${p.id}', this)">
+                <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" value="${p.id}" id="cat_${p.id}" ${isChecked} onchange="updateSelectedState('${p.id}', this.checked)">
+                    <label class="form-check-label small" for="cat_${p.id}">${p.ad}</label>
+                </div>
+                ${hasChildren ? '<i class="fas fa-chevron-right"></i>' : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// 2. Sütun: Alt Kategoriler
+window.showProfileChildCategories = (parentId, element) => {
+    document.querySelectorAll('.p-item').forEach(el => el.classList.remove('active'));
+    if (element) element.classList.add('active');
+
+    document.getElementById('profileGrandChildList').innerHTML = '<p class="p-3 small text-muted">Önce soldan üzerine gelin</p>';
+
+    const children = window.allCategories.filter(c => String(getParentId(c)) === String(parentId));
+    const list = document.getElementById('profileChildList');
+
+    if (children.length > 0) {
+        list.innerHTML = children.map(c => {
+            const isChecked = window.selectedInterestIds.includes(String(c.id)) ? 'checked' : '';
+            const hasChildren = window.allCategories.some(g => String(getParentId(g)) === String(c.id));
+            
+            return `
+                <div class="explorer-item c-item" onmouseenter="showProfileGrandChildCategories('${c.id}', this)">
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="checkbox" value="${c.id}" id="cat_${c.id}" ${isChecked} onchange="updateSelectedState('${c.id}', this.checked)">
+                        <label class="form-check-label small" for="cat_${c.id}">${c.ad}</label>
+                    </div>
+                    ${hasChildren ? '<i class="fas fa-chevron-right"></i>' : ''}
+                </div>
+            `;
+        }).join('');
+    } else {
+        list.innerHTML = '<p class="p-3 small text-muted">Alt kategori yok</p>';
+    }
+};
+
+// 3. Sütun: Konular
+window.showProfileGrandChildCategories = (childId, element) => {
+    document.querySelectorAll('.c-item').forEach(el => el.classList.remove('active'));
+    if (element) element.classList.add('active');
+
+    const grandChildren = window.allCategories.filter(c => String(getParentId(c)) === String(childId));
+    const list = document.getElementById('profileGrandChildList');
+
+    if (grandChildren.length > 0) {
+        list.innerHTML = grandChildren.map(c => {
+            const isChecked = window.selectedInterestIds.includes(String(c.id)) ? 'checked' : '';
+            return `
+                <div class="explorer-item">
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="checkbox" value="${c.id}" id="cat_${c.id}" ${isChecked} onchange="updateSelectedState('${c.id}', this.checked)">
+                        <label class="form-check-label small" for="cat_${c.id}">${c.ad}</label>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        list.innerHTML = '<p class="p-3 small text-muted">Bu kategorinin konusu yok</p>';
+    }
+};
+
+// İşaretleme Hafızası
+window.updateSelectedState = (id, isChecked) => {
+    id = String(id);
+    if (isChecked && !window.selectedInterestIds.includes(id)) {
+        window.selectedInterestIds.push(id);
+    } else if (!isChecked) {
+        window.selectedInterestIds = window.selectedInterestIds.filter(sid => sid !== id);
+    }
+};
+
+
+// ==========================================
+// 3. FORM GÜNCELLEME VE KAYIT İŞLEMLERİ
+// ==========================================
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log('[SYSTEM] Guncelleme islemi baslatildi.');
-    
-    // DÜZELTME: Güncelleme yaparken de doğru token ismini çekmeliyiz
     const token = localStorage.getItem('edunex_token'); 
     
     const formData = {
@@ -116,12 +269,15 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
         tiktok: document.getElementById('tiktok').value,
         baslik: document.getElementById('baslik').value,
         biyografi: document.getElementById('biyografi').value,
-        unvan: document.getElementById('unvan').value,
+        unvan: document.getElementById('unvan').value || null,
         deneyim_yili: parseInt(document.getElementById('deneyim_yili').value) || 0,
-        iban_no: document.getElementById('iban_no').value,
-        egitim_seviyesi: document.getElementById('egitim_seviyesi').value,
+        iban_no: document.getElementById('iban_no').value || null,
+        egitim_seviyesi: document.getElementById('egitim_seviyesi').value || null,
         profil_herkese_acik_mi: document.getElementById('profil_herkese_acik_mi').checked,
-        alinan_kurslari_goster: document.getElementById('alinan_kurslari_goster').checked
+        alinan_kurslari_goster: document.getElementById('alinan_kurslari_goster').checked,
+        
+        // Seçilen ilgi alanları küresel hafızadan alınıyor (DOM'dan değil)
+        interests: window.selectedInterestIds 
     };
 
     try {
@@ -134,99 +290,87 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
             body: JSON.stringify(formData)
         });
 
-        if (response.status === 401) {
-            alert('Oturumunuz dolmus, lutfen tekrar giris yapin.');
-            window.location.href = '/auth/index.html';
-            return;
-        }
-
         const result = await response.json();
-
         if (result.success) {
-            console.log('[API SUCCESS] Profil guncellendi.');
-            alert('Profiliniz basariyla guncellendi.');
+            alert('Profiliniz başarıyla güncellendi.');
             window.location.reload(); 
         } else {
-            console.error('[API ERROR] Guncelleme hatasi:', result.message);
-            alert('Hata: ' + result.message);
+            alert('Güncelleme hatası: ' + result.message);
         }
     } catch (error) {
-        console.error('[NETWORK ERROR] Guncelleme sirasinda baglanti hatasi:', error);
+        alert('Sunucu ile bağlantı kurulamadı.');
     }
 });
 
-/**
- * Profil Fotoğrafı Yükleme İşlemi
- */
+
+// ==========================================
+// 4. EKSTRA ARAÇLAR (PP Yükleme, Hesap Silme)
+// ==========================================
+
+// Profil Fotoğrafı Yükleme
 document.getElementById('file_input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Dosyayı sunucuya göndermek için FormData oluşturuyoruz
     const formData = new FormData();
-    formData.append('avatar', file); // 'avatar' ismini backend'deki multer ayarına göre değiştirebilirsin
+    formData.append('avatar', file); 
 
     const token = localStorage.getItem('edunex_token');
+    const imgElement = document.getElementById('display_profil_fotografi');
 
     try {
-        // Kullanıcıya yüklendiğini belli etmek için resmi hafif saydam yapıyoruz
-        const imgElement = document.getElementById('display_profil_fotografi');
         imgElement.style.opacity = '0.5';
-
         const response = await fetch('/api/profile/upload-avatar', { 
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-                // ÖNEMLİ: FormData gönderirken 'Content-Type' YAZILMAZ! 
-                // Tarayıcı onu 'multipart/form-data' olarak kendi ayarlar.
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         });
 
-        if (response.status === 401) {
-            alert('Oturum süreniz dolmuş.');
-            window.location.href = '/auth/index.html';
-            return;
-        }
-
         const result = await response.json();
-
         if (result.success) {
-            // Başarılı olursa ekrandaki fotoğrafı hemen yenisiyle değiştir
-            imgElement.src = result.imageUrl || URL.createObjectURL(file);
-            alert('Profil fotoğrafınız başarıyla güncellendi.');
-        } else {
-            alert('Hata: ' + result.message);
+            imgElement.src = result.imageUrl;
+            alert('Fotoğraf güncellendi.');
         }
     } catch (error) {
-        console.error('[UPLOAD ERROR] Fotoğraf yüklenemedi:', error);
-        alert('Sunucuya bağlanırken bir hata oluştu.');
+        alert('Yükleme hatası.');
     } finally {
-        document.getElementById('display_profil_fotografi').style.opacity = '1';
-        e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için input'u temizle
+        imgElement.style.opacity = '1';
     }
 });
 
-/**
- * URL'deki #hash değerine göre ilgili sekmenin açılmasını sağlar
- */
-function activateTabFromHash() {
-    const hash = window.location.hash;
-    if (hash) {
-        // Hedef linki bul (örn: href="#ayarlar")
-        const tabTriggerEl = document.querySelector(`.list-group-item[href="${hash}"]`);
-        
-        if (tabTriggerEl) {
-            // Bootstrap Tab objesini oluştur ve göster
-            const tab = new bootstrap.Tab(tabTriggerEl);
-            tab.show();
-            
-            // Sayfa açıldığında sekmeye doğru hafifçe kaydır (kullanıcı deneyimi için)
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+// Hesap Silme İşlemi
+async function deleteMyAccount() {
+    if (!confirm('⚠️ DİKKAT: Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) return;
+
+    const token = localStorage.getItem('edunex_token');
+    try {
+        const response = await fetch('/api/profile/delete', {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Hesabınız silindi. Elveda!');
+            localStorage.clear();
+            window.location.href = '/auth/index.html';
         }
+    } catch (error) {
+        alert('Hesap silinirken hata oluştu.');
     }
 }
 
+window.deleteMyAccount = deleteMyAccount;
 
-// URL sonradan değişirse (örn: kullanıcı manuel olarak #sosyal yazarsa) yine yakala
+// Hash Navigasyonu (Sayfa açıldığında URL sonundaki #ayarlar vs. kısmına gider)
+function activateTabFromHash() {
+    const hash = window.location.hash;
+    if (hash) {
+        const tabTriggerEl = document.querySelector(`.list-group-item[href="${hash}"]`);
+        if (tabTriggerEl) {
+            const tab = new bootstrap.Tab(tabTriggerEl);
+            tab.show();
+        }
+    }
+}
 window.addEventListener('hashchange', activateTabFromHash);

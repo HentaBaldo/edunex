@@ -74,7 +74,7 @@ app.get('/', (req, res) => {
  * Veritabani semasini modellerle esitler ve baslangic verilerini yukler.
  * alter: true yapilandirmasi mevcut verileri koruyarak tablo yapisini gunceller.
  */
-sequelize.sync({ alter: true })
+sequelize.sync()
     .then(async () => {
         console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi.');
         

@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sipariş & Ödeme Yönetimi | EduNex Admin</title>
+    <title>Sipariş Yönetimi | EduNex Admin</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="/admin/css/layout.css">
@@ -71,16 +70,19 @@
         </div>
         <nav class="sidebar-nav" aria-label="Ana Navigasyon">
             <a href="/admin/dashboard.html" class="nav-item">
-                <i class="fas fa-chart-pie"></i> Ozet Tablo
+                <i class="fas fa-chart-pie"></i> Özet Tablo
             </a>
             <a href="/admin/courses.html" class="nav-item">
-                <i class="fas fa-video"></i> Kurs Onaylari
+                <i class="fas fa-video"></i> Kurs Onayları
             </a>
-            <a href="/admin/orders.html" class="nav-item active">
-                <i class="fas fa-receipt"></i> Siparisler
+            <a href="/admin/published-courses.html" class="nav-item">
+                <i class="fas fa-list-check"></i> Kurs Takibi
             </a>
             <a href="/admin/users.html" class="nav-item">
-                <i class="fas fa-users"></i> Kullanici Yonetimi
+                <i class="fas fa-users"></i> Kullanıcı Yönetimi
+            </a>
+            <a href="/admin/orders.html" class="nav-item active">
+                <i class="fas fa-receipt"></i> Siparişler
             </a>
             <a href="/admin/categories.html" class="nav-item">
                 <i class="fas fa-tags"></i> Kategoriler
@@ -88,7 +90,7 @@
         </nav>
         <div class="sidebar-footer">
             <button type="button" onclick="adminLogout()" class="btn-logout">
-                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
             </button>
         </div>
     </aside>
@@ -97,12 +99,12 @@
         <header class="admin-header">
             <div class="header-title">
                 <h1>Sipariş & Ödeme Yönetimi</h1>
-                <p class="subtitle">Tüm siparişlerin durumunu, iyzico işlemlerini ve ciro toplamını buradan takip edin.</p>
+                <p class="subtitle">Platformdaki tüm siparişlerin durumunu, işlemleri ve ciro toplamını buradan yönetebilirsiniz.</p>
             </div>
             <div class="header-user">
                 <div class="user-meta">
-                    <span id="adminName" class="admin-name">Yonetici Yukleniyor...</span>
-                    <small>Full Access</small>
+                    <span id="adminName" class="admin-name">Yönetici Yükleniyor...</span>
+                    <small>Sistem Yöneticisi</small>
                 </div>
                 <div class="admin-avatar-circle">
                     <i class="fas fa-user-shield"></i>
@@ -112,7 +114,6 @@
 
         <section class="admin-content">
 
-            <!-- Özet Kartlari -->
             <div id="summaryGrid" class="orders-summary-grid">
                 <div class="summary-card revenue">
                     <h3 id="sumRevenue">-- ₺</h3>
@@ -140,7 +141,6 @@
                 </div>
             </div>
 
-            <!-- Filtre Bari -->
             <div class="filter-bar">
                 <input id="searchInput" type="search" placeholder="Öğrenci adı, e-posta veya sipariş ID..." />
                 <select id="statusFilter">
@@ -156,7 +156,6 @@
                 <button id="resetBtn" class="secondary"><i class="fas fa-rotate-left"></i> Temizle</button>
             </div>
 
-            <!-- Tablo -->
             <div class="admin-table-wrap">
                 <table class="admin-table">
                     <thead>
@@ -187,7 +186,6 @@
         </section>
     </main>
 
-    <!-- Detay Modali -->
     <div id="detailOverlay" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal">
             <div class="modal-head">

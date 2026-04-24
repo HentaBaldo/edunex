@@ -90,6 +90,8 @@ CourseEnrollment.belongsTo(StudentDetail, { foreignKey: 'ogrenci_id', onDelete: 
 Course.hasMany(CourseEnrollment, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 CourseEnrollment.belongsTo(Course, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+CourseEnrollment.belongsTo(Profile, { as: 'Ogrenci', foreignKey: 'ogrenci_id', constraints: false });
+
 OrderItem.hasMany(CourseEnrollment, { foreignKey: 'siparis_kalemi_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 CourseEnrollment.belongsTo(OrderItem, { foreignKey: 'siparis_kalemi_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 

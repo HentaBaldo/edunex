@@ -11,4 +11,6 @@ router.put('/update', verifyToken, profileController.updateProfile);
 // YENİ: Profil fotoğrafı yükleme rotası (Frontend'deki 'avatar' ismiyle eşleşmeli)
 router.post('/upload-avatar', verifyToken, upload.single('avatar'), profileController.uploadAvatar);
 
+router.delete('/delete', verifyToken, profileController.deleteAccount);
+
 module.exports = router;
