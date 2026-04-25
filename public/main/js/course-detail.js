@@ -7,6 +7,7 @@
 let currentCourseId = null;
 let currentUserToken = null;
 let isEnrolledStudent = false;
+let currentUserId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Navbar'daki giriş durumunu kontrol et
@@ -22,6 +23,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     currentCourseId = courseId;
     currentUserToken = localStorage.getItem('edunex_token');
+
+    const userJson = localStorage.getItem('edunex_user');
+    if (userJson) {
+        try {
+            currentUserId = JSON.parse(userJson).id;
+        } catch(e) {}
+    }
 
     try {
         const result = await ApiService.get(`/courses/${courseId}`);
@@ -58,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         renderCurriculum(course.Sections || []);
-
+        loadReviews();
     } catch (error) {
         console.error("[HATA] Kurs detayları çekilemedi:", error.message);
         alert("Kurs detayları yüklenemedi. Ana sayfaya yönlendiriliyorsunuz.");
@@ -91,6 +99,7 @@ function applyEnrolledMode(courseId, enrollment) {
     const addToCartBtn = document.getElementById('addToCartBtn');
     const enrollBtn = document.getElementById('enrollBtn');
     const goToLearningBtn = document.getElementById('goToLearningBtn');
+    
 
     if (addToCartBtn) addToCartBtn.style.display = 'none';
     if (enrollBtn) enrollBtn.style.display = 'none';
@@ -128,6 +137,9 @@ function applyEnrolledMode(courseId, enrollment) {
             renderCurriculum(sections);
         } catch (_) {}
     }
+
+    const reviewSection = document.getElementById('leaveReviewSection');
+    if (reviewSection) reviewSection.style.display = 'block';
 }
 
 /**
@@ -473,3 +485,150 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+/**
+ * Kurs yorumlarını backendden çeker ve listeler
+ */
+async function loadReviews() {
+    const reviewsList = document.getElementById('reviewsList');
+    if (!reviewsList || !currentCourseId) return;
+
+    try {
+        const result = await ApiService.get(`/reviews/course/${currentCourseId}`);
+        const { ortalama_puan, toplam_degerlendirme, data: reviews } = result;
+
+        // Özet kutusunu güncelle
+        const avgText = document.getElementById('avgRatingText');
+        const totalText = document.getElementById('totalReviewsText');
+        const starBox = document.getElementById('avgRatingStars');
+
+        if (avgText) avgText.textContent = ortalama_puan || "0.0";
+        if (totalText) totalText.textContent = `${toplam_degerlendirme} değerlendirme`;
+        
+        // Özet yıldızlarını bas
+        if (starBox) {
+            starBox.innerHTML = renderStars(ortalama_puan || 0);
+        }
+
+        // ==============================================================
+        // ✨ YENİ: KULLANICININ KENDİ YORUMUNU BUL VE FORMU DOLDUR
+        // ==============================================================
+        if (currentUserId && reviews && reviews.length > 0) {
+            const myReview = reviews.find(r => r.ogrenci_id === currentUserId);
+            
+            if (myReview) {
+                // Yıldızları eski puanına getir
+                selectedRating = myReview.puan;
+                updateStarUI(selectedRating);
+                
+                // Metni eski yorumuyla doldur
+                const textInput = document.getElementById('reviewText');
+                if(textInput) textInput.value = myReview.yorum || '';
+                
+                // Buton ve Başlık metinlerini "Güncelle" formatına çevir
+                const btn = document.getElementById('submitReviewBtn');
+                if(btn) btn.textContent = "Yorumu Güncelle";
+                
+                const sectionTitle = document.querySelector('#leaveReviewSection h4');
+                if(sectionTitle) sectionTitle.innerHTML = '<i class="fas fa-edit" style="color:#2563eb;"></i> Mevcut Değerlendirmenizi Güncelleyin';
+            }
+        }
+        // ==============================================================
+
+        if (!reviews || reviews.length === 0) {
+            reviewsList.innerHTML = '<p style="color: #64748b; margin-top:10px;">Henüz yorum yapılmamış. İlk yorumu siz yapın!</p>';
+            return;
+        }
+
+        reviewsList.innerHTML = reviews.map(r => `
+            <div class="review-item" style="border-bottom: 1px solid #f1f5f9; padding: 20px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-user-circle" style="font-size:1.5rem; color:#cbd5e1;"></i>
+                        <strong>${escapeHtml(r.StudentDetail?.Profile?.ad)} ${escapeHtml(r.StudentDetail?.Profile?.soyad)}</strong>
+                    </div>
+                    <div style="color: #fbbf24;">${renderStars(r.puan)}</div>
+                </div>
+                <p style="margin: 10px 0 5px 0; color: #475569; line-height:1.5;">${escapeHtml(r.yorum || '')}</p>
+                <small style="color: #94a3b8;"><i class="far fa-calendar-alt"></i> ${new Date(r.olusturulma_tarihi).toLocaleDateString('tr-TR')}</small>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error("Yorumlar yüklenemedi:", error);
+    }
+}
+
+// Yıldız Seçimi Mantığı (Güncellenmiş)
+let selectedRating = 0;
+document.querySelectorAll('.star-rating-input i').forEach(star => {
+    star.addEventListener('click', (e) => {
+        // Puanı sayıya çevirip kaydet ve UI'ı güncelle
+        selectedRating = parseInt(e.target.dataset.value);
+        updateStarUI(selectedRating);
+    });
+});
+
+// Yorum Gönderme
+document.getElementById('submitReviewBtn')?.addEventListener('click', async () => {
+    const yorum = document.getElementById('reviewText').value;
+    if (selectedRating === 0) return alert("Lütfen bir puan seçin!");
+
+    try {
+        const res = await ApiService.post('/reviews', {
+            kurs_id: currentCourseId,
+            puan: selectedRating,
+            yorum: yorum
+        });
+        if (res.success) {
+            alert("Yorumunuz iletildi!");
+            location.reload(); // Sayfayı yenileyip güncel halini gör
+        }
+    } catch (error) {
+        alert("Hata: " + error.message);
+    }
+});
+/**
+ * Sayısal puanı (örn: 4.5) görsel yıldız ikonlarına çevirir
+ */
+function renderStars(rating) {
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= Math.floor(rating)) {
+            stars += '<i class="fas fa-star"></i>'; // Tam yıldız
+        } else if (i - 0.5 <= rating) {
+            stars += '<i class="fas fa-star-half-alt"></i>'; // Yarım yıldız
+        } else {
+            stars += '<i class="far fa-star"></i>'; // Boş yıldız
+        }
+    }
+    return stars;
+}
+
+/**
+ * XSS saldırılarını önlemek için metni güvenli hale getirir
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Puanlama formundaki yıldızların görsel durumunu günceller
+ * @param {number} rating - Seçilen puan
+ */
+function updateStarUI(rating) {
+    document.querySelectorAll('.star-rating-input i').forEach(s => {
+        const val = parseInt(s.dataset.value);
+        const isSelected = val <= rating;
+        
+        // Klasları değiştir (fas: dolu yıldız, far: boş yıldız)
+        s.classList.toggle('fas', isSelected);
+        s.classList.toggle('far', !isSelected);
+        
+        // Rengi ayarla
+        s.style.color = isSelected ? '#fbbf24' : '#cbd5e1';
+    });
+}
