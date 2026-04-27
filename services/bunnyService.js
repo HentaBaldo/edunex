@@ -270,34 +270,104 @@ const updateVideoMetadata = async (videoGuid, metadata) => {
     }
 };
 
+// === BUNNY STORAGE (Belgeler / Avatarlar) ===
+
+const STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
+const STORAGE_KEY = process.env.BUNNY_STORAGE_ACCESS_KEY;
+const STORAGE_PULL_ZONE = process.env.BUNNY_STORAGE_PULL_ZONE || STORAGE_ZONE;
+
 /**
- * Belgeleri (PDF, Image vb.) Bunny Storage'a Yükle
+ * Bunny Storage'ın yapılandırılıp yapılandırılmadığını kontrol et.
+ * Eksikse fallback (yerel disk) kullanılmasını işaret eder.
  */
-const uploadFileToBunnyStorage = async (filePath, fileName) => {
+const isBunnyStorageEnabled = () => {
+    return Boolean(STORAGE_ZONE && STORAGE_KEY);
+};
+
+/**
+ * Belgeleri (PDF, resim, avatar vb.) Bunny Storage'a yükler.
+ *
+ * FAULT-TOLERANT MANTIK:
+ *   - Storage yapılandırılmamışsa veya yükleme başarısızsa exception ATMAZ.
+ *   - { success: false, reason: '...' } döner; controller fallback uygular.
+ *   - Başarılıysa { success: true, publicUrl } döner.
+ *
+ * @param {string} filePath - Sunucudaki geçici dosya yolu
+ * @param {string} remoteName - Bunny'de saklanacak yol (ör: "lessons/abc.pdf")
+ * @returns {Promise<{success: boolean, publicUrl?: string, reason?: string}>}
+ */
+const uploadFileToBunnyStorage = async (filePath, remoteName) => {
+    if (!isBunnyStorageEnabled()) {
+        console.warn('[BUNNY STORAGE] Yapılandırma eksik (BUNNY_STORAGE_ZONE_NAME / BUNNY_STORAGE_ACCESS_KEY). Yerel diske düşülecek.');
+        return { success: false, reason: 'storage_not_configured' };
+    }
+
     try {
-        const STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
-        const STORAGE_KEY = process.env.BUNNY_STORAGE_ACCESS_KEY;
+        if (!fs.existsSync(filePath)) {
+            return { success: false, reason: 'file_not_found' };
+        }
 
         const fileStream = fs.createReadStream(filePath);
-        
-        // Yükleme yapacağımız Gizli API adresi
-        const uploadUrl = `https://storage.bunnycdn.com/${STORAGE_ZONE}/${fileName}`;
+        const uploadUrl = `https://storage.bunnycdn.com/${STORAGE_ZONE}/${remoteName}`;
 
         await axios.put(uploadUrl, fileStream, {
             headers: {
                 AccessKey: STORAGE_KEY,
                 'Content-Type': 'application/octet-stream'
-            }
+            },
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
+            timeout: 60000
         });
 
-        // Öğrencilerin/Adminin dosyayı okuyacağı Açık Link (Pull Zone)
-        // Eğer + Connect Pull Zone kısmında başka bir isim verdiysen burayı ona göre değiştir
-        const publicUrl = `https://${STORAGE_ZONE}.b-cdn.net/${fileName}`;
-        
-        console.log(`[BUNNY STORAGE] Belge kalıcı buluta yüklendi: ${publicUrl}`);
-        return publicUrl;
+        const publicUrl = `https://${STORAGE_PULL_ZONE}.b-cdn.net/${remoteName}`;
+        console.log(`[BUNNY STORAGE] Yüklendi: ${publicUrl}`);
+        return { success: true, publicUrl };
     } catch (error) {
-        throw new Error(`Bunny Storage yükleme hatası: ${error.message}`);
+        console.error(`[BUNNY STORAGE] Yükleme hatası: ${error.message}`);
+        return { success: false, reason: error.message };
+    }
+};
+
+/**
+ * Bunny Storage'dan dosya siler. Hata atmaz (yumuşak silme).
+ * publicUrl, ya tam CDN linki ya da remoteName olarak verilebilir.
+ *
+ * @param {string} publicUrlOrName - "https://zone.b-cdn.net/avatars/x.jpg" veya "avatars/x.jpg"
+ * @returns {Promise<boolean>} true = silindi, false = atlandı/başarısız
+ */
+const deleteFileFromBunnyStorage = async (publicUrlOrName) => {
+    if (!isBunnyStorageEnabled() || !publicUrlOrName) {
+        return false;
+    }
+
+    try {
+        // Public URL verildiyse path kısmını çıkar
+        let remoteName = publicUrlOrName;
+        if (/^https?:\/\//i.test(publicUrlOrName)) {
+            try {
+                const u = new URL(publicUrlOrName);
+                remoteName = u.pathname.replace(/^\/+/, '');
+            } catch (_) {
+                return false;
+            }
+        }
+
+        const deleteUrl = `https://storage.bunnycdn.com/${STORAGE_ZONE}/${remoteName}`;
+        await axios.delete(deleteUrl, {
+            headers: { AccessKey: STORAGE_KEY },
+            timeout: 15000
+        });
+
+        console.log(`[BUNNY STORAGE] Silindi: ${remoteName}`);
+        return true;
+    } catch (error) {
+        // 404 olursa zaten yok demektir, başarılı say
+        if (error.response?.status === 404) {
+            return true;
+        }
+        console.warn(`[BUNNY STORAGE] Silme başarısız: ${error.message}`);
+        return false;
     }
 };
 
@@ -307,5 +377,7 @@ module.exports = {
     checkVideoStatus,
     deleteVideo,
     validateVideoFile,
-    uploadFileToBunnyStorage
+    uploadFileToBunnyStorage,
+    deleteFileFromBunnyStorage,
+    isBunnyStorageEnabled
 };

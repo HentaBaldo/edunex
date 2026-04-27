@@ -16,11 +16,19 @@ const seedProfiles = require('./seeders/profileSeeder');
 const app = express();
 
 // --- 1. File System Initialization ---
-const uploadDir = path.join(__dirname, 'uploads/temp');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('[SYSTEM] Gecici yukleme dizini (uploads/temp) dogrulandi.');
-}
+// Multer transit klasoru (yukleme bitince temizlenir) + Bunny basarisiz olursa
+// yedek olarak kullanilan kalici klasorler.
+const uploadDirs = [
+    path.join(__dirname, 'uploads/temp'),     // Multer transit
+    path.join(__dirname, 'uploads/lessons'),  // Bunny fallback - ders belgeleri
+    path.join(__dirname, 'uploads/avatars')   // Bunny fallback - profil fotograflari
+];
+uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`[SYSTEM] Yukleme dizini olusturuldu: ${path.relative(__dirname, dir)}`);
+    }
+});
 
 // --- 2. Security & Core Middleware ---
 app.use(helmet({ contentSecurityPolicy: false }));

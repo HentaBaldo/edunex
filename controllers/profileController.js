@@ -1,10 +1,63 @@
-const { 
-    Profile, 
-    StudentDetail, 
-    InstructorDetail, 
+const path = require('path');
+const fs = require('fs');
+const {
+    Profile,
+    StudentDetail,
+    InstructorDetail,
     StudentInterest,
     Category
 } = require('../models');
+const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
+
+/**
+ * Avatar dosyasını Bunny Storage'a yüklemeyi dener; başarısızsa
+ * /uploads/avatars/ kalıcı yerel klasöre taşır.
+ *
+ * @param {object} uploadedFile - multer file objesi (req.file)
+ * @returns {Promise<{publicUrl: string, source: 'bunny'|'local'}>}
+ */
+const persistAvatar = async (uploadedFile) => {
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${uploadedFile.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const remoteName = `avatars/${safeName}`;
+
+    const result = await uploadFileToBunnyStorage(uploadedFile.path, remoteName);
+    if (result.success) {
+        try {
+            if (fs.existsSync(uploadedFile.path)) fs.unlinkSync(uploadedFile.path);
+        } catch (e) {
+            console.warn(`[AVATAR] Temp temizleme uyarısı: ${e.message}`);
+        }
+        return { publicUrl: result.publicUrl, source: 'bunny' };
+    }
+
+    // FALLBACK: Yerel kalıcı klasöre taşı
+    const avatarsDir = path.join(__dirname, '..', 'uploads', 'avatars');
+    if (!fs.existsSync(avatarsDir)) {
+        fs.mkdirSync(avatarsDir, { recursive: true });
+    }
+    const finalLocalPath = path.join(avatarsDir, safeName);
+    fs.renameSync(uploadedFile.path, finalLocalPath);
+    console.warn(`[AVATAR] Bunny başarısız, yerel diske düştü: /uploads/avatars/${safeName}`);
+    return { publicUrl: `/uploads/avatars/${safeName}`, source: 'local' };
+};
+
+/**
+ * Eski avatar URL'sine göre eski dosyayı temizler.
+ * Bunny URL ise Bunny'den, /uploads/avatars/ ise yerel diskten siler.
+ */
+const cleanupOldAvatar = async (oldUrl) => {
+    if (!oldUrl) return;
+    try {
+        if (/^https?:\/\//i.test(oldUrl)) {
+            await deleteFileFromBunnyStorage(oldUrl);
+        } else if (oldUrl.startsWith('/uploads/avatars/')) {
+            const localPath = path.join(__dirname, '..', oldUrl);
+            if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+        }
+    } catch (e) {
+        console.warn(`[AVATAR CLEANUP] Eski avatar silinemedi: ${e.message}`);
+    }
+};
 
 /**
  * Kullanıcının profil bilgilerini rolüne göre getirir.
@@ -124,6 +177,8 @@ exports.updateProfile = async (req, res) => {
 
 /**
  * Profil fotoğrafı yükleme işlemi.
+ * Önce Bunny Storage'a yüklemeyi dener, başarısızsa yerel kalıcı klasöre düşer.
+ * Eski avatar varsa (Bunny veya yerel) temizlenir.
  */
 exports.uploadAvatar = async (req, res) => {
     try {
@@ -133,40 +188,59 @@ exports.uploadAvatar = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Lütfen bir resim dosyası seçin.' });
         }
 
-        // URL yolunu düzenliyoruz
-        const imageUrl = `/uploads/avatars/${req.file.filename}`;
+        // Eski avatarı bul ki yenisi başarılı olunca silelim
+        const existing = await Profile.findByPk(userId, { attributes: ['profil_fotografi'] });
+        const oldAvatarUrl = existing?.profil_fotografi || null;
+
+        // Yeni avatarı kalıcı yere koy
+        const stored = await persistAvatar(req.file);
 
         await Profile.update(
-            { profil_fotografi: imageUrl },
+            { profil_fotografi: stored.publicUrl },
             { where: { id: userId } }
         );
 
-        return res.status(200).json({ 
-            success: true, 
+        // Eski avatarı arka planda temizle (await etmiyoruz, response'u bekletmesin)
+        cleanupOldAvatar(oldAvatarUrl);
+
+        return res.status(200).json({
+            success: true,
             message: 'Profil fotoğrafı başarıyla güncellendi.',
-            imageUrl: imageUrl
+            imageUrl: stored.publicUrl,
+            storage: stored.source // 'bunny' veya 'local'
         });
 
     } catch (error) {
         console.error('[AVATAR UPLOAD ERROR]', error);
+        // Hata durumunda temp dosyayı temizle
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+            try { fs.unlinkSync(req.file.path); } catch (_) {}
+        }
         return res.status(500).json({ success: false, message: 'Fotoğraf yüklenirken bir hata oluştu.' });
     }
 };
 
 /**
  * Kullanıcının kendi hesabını kalıcı olarak silmesi.
+ * Avatar varsa (Bunny veya yerel) önce temizlenir.
  */
 exports.deleteAccount = async (req, res) => {
     try {
         const userId = req.user.id;
 
+        // Avatarı yan etki olarak temizle (sessizce)
+        const profile = await Profile.findByPk(userId, { attributes: ['profil_fotografi'] });
+        if (profile?.profil_fotografi) {
+            await cleanupOldAvatar(profile.profil_fotografi);
+        }
+
         // Cascade silme ayarı veritabanında yoksa manuel temizlik gerekebilir
         // Ancak genellikle Profile silindiğinde bağlı detaylar otomatik silinir.
         await Profile.destroy({ where: { id: userId } });
 
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Hesabınız başarıyla silindi. Sizi tekrar aramızda görmeyi umuyoruz.' 
+        return res.status(200).json({
+            success: true,
+            message: 'Hesabınız başarıyla silindi. Sizi tekrar aramızda görmeyi umuyoruz.'
         });
     } catch (error) {
         console.error('[ACCOUNT DELETE ERROR]', error);
