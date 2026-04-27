@@ -171,6 +171,11 @@ exports.getCourseDetails = async (req, res, next) => {
                             attributes: ['id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi']
                         }
                     ]
+                },
+                {
+                    // 4. YORUMLARI BURAYA, ANA DİZİYE EKLİYORUZ (DOĞRU YER ✅)
+                    model: Review,
+                    attributes: ['puan']
                 }
             ],
             order: [
@@ -377,19 +382,49 @@ exports.getAllPublishedCourses = async (req, res, next) => {
                 {
                     model: Category,
                     attributes: ['id', 'ad']
+                },
+                {
+                    // Puanları hesaplamak için Yorumlar tablosunu dahil ediyoruz
+                    model: Review, 
+                    attributes: ['puan']
                 }
             ],
             limit,
             offset,
-            order: [['olusturulma_tarihi', 'DESC']]
+            order: [['olusturulma_tarihi', 'DESC']],
+            distinct: true // findAndCountAll kullanırken include varsa sayım hatasını önler
         });
 
         const totalPages = Math.ceil(count / limit);
 
+        // Her kurs için ortalama puanı ve toplam yorum sayısını hesapla
+        const coursesWithStats = rows.map(course => {
+            const courseJson = course.toJSON();
+            const reviews = courseJson.Reviews || [];
+            const toplam_yorum = reviews.length;
+            let ortalama_puan = null;
+
+            if (toplam_yorum > 0) {
+                const toplamPuan = reviews.reduce((toplam, r) => toplam + r.puan, 0);
+                ortalama_puan = parseFloat((toplamPuan / toplam_yorum).toFixed(1));
+            }
+
+            // API yanıtını şişirmemek için ham yorum dizisini siliyoruz
+            delete courseJson.Reviews;
+
+            return {
+                ...courseJson,
+                istatistikler: {
+                    ortalama_puan: ortalama_puan,
+                    toplam_yorum: toplam_yorum
+                }
+            };
+        });
+
         return res.status(200).json({
             status: 'success',
             message: 'Published courses retrieved successfully.',
-            data: rows,
+            data: coursesWithStats,
             pagination: {
                 currentPage: page,
                 totalPages: totalPages,
@@ -560,6 +595,7 @@ exports.getCourseCurriculumForStudent = async (req, res, next) => {
                         profil_fotografi: course.Egitmen.profil_fotografi
                     } : null
                 },
+                bunny_library_id: process.env.BUNNY_LIBRARY_ID,
                 curriculum: course.Sections.map(section => ({
                     id: section.id,
                     baslik: section.baslik,

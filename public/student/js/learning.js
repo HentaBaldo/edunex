@@ -8,6 +8,8 @@
 let currentCourseData = null;
 let currentLessonId = null;
 let currentSectionId = null;
+let bunnyLibraryId = '640675';
+let playerInitTimeout = null;
 
 /**
  * Sayfa yüklendiğinde çalışan başlangıç fonksiyonu
@@ -63,6 +65,9 @@ async function loadCourseData(courseId) {
         }
 
         currentCourseData = response.data;
+        if (response.data.bunny_library_id) {
+            bunnyLibraryId = response.data.bunny_library_id;
+        }
 
         console.log(`[LEARNING] Kurs verisi yüklendi:`, currentCourseData);
 
@@ -300,13 +305,22 @@ function loadLessonContent(lesson) {
     }
 
     // 2. Ana Sahneyi Çiz
-    if (mainMedia === 'bunny') {
-        const BUNNY_LIBRARY_ID = '640675';
-        htmlContent += `
-            <div style="position: relative; flex-grow: 1; min-height: 400px; display: flex;">
-                <iframe src="https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${kaynak1}?autoplay=false" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"></iframe>
-            </div>`;
-    } else if (mainMedia === 'youtube') {
+    // learning.js içindeki loadLessonContent fonksiyonunun ilgili kısmı
+        if (mainMedia === 'bunny') {
+            const videoId = kaynak1;
+            // controls=false → Bunny kendi seek bar ve butonlarını gizler
+            // Kullanıcı yalnızca bizim custom player UI ile etkileşime girer
+            htmlContent += `
+                <div style="position: relative; flex-grow: 1; min-height: 400px; display: flex;">
+                    <iframe 
+                        id="bunnyIframe" 
+                        src="https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${videoId}?autoplay=false&api=true" 
+                        allowfullscreen 
+                        allow="autoplay; fullscreen"
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;">
+                    </iframe>
+                </div>`;
+        } else if (mainMedia === 'youtube') {
         const ytId = extractYoutubeId(kaynak2);
         const directLink = `https://www.youtube.com/watch?v=${ytId}`;
         htmlContent += `
@@ -394,6 +408,10 @@ function loadLessonContent(lesson) {
 
     htmlContent += `</div>`;
     videoPlayer.innerHTML = htmlContent;
+
+    // iframe DOM'a eklendi ama Bunny'nin iç player'ı henüz hazır değil.
+    // 300ms bekleyerek player.js'in iframe ile握手yapmasına izin veriyoruz.
+    setTimeout(() => initLessonTracking(lesson, mainMedia), 300);
 }
 
 /**
@@ -463,13 +481,19 @@ function updateLessonInfo(lesson) {
 }
 
 /**
- * Dersi tamamlandı olarak işaretle
+ * Dersi tamamlandı olarak işaretle (Otomatik ve Manuel kullanıma uygun)
  */
-async function markLessonComplete(lessonId) {
+async function markLessonComplete(lessonId, isSilent = false) {
     try {
         const courseId = new URLSearchParams(window.location.search).get('id');
 
         console.log(`[LEARNING] Ders tamamlanıyor: ${lessonId}`);
+
+        // Zaten yeşil tik aldıysa sistemi yormamak için işlemi durdur (Performans)
+        const lessonItem = document.querySelector(`.lesson-item[data-lesson-id="${lessonId}"]`);
+        if (lessonItem && lessonItem.querySelector('.lesson-completed')) {
+            return; 
+        }
 
         const response = await ApiService.put(
             `/courses/${courseId}/lessons/${lessonId}/complete`,
@@ -478,13 +502,14 @@ async function markLessonComplete(lessonId) {
 
         console.log('[LEARNING] Ders tamamlandı:', response);
 
-        const button = event.target.closest('.btn-mark-complete');
+        // HATA BURADAYDI: event.target yerine doğrudan butonu DOM'dan buluyoruz
+        const button = document.querySelector('.btn-mark-complete');
         if (button) {
             button.classList.add('completed');
             button.innerHTML = '<i class="fas fa-check-circle"></i> Tamamlandı';
         }
 
-        const lessonItem = document.querySelector(`.lesson-item[data-lesson-id="${lessonId}"]`);
+        // Sol menüdeki ders listesini güncelle (Yeşil tik at)
         if (lessonItem) {
             const lessonNameSpan = lessonItem.querySelector('.lesson-name span');
             const durationSpan = lessonItem.querySelector('.lesson-duration-small');
@@ -502,11 +527,16 @@ async function markLessonComplete(lessonId) {
             `;
         }
 
-        showNotification('Ders tamamlandı olarak işaretlendi!', 'success');
+        // Eğer manuel olarak butona tıklandıysa (isSilent = false) sağ üstte bildirim göster
+        if (!isSilent) {
+            showNotification('Ders tamamlandı olarak işaretlendi!', 'success');
+        }
 
     } catch (error) {
         console.error('[LEARNING] Ders tamamlama hatası:', error);
-        showNotification(`Hata: ${error.message}`, 'error');
+        if (!isSilent) {
+            showNotification(`Hata: ${error.message}`, 'error');
+        }
     }
 }
 
@@ -577,4 +607,133 @@ if (!document.querySelector('style[data-toast-animations]')) {
         }
     `;
     document.head.appendChild(style);
+}
+
+// ==========================================
+// AKILLI DERS TAKİP SİSTEMİ (player.js tabanlı - gerçek Bunny API)
+// Bunny'nin resmi player.js kütüphanesi kullanılır.
+// timeupdate ile gerçek video pozisyonunu okur,
+// seeked eventi ile ileri atlama tespit edilip geri sarılır.
+// ==========================================
+
+let bunnyPlayer = null;
+let maxWatchedSeconds = 0;
+let videoCompleted = false;
+let trackingInterval = null;
+let lastTimeUpdatePos = -1;
+let seekLock = false;
+
+function initLessonTracking(lesson, mainMedia) {
+    _stopTracking();
+    if (lesson.tamamlandi_mi) return;
+
+    if (mainMedia === 'document' || mainMedia === 'youtube' || mainMedia === 'vimeo') {
+        console.log('[TRACKING] Belge/Harici Kaynak: 5 saniye sonra tamamlandı sayılacak.');
+        setTimeout(() => { markLessonComplete(lesson.id, true); }, 5000);
+    } else if (mainMedia === 'bunny') {
+        trackBunnyVideo(lesson);
+    }
+}
+
+function _stopTracking() {
+    if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
+    if (bunnyPlayer) {
+        try { bunnyPlayer.off('ended'); } catch(e) {}
+        bunnyPlayer = null;
+    }
+    maxWatchedSeconds = 0;
+    videoCompleted = false;
+    lastTimeUpdatePos = -1;
+    seekLock = false;
+}
+
+function trackBunnyVideo(lesson) {
+    const iframe = document.getElementById('bunnyIframe');
+    if (!iframe) { console.error('[TRACKING] Iframe bulunamadi!'); return; }
+
+    maxWatchedSeconds = 0;
+    videoCompleted = false;
+    lastTimeUpdatePos = -1;
+    seekLock = false;
+    currentLessonId = lesson.id;
+    const totalDuration = lesson.sure_saniye || 0;
+
+    if (typeof playerjs === 'undefined') {
+        console.error('[TRACKING] player.js yuklu degil!');
+        return;
+    }
+
+    console.log('[TRACKING] player.js ile Bunny baglantisi kuruluyor...');
+
+    // player.js Player nesnesi yarat — iframe yüklendikten sonra çağrılmalı
+    bunnyPlayer = new playerjs.Player(iframe);
+
+    bunnyPlayer.on('ready', () => {
+        console.log('[TRACKING] Bunny player hazir! Polling baslatiliyor...');
+
+        // Bunny'nin player.js (0.1.0) wrapper'ında 'timeupdate'/'play' eventleri
+        // güvenilir tetiklenmiyor. Bu yüzden getCurrentTime() ile her 500ms
+        // polling yapıyoruz — request/response postMessage ile çalışır.
+
+        let resolvedDuration = totalDuration;
+        try {
+            bunnyPlayer.getDuration((d) => {
+                if (typeof d === 'number' && d > 0) resolvedDuration = d;
+            });
+        } catch (e) {}
+
+        let pollLogCounter = 0;
+        trackingInterval = setInterval(() => {
+            if (!bunnyPlayer) return;
+            if (seekLock) return;
+
+            try {
+                bunnyPlayer.getCurrentTime((current) => {
+                    if (typeof current !== 'number' || isNaN(current) || current < 0) return;
+
+                    // Her 10 polling'de (~5s) bir log
+                    if (++pollLogCounter % 10 === 0) {
+                        console.log('[POLL] ' + current.toFixed(1) + 's | maks: ' + maxWatchedSeconds.toFixed(1) + 's | toplam: ' + resolvedDuration);
+                    }
+
+                    // Seek tespiti: önceki pozisyona göre 2s'den fazla ileri sıçrama,
+                    // izlenmemiş bölgeye → geri sar
+                    if (lastTimeUpdatePos >= 0) {
+                        const jump = current - lastTimeUpdatePos;
+                        if (jump > 2 && current > maxWatchedSeconds + 2) {
+                            seekLock = true;
+                            console.warn('[TRACKING] Ileri atlama ENGELLENDI! ' + lastTimeUpdatePos.toFixed(1) + 's -> ' + current.toFixed(1) + 's | izlenen maks: ' + maxWatchedSeconds.toFixed(1) + 's');
+                            bunnyPlayer.setCurrentTime(maxWatchedSeconds);
+                            showNotification('Videoyu atlayamazsiniz! Sirali izleyin.', 'error');
+                            setTimeout(() => {
+                                seekLock = false;
+                                lastTimeUpdatePos = maxWatchedSeconds;
+                            }, 1500);
+                            return;
+                        }
+                    }
+
+                    lastTimeUpdatePos = current;
+                    if (current > maxWatchedSeconds) maxWatchedSeconds = current;
+
+                    // %90 tamamlama kontrolü
+                    if (!videoCompleted && resolvedDuration > 0 && maxWatchedSeconds >= resolvedDuration * 0.90) {
+                        videoCompleted = true;
+                        console.log('[TRACKING] DERS TAMAMLANDI (%90)!');
+                        markLessonComplete(currentLessonId);
+                    }
+                });
+            } catch (e) {
+                console.warn('[TRACKING] getCurrentTime hata:', e);
+            }
+        }, 500);
+
+        bunnyPlayer.on('ended', () => {
+            if (!videoCompleted) {
+                videoCompleted = true;
+                console.log('[TRACKING] Video bitti, ders tamamlandi!');
+                markLessonComplete(currentLessonId);
+            }
+        });
+    });
 }

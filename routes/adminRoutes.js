@@ -7,7 +7,8 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const adminUserController = require('../controllers/adminUserController');
 const adminOrderController = require('../controllers/adminOrderController');
-const adminCourseController = require('../controllers/adminCourseController'); // Yeni eklediğimiz!
+const adminCourseController = require('../controllers/adminCourseController');
+const reviewController = require('../controllers/reviewController');
 const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 
 /**
@@ -47,5 +48,9 @@ router.get('/users', adminUserController.getAllUsers);
 router.get('/users/:id', adminUserController.getUserDetail);
 router.put('/users/:id', adminUserController.updateUser);
 router.delete('/users/:id', adminUserController.deleteUser);
+
+// --- Yorum Moderasyonu ---
+router.get('/reviews', reviewController.adminListReviews);
+router.delete('/reviews/:kurs_id/:ogrenci_id', reviewController.adminDeleteReview);
 
 module.exports = router;

@@ -45,11 +45,12 @@ const curriculumRoutes = require('./routes/curriculumRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const courseEnrollmentRoutes = require('./routes/courseEnrollmentRoutes');
-const adminUserRoutes = require('./routes/adminUserRoutes');  // ✅ IMPORT
+const adminUserRoutes = require('./routes/adminUserRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const liveSessionRoutes = require('./routes/liveSessionRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
@@ -59,11 +60,12 @@ app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/enrollments', courseEnrollmentRoutes);
-app.use('/api/admin/users', adminUserRoutes);  // ✅ REGISTER
+app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/live-sessions', liveSessionRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {

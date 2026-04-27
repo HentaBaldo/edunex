@@ -47,6 +47,35 @@
                         <p class="loading-message">Müfredat yükleniyor...</p>
                     </div>
                 </article>
+                <section class="reviews-section" style="margin-top: 40px;">
+                    <h3 class="section-heading">Öğrenci Değerlendirmeleri</h3>
+                    
+                    <div id="courseRatingSummary" class="rating-summary-box" style="display: flex; align-items: center; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <div style="text-align: center;">
+                            <h2 id="avgRatingText" style="font-size: 3rem; margin: 0; color: #0f172a;">0.0</h2>
+                            <div id="avgRatingStars" style="color: #fbbf24;"></div>
+                            <p id="totalReviewsText" style="margin-top: 5px; color: #64748b; font-size: 0.9rem;">0 değerlendirme</p>
+                        </div>
+                    </div>
+                
+                    <div id="leaveReviewSection" style="display: none; background: #ffffff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                        <h4>Kursu Değerlendirin</h4>
+                        <div class="star-rating-input" style="font-size: 1.5rem; color: #cbd5e1; margin: 10px 0; cursor: pointer;">
+                            <i class="far fa-star" data-value="1"></i>
+                            <i class="far fa-star" data-value="2"></i>
+                            <i class="far fa-star" data-value="3"></i>
+                            <i class="far fa-star" data-value="4"></i>
+                            <i class="far fa-star" data-value="5"></i>
+                        </div>
+                        <textarea id="reviewText" placeholder="Deneyiminizi paylaşın..." style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px; min-height: 80px;"></textarea>
+                        <button id="submitReviewBtn" class="btn-primary-full" style="margin: 0; padding: 10px 20px; font-size: 0.9rem;">Yorumu Gönder</button>
+                    </div>
+                
+                    <div id="reviewsList">
+                        <p class="loading-message">Yorumlar yükleniyor...</p>
+                    </div>
+                    <div id="reviewsPagination"></div>
+                </section>
             </section>
 
             <aside class="sidebar">

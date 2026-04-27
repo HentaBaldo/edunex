@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yorum Moderasyonu | EduNex Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+    <style>
+        .admin-table { width:100%; border-collapse:collapse; background:#fff; }
+        .admin-table th, .admin-table td { padding:14px; text-align:left; border-bottom:1px solid #f1f5f9; font-size:0.9rem; }
+        .admin-table th { background:#f8fafc; font-weight:600; color:#334155; }
+        .admin-table tr:hover td { background:#fafafa; }
+        .star-yellow { color:#fbbf24; }
+        .badge-puan { display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700; }
+        .badge-5 { background:#d1fae5; color:#065f46; }
+        .badge-4 { background:#dbeafe; color:#1e40af; }
+        .badge-3 { background:#fef9c3; color:#854d0e; }
+        .badge-2, .badge-1 { background:#fee2e2; color:#991b1b; }
+        .pagination { display:flex; gap:5px; justify-content:center; margin-top:20px; }
+        .pagination button { padding:6px 12px; border:1px solid #cbd5e1; background:#fff; border-radius:6px; cursor:pointer; color:#334155; }
+        .pagination button.active { background:#3b82f6; color:#fff; border-color:#3b82f6; }
+        .pagination button:disabled { opacity:0.4; cursor:default; }
+        .filter-row { display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+        .filter-row input, .filter-row select {
+            padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.9rem; outline:none;
+        }
+        .toast { position:fixed; top:20px; right:20px; padding:14px 22px; border-radius:8px; color:#fff; font-weight:600; z-index:9999; animation:slideIn 0.3s; }
+        .toast-success { background:#10b981; }
+        .toast-error   { background:#ef4444; }
+        @keyframes slideIn { from { transform:translateX(400px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    </style>
+</head>
+<body>
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
+            <a href="/admin/dashboard.html" class="nav-item"><i class="fas fa-chart-pie"></i> Özet Tablo</a>
+            <a href="/admin/courses.html" class="nav-item"><i class="fas fa-video"></i> Kurs Onayları</a>
+            <a href="/admin/published-courses.html" class="nav-item"><i class="fas fa-list-check"></i> Kurs Takibi</a>
+            <a href="/admin/users.html" class="nav-item"><i class="fas fa-users"></i> Kullanıcı Yönetimi</a>
+            <a href="/admin/orders.html" class="nav-item"><i class="fas fa-receipt"></i> Siparişler</a>
+            <a href="/admin/categories.html" class="nav-item"><i class="fas fa-tags"></i> Kategoriler</a>
+            <a href="/admin/reviews.html" class="nav-item active"><i class="fas fa-star"></i> Yorumlar</a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-topbar">
+            <h1 class="page-title"><i class="fas fa-star" style="color:#fbbf24;"></i> Yorum Moderasyonu</h1>
+        </header>
+
+        <div class="admin-content">
+            <div class="card">
+                <div class="filter-row">
+                    <select id="filterPuan" onchange="fetchReviews(1)">
+                        <option value="">Tüm Puanlar</option>
+                        <option value="5">★★★★★ (5)</option>
+                        <option value="4">★★★★☆ (4)</option>
+                        <option value="3">★★★☆☆ (3)</option>
+                        <option value="2">★★☆☆☆ (2)</option>
+                        <option value="1">★☆☆☆☆ (1)</option>
+                    </select>
+                    <span id="reviewCountInfo" style="color:#64748b; font-size:0.9rem;"></span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Öğrenci</th>
+                                <th>Kurs</th>
+                                <th>Puan</th>
+                                <th>Yorum</th>
+                                <th>Tarih</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewsTableBody">
+                            <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="reviewsPagination"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentPage = 1;
+        const LIMIT = 20;
+
+        async function fetchReviews(page = 1) {
+            currentPage = page;
+            const tbody = document.getElementById('reviewsTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</td></tr>';
+
+            try {
+                const token = localStorage.getItem('edunex_admin_token');
+                const puanFilter = document.getElementById('filterPuan').value;
+                let url = `/api/admin/reviews?page=${page}&limit=${LIMIT}`;
+                // Puan filtreleme backend'de direkt desteklenmiyor, client-side yapıyoruz
+
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (!data.success) throw new Error(data.message);
+
+                let reviews = data.data;
+                if (puanFilter) {
+                    reviews = reviews.filter(r => r.puan == puanFilter);
+                }
+
+                const info = document.getElementById('reviewCountInfo');
+                info.textContent = `Toplam ${data.pagination.total} yorum (Sayfa ${data.pagination.page}/${data.pagination.total_pages})`;
+
+                if (reviews.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;">Yorum bulunamadı.</td></tr>';
+                    renderPagination(data.pagination);
+                    return;
+                }
+
+                tbody.innerHTML = reviews.map(r => {
+                    const ad  = r.StudentDetail?.Profile?.ad  || '—';
+                    const soy = r.StudentDetail?.Profile?.soyad || '';
+                    const kurs = r.Course?.baslik || r.kurs_id;
+                    const stars = '★'.repeat(r.puan) + '☆'.repeat(5 - r.puan);
+                    const tarih = new Date(r.olusturulma_tarihi).toLocaleDateString('tr-TR');
+                    const yorum = r.yorum ? escapeHtml(r.yorum).slice(0, 120) + (r.yorum.length > 120 ? '…' : '') : '<em style="color:#94a3b8;">Yorum yok</em>';
+                    return `
+                    <tr>
+                        <td><i class="fas fa-user-circle" style="color:#cbd5e1;margin-right:6px;"></i>${escapeHtml(ad + ' ' + soy)}</td>
+                        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(r.Course?.baslik || '')}">${escapeHtml(kurs)}</td>
+                        <td>
+                            <span class="badge-puan badge-${r.puan}">
+                                <span class="star-yellow">${stars}</span> ${r.puan}/5
+                            </span>
+                        </td>
+                        <td style="max-width:260px;">${yorum}</td>
+                        <td style="white-space:nowrap;color:#64748b;">${tarih}</td>
+                        <td>
+                            <button onclick="deleteReview('${r.kurs_id}','${r.ogrenci_id}')"
+                                style="background:#fee2e2;color:#991b1b;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">
+                                <i class="fas fa-trash-alt"></i> Sil
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+
+                renderPagination(data.pagination);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#ef4444;">Hata: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function deleteReview(kurs_id, ogrenci_id) {
+            if (!confirm('Bu yorumu silmek istediğinizden emin misiniz?')) return;
+            try {
+                const token = localStorage.getItem('edunex_admin_token');
+                const res = await fetch(`/api/admin/reviews/${kurs_id}/${ogrenci_id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message);
+                showToast('Yorum silindi.', 'success');
+                fetchReviews(currentPage);
+            } catch (err) {
+                showToast('Silinemedi: ' + err.message, 'error');
+            }
+        }
+
+        function renderPagination(pagination) {
+            const container = document.getElementById('reviewsPagination');
+            if (!container || pagination.total_pages <= 1) { container.innerHTML = ''; return; }
+            const { page, total_pages } = pagination;
+            let html = `<button onclick="fetchReviews(${page-1})" ${page <= 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+            for (let i = 1; i <= total_pages; i++) {
+                if (i === 1 || i === total_pages || Math.abs(i - page) <= 2) {
+                    html += `<button onclick="fetchReviews(${i})" class="${i === page ? 'active' : ''}">${i}</button>`;
+                } else if (Math.abs(i - page) === 3) {
+                    html += `<button disabled>…</button>`;
+                }
+            }
+            html += `<button onclick="fetchReviews(${page+1})" ${page >= total_pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.animation = 'none'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        fetchReviews(1);
+    </script>
+</body>
+</html>
