@@ -486,107 +486,164 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+let selectedRating = 0;
+let reviewsCurrentPage = 1;
+
 /**
- * Kurs yorumlarını backendden çeker ve listeler
+ * Kurs yorumlarını backendden çeker ve listeler (sayfalama destekli)
  */
-async function loadReviews() {
+async function loadReviews(page = 1) {
     const reviewsList = document.getElementById('reviewsList');
     if (!reviewsList || !currentCourseId) return;
 
+    reviewsCurrentPage = page;
+
     try {
-        const result = await ApiService.get(`/reviews/course/${currentCourseId}`);
-        const { ortalama_puan, toplam_degerlendirme, data: reviews } = result;
+        const result = await ApiService.get(`/reviews/course/${currentCourseId}?page=${page}&limit=10`);
+        const { ortalama_puan, toplam_degerlendirme, pagination, data: reviews } = result;
 
-        // Özet kutusunu güncelle
-        const avgText = document.getElementById('avgRatingText');
+        // Özet kutusu
+        const avgText  = document.getElementById('avgRatingText');
         const totalText = document.getElementById('totalReviewsText');
-        const starBox = document.getElementById('avgRatingStars');
-
-        if (avgText) avgText.textContent = ortalama_puan || "0.0";
+        const starBox  = document.getElementById('avgRatingStars');
+        if (avgText)   avgText.textContent  = ortalama_puan || '0.0';
         if (totalText) totalText.textContent = `${toplam_degerlendirme} değerlendirme`;
-        
-        // Özet yıldızlarını bas
-        if (starBox) {
-            starBox.innerHTML = renderStars(ortalama_puan || 0);
-        }
+        if (starBox)   starBox.innerHTML    = renderStars(ortalama_puan || 0);
 
-        // ==============================================================
-        // ✨ YENİ: KULLANICININ KENDİ YORUMUNU BUL VE FORMU DOLDUR
-        // ==============================================================
-        if (currentUserId && reviews && reviews.length > 0) {
+        // Kullanıcının kendi yorumunu bul (sadece ilk sayfada arama yapar —
+        // kendi yorumunu formu doldurmak için tam liste gerekiyor değil,
+        // backend DESC sıralar, en yeni ilk gelir, 10'da bulunamayabilir;
+        // bu yüzden ayrı GET ile de alabiliriz, ama mevcut yapıda sayfa 1
+        // yeterli çünkü ogrenci_id eşleşmesi bozulmaz)
+        if (currentUserId && reviews && reviews.length > 0 && page === 1) {
             const myReview = reviews.find(r => r.ogrenci_id === currentUserId);
-            
             if (myReview) {
-                // Yıldızları eski puanına getir
                 selectedRating = myReview.puan;
                 updateStarUI(selectedRating);
-                
-                // Metni eski yorumuyla doldur
                 const textInput = document.getElementById('reviewText');
-                if(textInput) textInput.value = myReview.yorum || '';
-                
-                // Buton ve Başlık metinlerini "Güncelle" formatına çevir
+                if (textInput) textInput.value = myReview.yorum || '';
                 const btn = document.getElementById('submitReviewBtn');
-                if(btn) btn.textContent = "Yorumu Güncelle";
-                
+                if (btn) btn.textContent = 'Yorumu Güncelle';
                 const sectionTitle = document.querySelector('#leaveReviewSection h4');
-                if(sectionTitle) sectionTitle.innerHTML = '<i class="fas fa-edit" style="color:#2563eb;"></i> Mevcut Değerlendirmenizi Güncelleyin';
+                if (sectionTitle) sectionTitle.innerHTML = '<i class="fas fa-edit" style="color:#2563eb;"></i> Mevcut Değerlendirmenizi Güncelleyin';
             }
         }
-        // ==============================================================
 
         if (!reviews || reviews.length === 0) {
-            reviewsList.innerHTML = '<p style="color: #64748b; margin-top:10px;">Henüz yorum yapılmamış. İlk yorumu siz yapın!</p>';
+            reviewsList.innerHTML = '<p style="color:#64748b;margin-top:10px;">Henüz yorum yapılmamış. İlk yorumu siz yapın!</p>';
+            renderPagination(pagination);
             return;
         }
 
-        reviewsList.innerHTML = reviews.map(r => `
-            <div class="review-item" style="border-bottom: 1px solid #f1f5f9; padding: 20px 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <i class="fas fa-user-circle" style="font-size:1.5rem; color:#cbd5e1;"></i>
+        reviewsList.innerHTML = reviews.map(r => {
+            const isOwn = currentUserId && r.ogrenci_id === currentUserId;
+            const deleteBtn = isOwn
+                ? `<button onclick="deleteOwnReview()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.82rem;padding:0;"><i class="fas fa-trash-alt"></i> Yorumu Sil</button>`
+                : '';
+            return `
+            <div class="review-item" style="border-bottom:1px solid #f1f5f9;padding:20px 0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i class="fas fa-user-circle" style="font-size:1.5rem;color:#cbd5e1;"></i>
                         <strong>${escapeHtml(r.StudentDetail?.Profile?.ad)} ${escapeHtml(r.StudentDetail?.Profile?.soyad)}</strong>
                     </div>
-                    <div style="color: #fbbf24;">${renderStars(r.puan)}</div>
+                    <div style="color:#fbbf24;">${renderStars(r.puan)}</div>
                 </div>
-                <p style="margin: 10px 0 5px 0; color: #475569; line-height:1.5;">${escapeHtml(r.yorum || '')}</p>
-                <small style="color: #94a3b8;"><i class="far fa-calendar-alt"></i> ${new Date(r.olusturulma_tarihi).toLocaleDateString('tr-TR')}</small>
-            </div>
-        `).join('');
+                <p style="margin:10px 0 5px 0;color:#475569;line-height:1.5;">${escapeHtml(r.yorum || '')}</p>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <small style="color:#94a3b8;"><i class="far fa-calendar-alt"></i> ${new Date(r.olusturulma_tarihi).toLocaleDateString('tr-TR')}</small>
+                    ${deleteBtn}
+                </div>
+            </div>`;
+        }).join('');
+
+        renderPagination(pagination);
 
     } catch (error) {
-        console.error("Yorumlar yüklenemedi:", error);
+        console.error('Yorumlar yüklenemedi:', error);
     }
 }
 
-// Yıldız Seçimi Mantığı (Güncellenmiş)
-let selectedRating = 0;
-document.querySelectorAll('.star-rating-input i').forEach(star => {
-    star.addEventListener('click', (e) => {
-        // Puanı sayıya çevirip kaydet ve UI'ı güncelle
-        selectedRating = parseInt(e.target.dataset.value);
-        updateStarUI(selectedRating);
-    });
-});
+function renderPagination(pagination) {
+    const container = document.getElementById('reviewsPagination');
+    if (!container || !pagination) return;
 
-// Yorum Gönderme
-document.getElementById('submitReviewBtn')?.addEventListener('click', async () => {
-    const yorum = document.getElementById('reviewText').value;
-    if (selectedRating === 0) return alert("Lütfen bir puan seçin!");
-
-    try {
-        const res = await ApiService.post('/reviews', {
-            kurs_id: currentCourseId,
-            puan: selectedRating,
-            yorum: yorum
-        });
-        if (res.success) {
-            alert("Yorumunuz iletildi!");
-            location.reload(); // Sayfayı yenileyip güncel halini gör
-        }
-    } catch (error) {
-        alert("Hata: " + error.message);
+    if (pagination.total_pages <= 1) {
+        container.innerHTML = '';
+        return;
     }
+
+    const { page, total_pages } = pagination;
+    container.innerHTML = `
+        <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:20px;">
+            <button onclick="loadReviews(${page - 1})"
+                style="padding:6px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;${page <= 1 ? 'opacity:0.4;pointer-events:none;' : ''}"
+                ${page <= 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i> Önceki
+            </button>
+            <span style="color:#64748b;font-size:0.9rem;">${page} / ${total_pages}</span>
+            <button onclick="loadReviews(${page + 1})"
+                style="padding:6px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;${page >= total_pages ? 'opacity:0.4;pointer-events:none;' : ''}"
+                ${page >= total_pages ? 'disabled' : ''}>
+                Sonraki <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>`;
+}
+
+async function deleteOwnReview() {
+    if (!confirm('Yorumunuzu silmek istediğinizden emin misiniz?')) return;
+    try {
+        await ApiService.delete(`/reviews/${currentCourseId}`);
+        showSuccessToast('Yorumunuz silindi.');
+        selectedRating = 0;
+        updateStarUI(0);
+        const textInput = document.getElementById('reviewText');
+        if (textInput) textInput.value = '';
+        const btn = document.getElementById('submitReviewBtn');
+        if (btn) btn.textContent = 'Yorumu Gönder';
+        const sectionTitle = document.querySelector('#leaveReviewSection h4');
+        if (sectionTitle) sectionTitle.innerHTML = 'Kursu Değerlendirin';
+        loadReviews(1);
+    } catch (error) {
+        showErrorToast('Yorum silinemedi: ' + error.message);
+    }
+}
+
+// Yıldız seçimi ve yorum gönderme listener'ları
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.star-rating-input i').forEach(star => {
+        star.addEventListener('click', (e) => {
+            selectedRating = parseInt(e.target.dataset.value);
+            updateStarUI(selectedRating);
+        });
+    });
+
+    document.getElementById('submitReviewBtn')?.addEventListener('click', async () => {
+        const yorum = document.getElementById('reviewText').value;
+        if (selectedRating === 0) return alert('Lütfen bir puan seçin!');
+
+        const btn = document.getElementById('submitReviewBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Gönderiliyor...';
+
+        try {
+            const res = await ApiService.post('/reviews', {
+                kurs_id: currentCourseId,
+                puan: selectedRating,
+                yorum
+            });
+            if (res.success) {
+                showSuccessToast(res.message || 'Yorumunuz iletildi!');
+                loadReviews(1);
+            }
+        } catch (error) {
+            showErrorToast('Hata: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    });
 });
 /**
  * Sayısal puanı (örn: 4.5) görsel yıldız ikonlarına çevirir
@@ -603,16 +660,6 @@ function renderStars(rating) {
         }
     }
     return stars;
-}
-
-/**
- * XSS saldırılarını önlemek için metni güvenli hale getirir
- */
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 /**

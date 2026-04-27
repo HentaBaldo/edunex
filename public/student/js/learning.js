@@ -620,6 +620,8 @@ let bunnyPlayer = null;
 let maxWatchedSeconds = 0;
 let videoCompleted = false;
 let trackingInterval = null;
+let lastTimeUpdatePos = -1;
+let seekLock = false;
 
 function initLessonTracking(lesson, mainMedia) {
     _stopTracking();
@@ -636,15 +638,13 @@ function initLessonTracking(lesson, mainMedia) {
 function _stopTracking() {
     if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
     if (bunnyPlayer) {
-        try {
-            bunnyPlayer.off('timeupdate');
-            bunnyPlayer.off('seeked');
-            bunnyPlayer.off('ended');
-        } catch(e) {}
+        try { bunnyPlayer.off('ended'); } catch(e) {}
         bunnyPlayer = null;
     }
     maxWatchedSeconds = 0;
     videoCompleted = false;
+    lastTimeUpdatePos = -1;
+    seekLock = false;
 }
 
 function trackBunnyVideo(lesson) {
@@ -653,6 +653,8 @@ function trackBunnyVideo(lesson) {
 
     maxWatchedSeconds = 0;
     videoCompleted = false;
+    lastTimeUpdatePos = -1;
+    seekLock = false;
     currentLessonId = lesson.id;
     const totalDuration = lesson.sure_saniye || 0;
 
@@ -667,76 +669,71 @@ function trackBunnyVideo(lesson) {
     bunnyPlayer = new playerjs.Player(iframe);
 
     bunnyPlayer.on('ready', () => {
-        console.log('[TRACKING] Bunny player hazir! Eventler ekleniyor...');
+        console.log('[TRACKING] Bunny player hazir! Polling baslatiliyor...');
 
-        // Bunny/Plyr'ın tamamen hazır olması için ekstra bekleme.
-        // "ready" bazen Plyr initialize olmadan önce tetikleniyor.
-        setTimeout(() => {
-            console.log('[TRACKING] Event listenerlar aktive ediliyor...');
+        // Bunny'nin player.js (0.1.0) wrapper'ında 'timeupdate'/'play' eventleri
+        // güvenilir tetiklenmiyor. Bu yüzden getCurrentTime() ile her 500ms
+        // polling yapıyoruz — request/response postMessage ile çalışır.
 
-            bunnyPlayer.on('timeupdate', (data) => {
-                // player.js timeupdate: data = { seconds, duration } veya sadece number
-                let current, duration;
-                if (data && typeof data === 'object') {
-                    current = parseFloat(data.seconds);
-                    duration = parseFloat(data.duration);
-                } else {
-                    current = parseFloat(data);
-                    duration = totalDuration;
-                }
-
-                if (isNaN(current) || current < 0) return;
-
-                // maxWatchedSeconds sadece ileri giderse güncellenir (geri sarınca değişmez)
-                if (current > maxWatchedSeconds) maxWatchedSeconds = current;
-
-                // Her 5 saniyede bir log
-                if (Math.floor(current) % 5 === 0 && Math.floor(current) !== Math.floor(maxWatchedSeconds - 0.5)) {
-                    const dur = (duration > 0 ? duration : totalDuration) || '?';
-                    console.log('[WATCHING] ' + current.toFixed(1) + 's | maks: ' + maxWatchedSeconds.toFixed(1) + 's | toplam: ' + dur);
-                }
-
-                // %90 tamamlama kontrolü
-                const effectiveDuration = (duration > 0 ? duration : totalDuration);
-                if (!videoCompleted && effectiveDuration > 0 && maxWatchedSeconds >= effectiveDuration * 0.90) {
-                    videoCompleted = true;
-                    console.log('[TRACKING] DERS TAMAMLANDI (%90)!');
-                    markLessonComplete(currentLessonId);
-                }
+        let resolvedDuration = totalDuration;
+        try {
+            bunnyPlayer.getDuration((d) => {
+                if (typeof d === 'number' && d > 0) resolvedDuration = d;
             });
+        } catch (e) {}
 
-            bunnyPlayer.on('seeked', (data) => {
-                // Seek eventi: kullanıcı seek bar'ı hareket ettirdi
-                let seekedTo;
-                if (data && typeof data === 'object') {
-                    seekedTo = parseFloat(data.seconds);
-                } else {
-                    seekedTo = parseFloat(data);
-                }
+        let pollLogCounter = 0;
+        trackingInterval = setInterval(() => {
+            if (!bunnyPlayer) return;
+            if (seekLock) return;
 
-                if (isNaN(seekedTo)) return;
-                console.log('[TRACKING] Seek tespit: ' + seekedTo.toFixed(1) + 's | izlenen maks: ' + maxWatchedSeconds.toFixed(1) + 's');
+            try {
+                bunnyPlayer.getCurrentTime((current) => {
+                    if (typeof current !== 'number' || isNaN(current) || current < 0) return;
 
-                // İzlenmemiş bölgeye atladıysa geri götür (2 saniyelik tolerans)
-                if (seekedTo > maxWatchedSeconds + 2) {
-                    console.warn('[TRACKING] Ileri atlama ENGELLENDI! Geri sariliyor: ' + maxWatchedSeconds.toFixed(1) + 's');
-                    bunnyPlayer.setCurrentTime(maxWatchedSeconds);
-                    showNotification('Videoyu atlayamazsiniz! Sirali izleyin.', 'error');
-                }
-            });
+                    // Her 10 polling'de (~5s) bir log
+                    if (++pollLogCounter % 10 === 0) {
+                        console.log('[POLL] ' + current.toFixed(1) + 's | maks: ' + maxWatchedSeconds.toFixed(1) + 's | toplam: ' + resolvedDuration);
+                    }
 
-            bunnyPlayer.on('ended', () => {
-                if (!videoCompleted) {
-                    videoCompleted = true;
-                    console.log('[TRACKING] Video bitti, ders tamamlandi!');
-                    markLessonComplete(currentLessonId);
-                }
-            });
+                    // Seek tespiti: önceki pozisyona göre 2s'den fazla ileri sıçrama,
+                    // izlenmemiş bölgeye → geri sar
+                    if (lastTimeUpdatePos >= 0) {
+                        const jump = current - lastTimeUpdatePos;
+                        if (jump > 2 && current > maxWatchedSeconds + 2) {
+                            seekLock = true;
+                            console.warn('[TRACKING] Ileri atlama ENGELLENDI! ' + lastTimeUpdatePos.toFixed(1) + 's -> ' + current.toFixed(1) + 's | izlenen maks: ' + maxWatchedSeconds.toFixed(1) + 's');
+                            bunnyPlayer.setCurrentTime(maxWatchedSeconds);
+                            showNotification('Videoyu atlayamazsiniz! Sirali izleyin.', 'error');
+                            setTimeout(() => {
+                                seekLock = false;
+                                lastTimeUpdatePos = maxWatchedSeconds;
+                            }, 1500);
+                            return;
+                        }
+                    }
 
-            // play/pause eventlerini de dinle — debug için
-            bunnyPlayer.on('play', () => console.log('[TRACKING] Video oynuyor'));
-            bunnyPlayer.on('pause', () => console.log('[TRACKING] Video duraklatildi'));
+                    lastTimeUpdatePos = current;
+                    if (current > maxWatchedSeconds) maxWatchedSeconds = current;
 
-        }, 500); // Plyr'in tam init olması için 500ms bekle
+                    // %90 tamamlama kontrolü
+                    if (!videoCompleted && resolvedDuration > 0 && maxWatchedSeconds >= resolvedDuration * 0.90) {
+                        videoCompleted = true;
+                        console.log('[TRACKING] DERS TAMAMLANDI (%90)!');
+                        markLessonComplete(currentLessonId);
+                    }
+                });
+            } catch (e) {
+                console.warn('[TRACKING] getCurrentTime hata:', e);
+            }
+        }, 500);
+
+        bunnyPlayer.on('ended', () => {
+            if (!videoCompleted) {
+                videoCompleted = true;
+                console.log('[TRACKING] Video bitti, ders tamamlandi!');
+                markLessonComplete(currentLessonId);
+            }
+        });
     });
 }
