@@ -4,6 +4,41 @@ const path = require('path');
 const fs = require('fs');
 
 /**
+ * Belge dosyasını Bunny Storage'a yüklemeyi dener; başarısızsa
+ * kalıcı yerel klasöre (/uploads/lessons/) taşır. Hangisi başarılı
+ * olursa olsun final URL/path'i ve local yedek dosyanın silinip
+ * silinmemesi gerektiğini bildirir.
+ *
+ * @param {object} uploadedFile - multer file objesi
+ * @returns {Promise<{publicUrl: string, source: 'bunny'|'local'}>}
+ */
+const persistLessonDocument = async (uploadedFile) => {
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${uploadedFile.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const remoteName = `lessons/${safeName}`;
+
+    const result = await uploadFileToBunnyStorage(uploadedFile.path, remoteName);
+    if (result.success) {
+        // Bunny'e başarıyla yüklendi, temp dosyayı sil
+        try {
+            if (fs.existsSync(uploadedFile.path)) fs.unlinkSync(uploadedFile.path);
+        } catch (e) {
+            console.warn(`[LESSON DOC] Temp temizleme uyarısı: ${e.message}`);
+        }
+        return { publicUrl: result.publicUrl, source: 'bunny' };
+    }
+
+    // FALLBACK: Yerel kalıcı klasöre taşı
+    const lessonsDir = path.join(__dirname, '..', 'uploads', 'lessons');
+    if (!fs.existsSync(lessonsDir)) {
+        fs.mkdirSync(lessonsDir, { recursive: true });
+    }
+    const finalLocalPath = path.join(lessonsDir, safeName);
+    fs.renameSync(uploadedFile.path, finalLocalPath);
+    console.warn(`[LESSON DOC] Bunny başarısız, yerel diske düştü: /uploads/lessons/${safeName}`);
+    return { publicUrl: `/uploads/lessons/${safeName}`, source: 'local' };
+};
+
+/**
  * Yeni Bölüm Oluşturma
  * @route POST /api/curriculum/sections
  */
@@ -151,12 +186,17 @@ exports.createLesson = async (req, res, next) => {
                     const bunnyResult = await uploadVideoToBunny(tempFilePath, baslik);
                     bunnyVideoGuid = bunnyResult.guid;
                     finalVideoProvider = bunnyVideoGuid;
+                    // uploadVideoToBunny zaten arka planda temp'i siler, burada işaretliyoruz
+                    tempFilePath = null;
                 } catch (bunnyError) {
                     finalVideoProvider = null;
                 }
             } else {
-                // Belge ise Bunny Storage veya Local Path (Önceki yazdığımız kodun karşılığı)
-                finalVideoProvider = `/uploads/temp/${uploadedFile.filename}`;
+                // Belge: önce Bunny Storage, başarısızsa /uploads/lessons/ kalıcı yerel
+                const stored = await persistLessonDocument(uploadedFile);
+                finalVideoProvider = stored.publicUrl;
+                // persistLessonDocument başarılıysa temp'i taşıdı/sildi, cleanup gerekmez
+                tempFilePath = null;
             }
         }
 
