@@ -16,15 +16,33 @@ export const CurriculumActions = {
         return await response.json();
     },
 
-    async deleteSection(id) {
-        if (!confirm("Bu bölümü ve içindeki tüm dersleri silmek istediğinize emin misiniz?")) return false;
+    async deleteSection(id, courseDurum) {
+        const isDraft = courseDurum === 'taslak';
+        const message = isDraft
+            ? "Bu bölümü ve içindeki tüm dersleri KALICI olarak silmek istediğinize emin misiniz?"
+            : "Bu bölüm onaylı/yayında olduğu için kalıcı silinmeyecek; öğrencilerden GİZLENECEK. Devam edilsin mi?";
+        if (!confirm(message)) return false;
         await ApiService.delete(`/curriculum/sections/${id}`);
         return true;
     },
 
-    async deleteLesson(id) {
-        if (!confirm("Bu dersi silmek istediğinize emin misiniz?")) return false;
+    async deleteLesson(id, courseDurum) {
+        const isDraft = courseDurum === 'taslak';
+        const message = isDraft
+            ? "Bu dersi KALICI olarak silmek istediğinize emin misiniz?"
+            : "Bu kurs onaylı/yayında olduğu için ders kalıcı silinmeyecek; öğrencilerden GİZLENECEK ve ilerleme hesabından çıkarılacak. Devam edilsin mi?";
+        if (!confirm(message)) return false;
         await ApiService.delete(`/curriculum/lessons/${id}`);
+        return true;
+    },
+
+    async restoreSection(id) {
+        await ApiService.post(`/curriculum/sections/${id}/restore`, {});
+        return true;
+    },
+
+    async restoreLesson(id) {
+        await ApiService.post(`/curriculum/lessons/${id}/restore`, {});
         return true;
     },
 

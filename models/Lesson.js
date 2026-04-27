@@ -47,6 +47,16 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      gizli_mi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Soft-delete bayragi. true ise ders ogrenciye gosterilmez ve ilerleme hesabindan dusulur.'
+      },
+      gizlenme_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'dersler',

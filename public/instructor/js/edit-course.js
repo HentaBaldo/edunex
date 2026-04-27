@@ -44,6 +44,12 @@ async function loadCurriculum() {
         const result = await ApiService.get(`/curriculum/${courseId}`);
         const sections = result.data || [];
 
+        // Kursun mevcut durumunu cache'le (silme onay metinleri vs. icin)
+        if (result.course) {
+            window.__courseDurum = result.course.durum;
+            window.__courseEditedAfterApproval = !!result.course.onaydan_sonra_duzenlendi_mi;
+        }
+
         if (sections.length === 0) {
             listDiv.innerHTML = `
                 <div class="empty-section">
@@ -55,6 +61,18 @@ async function loadCurriculum() {
         }
 
         listDiv.innerHTML = '';
+
+        // Onaylı/yayında kursta düzenleme bayrağı varsa eğitmene de hatırlat
+        if (window.__courseDurum && window.__courseDurum !== 'taslak' && window.__courseDurum !== 'arsiv') {
+            const banner = `
+                <div style="background:#fef3c7; color:#78350f; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:0.88rem;">
+                    <i class="fas fa-info-circle"></i>
+                    Bu kurs <strong>${escapeHtml(window.__courseDurum)}</strong> durumunda. Yapacağınız değişiklikler izli düzenleme olarak kaydedilir; ders silindiğinde fiziksel olarak silinmek yerine öğrencilerden gizlenir.
+                </div>
+            `;
+            listDiv.insertAdjacentHTML('beforeend', banner);
+        }
+
         sections.forEach(section => {
             const sectionHtml = renderSection(section);
             listDiv.insertAdjacentHTML('beforeend', sectionHtml);
@@ -76,23 +94,39 @@ async function loadCurriculum() {
  */
 function renderSection(section) {
     const lessons = section.Lessons || [];
+    const isHidden = !!section.gizli_mi;
+
+    // Gizli bolumler icin gri arkaplan + rozet + restore butonu
+    const hiddenStyle = isHidden ? 'opacity: 0.6; background-color: #f3f4f6;' : '';
+    const hiddenBadge = isHidden
+        ? `<span style="background:#fee2e2; color:#991b1b; font-size:0.72rem; padding:3px 10px; border-radius:12px; margin-left:10px;">
+             <i class="fas fa-eye-slash"></i> Gizli (öğrenciler göremez)
+           </span>`
+        : '';
+
+    const actionButtons = isHidden
+        ? `<button type="button" class="btn-primary-sm btn-restore-section" data-section-id="${section.id}" style="background:#10b981;" title="Bölümü geri yükle">
+              <i class="fas fa-undo"></i> Geri Yükle
+           </button>`
+        : `<button type="button" class="btn-primary-sm btn-add-lesson" data-section-id="${section.id}">
+              <i class="fas fa-plus"></i> Ders Ekle
+           </button>
+           <button type="button" class="btn-delete-icon btn-delete-section" data-section-id="${section.id}" title="Bölümü sil/gizle">
+              <i class="fas fa-trash-alt"></i>
+           </button>`;
 
     return `
-        <div class="section-item" id="section-${section.id}">
+        <div class="section-item" id="section-${section.id}" style="${hiddenStyle}">
             <div class="section-header">
                 <div class="section-title-group">
                     <h4>
                         <i class="fas fa-folder" style="color: #2563eb;"></i>
                         ${escapeHtml(section.baslik)}
+                        ${hiddenBadge}
                     </h4>
                 </div>
                 <div class="action-buttons">
-                    <button type="button" class="btn-primary-sm btn-add-lesson" data-section-id="${section.id}">
-                        <i class="fas fa-plus"></i> Ders Ekle
-                    </button>
-                    <button type="button" class="btn-delete-icon btn-delete-section" data-section-id="${section.id}" title="Bölümü sil">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    ${actionButtons}
                 </div>
             </div>
             <div class="lessons-list" id="lessons-${section.id}">
@@ -115,19 +149,34 @@ function renderLessons(lessons) {
             ? `${Math.floor(lesson.sure_saniye / 60)}m`
             : '';
         const sourceInfo = renderLessonSourceBadge(lesson);
+        const isHidden = !!lesson.gizli_mi;
+
+        const hiddenStyle = isHidden ? 'opacity: 0.55; background-color: #f9fafb; text-decoration: line-through;' : '';
+        const hiddenBadge = isHidden
+            ? `<span style="background:#fee2e2; color:#991b1b; font-size:0.7rem; padding:2px 8px; border-radius:10px; margin-left:6px; text-decoration:none;">
+                 <i class="fas fa-eye-slash"></i> Gizli
+               </span>`
+            : '';
+
+        const actionBtn = isHidden
+            ? `<button type="button" class="btn-primary-sm btn-restore-lesson" data-lesson-id="${lesson.id}" style="background:#10b981; padding:4px 10px;" title="Dersi geri yükle">
+                  <i class="fas fa-undo"></i>
+               </button>`
+            : `<button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil/gizle">
+                  <i class="fas fa-times"></i>
+               </button>`;
 
         return `
-            <div class="lesson-item" id="lesson-${lesson.id}">
+            <div class="lesson-item" id="lesson-${lesson.id}" style="${hiddenStyle}">
                 <div class="lesson-info">
                     <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
                     <span>${escapeHtml(lesson.baslik)}</span>
+                    ${hiddenBadge}
                     ${sourceInfo}
                     ${lesson.onizleme_mi ? '<i class="fas fa-eye" style="color: #2563eb; margin-left: 8px;" title="Ücretsiz önizleme"></i>' : ''}
                     ${durationText ? `<span style="color: #64748b; font-size: 0.8rem; margin-left: 8px;">${durationText}</span>` : ''}
                 </div>
-                <button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil">
-                    <i class="fas fa-times"></i>
-                </button>
+                ${actionBtn}
             </div>
         `;
     }).join('');
@@ -260,6 +309,8 @@ function setupEventListeners() {
             const addLessonBtn = e.target.closest('.btn-add-lesson');
             const deleteSecBtn = e.target.closest('.btn-delete-section');
             const deleteLesBtn = e.target.closest('.btn-delete-lesson');
+            const restoreSecBtn = e.target.closest('.btn-restore-section');
+            const restoreLesBtn = e.target.closest('.btn-restore-lesson');
 
             if (addLessonBtn) {
                 const sectionId = addLessonBtn.dataset.sectionId;
@@ -274,6 +325,16 @@ function setupEventListeners() {
             if (deleteLesBtn) {
                 const lessonId = deleteLesBtn.dataset.lessonId;
                 await handleDeleteLesson(lessonId);
+            }
+
+            if (restoreSecBtn) {
+                const sectionId = restoreSecBtn.dataset.sectionId;
+                await handleRestoreSection(sectionId);
+            }
+
+            if (restoreLesBtn) {
+                const lessonId = restoreLesBtn.dataset.lessonId;
+                await handleRestoreLesson(lessonId);
             }
         });
     }
@@ -462,14 +523,28 @@ function createUploadProgressBox(baslik, formData) {
 }
 
 /**
- * Bölüm silme işlemi
+ * Mevcut kursun durumunu DOM'dan veya cache'den oku.
+ * window.__courseDurum loadCourse() tarafindan set ediliyor.
+ */
+function getCourseDurum() {
+    return window.__courseDurum || 'taslak';
+}
+
+/**
+ * Bölüm silme/gizleme işlemi.
+ * Taslakta hard-delete, diger durumlarda soft-delete (gizleme) yapilir.
  */
 async function handleDeleteSection(sectionId) {
-    if (!confirm('Bu bölümü ve tüm derslerini silmek istediğinize emin misiniz?')) return;
+    const durum = getCourseDurum();
+    const isDraft = durum === 'taslak';
+    const message = isDraft
+        ? 'Bu bölümü ve tüm derslerini KALICI olarak silmek istediğinize emin misiniz?'
+        : 'Bu kurs onaylı/yayında olduğu için bölüm KALICI silinmeyecek; öğrencilerden GİZLENECEK ve ilerleme hesabından çıkarılacak. Devam edilsin mi?';
+    if (!confirm(message)) return;
 
     try {
         await ApiService.delete(`/curriculum/sections/${sectionId}`);
-        showToast('Bölüm başarıyla silindi.', 'success');
+        showToast(isDraft ? 'Bölüm silindi.' : 'Bölüm gizlendi.', 'success');
         await loadCurriculum();
     } catch (error) {
         console.error('[SECTION DELETE] Hata:', error.message);
@@ -478,17 +553,52 @@ async function handleDeleteSection(sectionId) {
 }
 
 /**
- * Ders silme işlemi
+ * Ders silme/gizleme işlemi.
  */
 async function handleDeleteLesson(lessonId) {
-    if (!confirm('Bu dersi silmek istediğinize emin misiniz?')) return;
+    const durum = getCourseDurum();
+    const isDraft = durum === 'taslak';
+    const message = isDraft
+        ? 'Bu dersi KALICI olarak silmek istediğinize emin misiniz?'
+        : 'Bu kurs onaylı/yayında olduğu için ders KALICI silinmeyecek; öğrencilerden GİZLENECEK ve ilerleme hesabından çıkarılacak. Devam edilsin mi?';
+    if (!confirm(message)) return;
 
     try {
         await ApiService.delete(`/curriculum/lessons/${lessonId}`);
-        showToast('Ders başarıyla silindi.', 'success');
+        showToast(isDraft ? 'Ders silindi.' : 'Ders gizlendi.', 'success');
         await loadCurriculum();
     } catch (error) {
         console.error('[LESSON DELETE] Hata:', error.message);
+        showToast(`Hata: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Soft-delete edilmis bolumu geri yukle.
+ */
+async function handleRestoreSection(sectionId) {
+    if (!confirm('Bu bölümü geri yüklemek istiyor musunuz? İçindeki dersleri ayrıca geri yüklemeniz gerekebilir.')) return;
+    try {
+        await ApiService.post(`/curriculum/sections/${sectionId}/restore`, {});
+        showToast('Bölüm geri yüklendi.', 'success');
+        await loadCurriculum();
+    } catch (error) {
+        console.error('[SECTION RESTORE] Hata:', error.message);
+        showToast(`Hata: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Soft-delete edilmis dersi geri yukle.
+ */
+async function handleRestoreLesson(lessonId) {
+    if (!confirm('Bu dersi geri yüklemek istiyor musunuz?')) return;
+    try {
+        await ApiService.post(`/curriculum/lessons/${lessonId}/restore`, {});
+        showToast('Ders geri yüklendi.', 'success');
+        await loadCurriculum();
+    } catch (error) {
+        console.error('[LESSON RESTORE] Hata:', error.message);
         showToast(`Hata: ${error.message}`, 'error');
     }
 }

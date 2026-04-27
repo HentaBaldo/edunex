@@ -25,9 +25,16 @@ async function fetchPendingCourses() {
             return;
         }
         
-        list.innerHTML = data.courses.map(course => `
+        list.innerHTML = data.courses.map(course => {
+            // Onay/yayin sonrasi yapilmis duzenleme bayragi
+            const editedBadge = course.onaydan_sonra_duzenlendi_mi
+                ? `<span class="badge bg-warning" style="background:#f59e0b !important; color:#fff; margin-left:6px;" title="Bu kursta onay/yayin sonrasi degisiklik yapildi${course.son_duzenleme_tarihi ? ' (' + new Date(course.son_duzenleme_tarihi).toLocaleString('tr-TR') + ')' : ''}">
+                       <i class="fas fa-pen-to-square"></i> Düzenlenmiş
+                     </span>`
+                : '';
+            return `
             <tr>
-                <td><strong>${course.baslik}</strong></td>
+                <td><strong>${course.baslik}</strong>${editedBadge}</td>
                 <td>${course.Egitmen ? course.Egitmen.ad + ' ' + course.Egitmen.soyad : 'Bilinmiyor'}</td>
                 <td>${course.Category ? course.Category.ad : 'Belirtilmedi'}</td>
                 <td>${course.fiyat > 0 ? course.fiyat + ' ₺' : 'Ücretsiz'}</td>
@@ -44,7 +51,8 @@ async function fetchPendingCourses() {
                     </button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
         
     } catch (error) {
         console.error('[ADMIN COURSES FETCH] Hata:', error);
@@ -96,15 +104,21 @@ async function viewCourseDetails(courseId) {
 
         if (course.Sections && course.Sections.length > 0) {
             mufredatHtml = course.Sections.map(sec => {
-                const dersCount = (sec.Lessons || []).length;
+                const visibleLessons = (sec.Lessons || []).filter(l => !l.gizli_mi);
+                const dersCount = visibleLessons.length;
                 toplamDersler += dersCount;
-                const bölümSüresi = (sec.Lessons || []).reduce((sum, les) => sum + (les.sure_saniye || 0), 0);
+                const bölümSüresi = visibleLessons.reduce((sum, les) => sum + (les.sure_saniye || 0), 0);
                 toplamSure += bölümSüresi;
 
+                const sectionHiddenStyle = sec.gizli_mi ? 'opacity: 0.55; background: #fef2f2 !important;' : '';
+                const sectionHiddenBadge = sec.gizli_mi
+                    ? `<span style="background:#fee2e2; color:#991b1b; font-size:0.75rem; padding:3px 8px; border-radius:10px; margin-left:8px;"><i class="fas fa-eye-slash"></i> Gizli</span>`
+                    : '';
+
                 return `
-                    <div style="margin-bottom: 15px; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; background: #f8fafc;">
+                    <div style="margin-bottom: 15px; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; background: #f8fafc; ${sectionHiddenStyle}">
                         <div style="font-weight: 700; color: #1e293b; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                            <span><i class="fas fa-folder-open" style="color: #3b82f6;"></i> Bölüm ${sec.sira_numarasi}: ${sec.baslik}</span>
+                            <span><i class="fas fa-folder-open" style="color: #3b82f6;"></i> Bölüm ${sec.sira_numarasi}: ${sec.baslik} ${sectionHiddenBadge}</span>
                             <span style="font-size: 0.85rem; background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px;">${dersCount} ders</span>
                         </div>
                         <ul style="list-style: none; padding-left: 0; margin: 0;">
@@ -151,11 +165,17 @@ async function viewCourseDetails(courseId) {
                             const isHybrid = les.video_saglayici_id && les.kaynak_url && (les.video_saglayici_id !== les.kaynak_url);
                             const hybridBadge = isHybrid ? '<span style="font-size:0.7rem; background:#f59e0b; color:white; padding:2px 6px; border-radius:3px; margin-left:6px;"><i class="fas fa-layer-group"></i> Hibrit</span>' : '';
 
+                            const lessonHiddenStyle = les.gizli_mi ? 'opacity: 0.5; background:#fef2f2; text-decoration: line-through;' : '';
+                            const lessonHiddenBadge = les.gizli_mi
+                                ? '<span style="font-size:0.7rem; background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:3px; margin-left:6px; text-decoration:none;"><i class="fas fa-eye-slash"></i> Gizli</span>'
+                                : '';
+
                             return `
-                                <li style="padding: 12px; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; flex-wrap: wrap; gap: 10px;">
+                                <li style="padding: 12px; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; flex-wrap: wrap; gap: 10px; ${lessonHiddenStyle}">
                                     <span>
-                                        <i class="fas fa-${fileIcon}" style="color: #64748b; margin-right: 8px;"></i> 
+                                        <i class="fas fa-${fileIcon}" style="color: #64748b; margin-right: 8px;"></i>
                                         ${les.sira_numarasi}. ${les.baslik}
+                                        ${lessonHiddenBadge}
                                         ${hybridBadge}
                                         ${les.onizleme_mi ? '<span style="font-size:0.75rem; background:#10b981; color:white; padding:2px 6px; border-radius:3px; margin-left:6px;">Ücretsiz</span>' : ''}
                                     </span>
@@ -181,6 +201,22 @@ async function viewCourseDetails(courseId) {
 
         document.getElementById('gmTitle').textContent = course.baslik;
         document.getElementById('gmPrice').textContent = course.fiyat > 0 ? `(${course.fiyat} ₺)` : '(Ücretsiz)';
+
+        // "Onaydan sonra duzenlenmis" rozeti basliga eklenir
+        const titleEl = document.getElementById('gmTitle');
+        if (titleEl && course.onaydan_sonra_duzenlendi_mi) {
+            const lastEdited = course.son_duzenleme_tarihi
+                ? new Date(course.son_duzenleme_tarihi).toLocaleString('tr-TR')
+                : 'tarih yok';
+            titleEl.insertAdjacentHTML('afterend',
+                `<div id="gmEditedBanner" style="background:#fef3c7; color:#78350f; padding:8px 12px; border-radius:6px; margin-top:8px; font-size:0.85rem;">
+                   <i class="fas fa-pen-to-square"></i> Bu kurs onaylandiktan sonra duzenlendi. Son degisiklik: <strong>${lastEdited}</strong>
+                 </div>`
+            );
+        } else {
+            // Eski banner'i temizle (modal yeniden acildiginda dublicate olmasin)
+            document.getElementById('gmEditedBanner')?.remove();
+        }
         document.getElementById('gmInstructorName').textContent = egitmenAdSoyad;
         document.getElementById('gmInstructorTitle').textContent = egitmenUnvan;
         document.getElementById('gmLevel').textContent = course.seviye;

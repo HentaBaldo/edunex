@@ -154,6 +154,8 @@ const course = await Course.findByPk(id, {
       'durum',
       'olusturulma_tarihi',
       'kazanimlar',
+      'son_duzenleme_tarihi',
+      'onaydan_sonra_duzenlendi_mi',
     ],
     include: [
       {
@@ -177,23 +179,24 @@ const course = await Course.findByPk(id, {
       {
         model: CourseSection,
         as: 'Sections',
-        // Eğer buradaki alan adları sizde farklıysa attributes'ı kaldırın
-        attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi'],
+        // Admin gizli icerigi de gormeli (rozetli olarak)
+        attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi', 'gizli_mi', 'gizlenme_tarihi'],
         include: [
             {
                 model: Lesson,
                 as: 'Lessons',
-                // Modelindeki tüm kritik alanları buraya ekledik!
                 attributes: [
-                  'id', 
-                  'baslik', 
-                  'icerik_tipi', 
-                  'sure_saniye', 
-                  'sira_numarasi', 
-                  'video_saglayici_id', 
-                  'kaynak_url', 
+                  'id',
+                  'baslik',
+                  'icerik_tipi',
+                  'sure_saniye',
+                  'sira_numarasi',
+                  'video_saglayici_id',
+                  'kaynak_url',
                   'aciklama',
-                  'onizleme_mi'
+                  'onizleme_mi',
+                  'gizli_mi',
+                  'gizlenme_tarihi'
                 ],
                 required: false,
               },

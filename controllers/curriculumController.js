@@ -1,7 +1,69 @@
-const { CourseSection, Lesson, Course } = require('../models');
+const { CourseSection, Lesson, Course, CourseEnrollment } = require('../models');
 const { uploadVideoToBunny, uploadFileToBunnyStorage } = require('../services/bunnyService');
+const { recalculateCourseProgress } = require('../services/progressService');
 const path = require('path');
 const fs = require('fs');
+
+/**
+ * Bir kursun arsiv durumunda olmadigini dogrular. Arsiv kurslar
+ * uzerinde mufredat degisikligine asla izin verilmez.
+ *
+ * @param {object} course - durum alanini iceren Course instance/POJO
+ * @param {string} actionLabel - hata mesajinda gecen islem adi
+ */
+const assertCourseNotArchived = (course, actionLabel = 'islem') => {
+    if (course.durum === 'arsiv') {
+        const error = new Error(`Arsivlenmis kurs uzerinde ${actionLabel} yapilamaz.`);
+        error.statusCode = 403;
+        throw error;
+    }
+};
+
+/**
+ * Kurs taslak (taslak) degilse "izli duzenleme" rejimine girilir:
+ * son_duzenleme_tarihi guncellenir ve onaydan_sonra_duzenlendi_mi
+ * true yapilir. Bu sayede admin paneli kursun onay/yayin sonrasi
+ * degistirildigini ayirt edebilir.
+ *
+ * @param {object} course - Course instance (.update cagiriabilir olmali)
+ */
+const markCourseEdited = async (course) => {
+    if (!course || typeof course.update !== 'function') return;
+    const isTracked = course.durum !== 'taslak';
+    await course.update({
+        son_duzenleme_tarihi: new Date(),
+        onaydan_sonra_duzenlendi_mi: isTracked ? true : course.onaydan_sonra_duzenlendi_mi
+    });
+};
+
+/**
+ * Bir kursa kayitli butun ogrencilerin ilerleme yuzdesini arka planda
+ * yeniden hesaplar. Mufredat degistiginde (ders gizleme/silme/ekleme,
+ * bolum gizleme) arka planda fire-and-forget cagrilir; cevabi
+ * bekletmez.
+ *
+ * @param {string} kursId
+ */
+const recalcAllStudentsAsync = (kursId) => {
+    setImmediate(async () => {
+        try {
+            const enrollments = await CourseEnrollment.findAll({
+                where: { kurs_id: kursId },
+                attributes: ['ogrenci_id']
+            });
+            for (const e of enrollments) {
+                try {
+                    await recalculateCourseProgress(e.ogrenci_id, kursId);
+                } catch (innerErr) {
+                    console.warn(`[PROGRESS BULK] ${e.ogrenci_id}: ${innerErr.message}`);
+                }
+            }
+            console.log(`[PROGRESS BULK] Kurs ${kursId} icin ${enrollments.length} kayit guncellendi.`);
+        } catch (err) {
+            console.error(`[PROGRESS BULK] Hata: ${err.message}`);
+        }
+    });
+};
 
 /**
  * Belge dosyasını Bunny Storage'a yüklemeyi dener; başarısızsa
@@ -65,12 +127,8 @@ exports.createSection = async (req, res, next) => {
             throw error;
         }
 
-        // KURS DEĞİŞİKLİK KİLİDİ
-        if (course.durum !== 'taslak') {
-            const error = new Error('Sadece taslak durumundaki kurslara bölüm eklenebilir. Yayında veya onayda olan kurslar değiştirilemez.');
-            error.statusCode = 403;
-            throw error;
-        }
+        // KURS DEĞİŞİKLİK KİLİDİ — sadece arsiv kilitler; diger durumlar izli duzenleme
+        assertCourseNotArchived(course, 'bolum ekleme');
 
         // SIRA NUMARASI HESAPLA
         const maxSira = await CourseSection.max('sira_numarasi', {
@@ -84,6 +142,9 @@ exports.createSection = async (req, res, next) => {
             aciklama: aciklama || '',
             sira_numarasi: nextOrder
         });
+
+        // Izli duzenleme: kursta degisiklik yapildiginin izini birak
+        await markCourseEdited(course);
 
         console.log(`[SECTION CREATE] Bölüm oluşturuldu: ${section.id}`);
 
@@ -148,12 +209,8 @@ exports.createLesson = async (req, res, next) => {
             throw error;
         }
 
-        // KURS DEĞİŞİKLİK KİLİDİ
-        if (section.Course.durum !== 'taslak') {
-            const error = new Error('Sadece taslak durumundaki kursların müfredatında değişiklik yapılabilir.');
-            error.statusCode = 403;
-            throw error;
-        }
+        // KURS DEĞİŞİKLİK KİLİDİ — sadece arsiv kilitler
+        assertCourseNotArchived(section.Course, 'ders ekleme');
 
         // === SIRA NUMARASI HESAPLA ===
         const maxSira = await Lesson.max('sira_numarasi', {
@@ -213,6 +270,10 @@ exports.createLesson = async (req, res, next) => {
             icerik_tipi: icerik_tipi || 'video'
         });
 
+        // Izli duzenleme + tum kayitli ogrencilerin ilerlemesini arka planda tazele
+        await markCourseEdited(section.Course);
+        recalcAllStudentsAsync(section.Course.id);
+
         console.log(`[LESSON CREATE] ✅ Ders kaydedildi - ID: ${newLesson.id}, Video: ${newLesson.video_saglayici_id}`);
 
         return res.status(201).json({
@@ -223,8 +284,8 @@ exports.createLesson = async (req, res, next) => {
                 baslik: newLesson.baslik,
                 video_saglayici_id: newLesson.video_saglayici_id,
                 sira_numarasi: newLesson.sira_numarasi,
-                processingNote: bunnyVideoGuid 
-                    ? '✓ Video Bunny.net\'te işleniyor (1-30 dakika)' 
+                processingNote: bunnyVideoGuid
+                    ? '✓ Video Bunny.net\'te işleniyor (1-30 dakika)'
                     : 'Video yok'
             }
         });
@@ -275,17 +336,16 @@ exports.updateSection = async (req, res, next) => {
             throw error;
         }
 
-        // KURS DEĞİŞİKLİK KİLİDİ
-        if (section.Course.durum !== 'taslak') {
-            const error = new Error('Sadece taslak durumundaki kursların bölümleri güncellenebilir.');
-            error.statusCode = 403;
-            throw error;
-        }
+        // KURS DEĞİŞİKLİK KİLİDİ — sadece arsiv kilitler
+        assertCourseNotArchived(section.Course, 'bolum guncelleme');
 
         await section.update({
             baslik: baslik || section.baslik,
             aciklama: aciklama || section.aciklama
         });
+
+        // Izli duzenleme
+        await markCourseEdited(section.Course);
 
         console.log(`[SECTION UPDATE] Bölüm güncellendi: ${section.id}`);
 
@@ -405,12 +465,8 @@ exports.updateLesson = async (req, res, next) => {
             throw error;
         }
 
-        // KURS DEĞİŞİKLİK KİLİDİ
-        if (lesson.CourseSection.Course.durum !== 'taslak') {
-            const error = new Error('Sadece taslak durumundaki kursların dersleri güncellenebilir.');
-            error.statusCode = 403;
-            throw error;
-        }
+        // KURS DEĞİŞİKLİK KİLİDİ — sadece arsiv kilitler
+        assertCourseNotArchived(lesson.CourseSection.Course, 'ders guncelleme');
 
         const sanitizedData = sanitizeLessonData({
             baslik,
@@ -422,6 +478,9 @@ exports.updateLesson = async (req, res, next) => {
         });
 
         await lesson.update(sanitizedData);
+
+        // Izli duzenleme
+        await markCourseEdited(lesson.CourseSection.Course);
 
         console.log(`[LESSON UPDATE] Ders güncellendi: ${lesson.id}`);
 
@@ -471,22 +530,33 @@ exports.deleteSection = async (req, res, next) => {
             throw error;
         }
 
-        // KURS DEĞİŞİKLİK KİLİDİ
-        if (section.Course.durum !== 'taslak') {
-            const error = new Error('Onaya gönderilmiş veya yayında olan kurslardan içerik silinemez.');
-            error.statusCode = 403;
-            throw error;
+        // KURS DEĞİŞİKLİK KİLİDİ — sadece arsiv kilitler
+        assertCourseNotArchived(section.Course, 'bolum silme');
+
+        if (section.Course.durum === 'taslak') {
+            // TASLAK: gercek (hard) silme. Cascade dersleri de fiziksel olarak siler.
+            await Lesson.destroy({ where: { bolum_id: id } });
+            await section.destroy();
+            console.log(`[SECTION DELETE] Taslak bolum hard-delete: ${id}`);
+        } else {
+            // ONAY/ONAYLANDI/YAYINDA: soft-delete. Bolum + icindeki dersler gizlenir.
+            // Bu sayede ogrenci ilerlemesi (gizli_mi=true filtresi sayesinde) bozulmaz.
+            const now = new Date();
+            await Lesson.update(
+                { gizli_mi: true, gizlenme_tarihi: now },
+                { where: { bolum_id: id, gizli_mi: false } }
+            );
+            await section.update({ gizli_mi: true, gizlenme_tarihi: now });
+            await markCourseEdited(section.Course);
+            recalcAllStudentsAsync(section.Course.id);
+            console.log(`[SECTION DELETE] Bolum soft-delete (gizlendi): ${id}`);
         }
-
-        // CASCADE: Dersleri sil
-        await Lesson.destroy({ where: { bolum_id: id } });
-        await section.destroy();
-
-        console.log(`[SECTION DELETE] Bölüm silindi: ${id}`);
 
         return res.status(200).json({
             status: 'success',
-            message: 'Bölüm ve ilişkili dersler başarıyla silindi.'
+            message: section.Course.durum === 'taslak'
+                ? 'Bölüm ve ilişkili dersler kalıcı olarak silindi.'
+                : 'Bölüm gizlendi. Öğrenciler artık göremeyecek; istenirse geri yüklenebilir.'
         });
     } catch (error) {
         console.error(`[SECTION DELETE] HATA: ${error.message}`);
@@ -526,23 +596,146 @@ exports.deleteLesson = async (req, res, next) => {
             throw error;
         }
 
-        // KURS DEĞİŞİKLİK KİLİDİ
-        if (lesson.CourseSection.Course.durum !== 'taslak') {
-            const error = new Error('Onaya gönderilmiş veya yayında olan kurslardan içerik silinemez.');
+        // KURS DEĞİŞİKLİK KİLİDİ — sadece arsiv kilitler
+        assertCourseNotArchived(lesson.CourseSection.Course, 'ders silme');
+
+        const courseDurum = lesson.CourseSection.Course.durum;
+        const courseId = lesson.CourseSection.Course.id;
+
+        if (courseDurum === 'taslak') {
+            // TASLAK: hard-delete
+            await lesson.destroy();
+            console.log(`[LESSON DELETE] Taslak ders hard-delete: ${id}`);
+        } else {
+            // ONAY/ONAYLANDI/YAYINDA: soft-delete (gizli_mi=true). Bu ders artik
+            // ogrenciye gosterilmez ve ilerleme hesabindan tamamen dusulur.
+            await lesson.update({ gizli_mi: true, gizlenme_tarihi: new Date() });
+            await markCourseEdited(lesson.CourseSection.Course);
+            recalcAllStudentsAsync(courseId);
+            console.log(`[LESSON DELETE] Ders soft-delete (gizlendi): ${id}`);
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: courseDurum === 'taslak'
+                ? 'Ders kalıcı olarak silindi.'
+                : 'Ders gizlendi. Öğrenciler artık göremeyecek; istenirse geri yüklenebilir.'
+        });
+    } catch (error) {
+        console.error(`[LESSON DELETE] HATA: ${error.message}`);
+        next(error);
+    }
+};
+
+/**
+ * Soft-delete edilmis dersi geri yukle (gizli_mi=false)
+ * @route POST /api/curriculum/lessons/:id/restore
+ */
+exports.restoreLesson = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const lesson = await Lesson.findOne({
+            where: { id },
+            include: [{
+                model: CourseSection,
+                include: [{
+                    model: Course,
+                    attributes: ['id', 'egitmen_id', 'durum', 'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi']
+                }]
+            }]
+        });
+
+        if (!lesson) {
+            const error = new Error('Ders bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (lesson.CourseSection.Course.egitmen_id !== userId) {
+            const error = new Error('Bu dersi geri yükleme yetkiniz yok.');
             error.statusCode = 403;
             throw error;
         }
 
-        await lesson.destroy();
+        assertCourseNotArchived(lesson.CourseSection.Course, 'ders geri yukleme');
 
-        console.log(`[LESSON DELETE] Ders silindi: ${id}`);
+        if (!lesson.gizli_mi) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'Ders zaten görünür durumda.'
+            });
+        }
+
+        await lesson.update({ gizli_mi: false, gizlenme_tarihi: null });
+        await markCourseEdited(lesson.CourseSection.Course);
+        recalcAllStudentsAsync(lesson.CourseSection.Course.id);
+
+        console.log(`[LESSON RESTORE] Ders geri yuklendi: ${id}`);
 
         return res.status(200).json({
             status: 'success',
-            message: 'Ders başarıyla silindi.'
+            message: 'Ders başarıyla geri yüklendi.'
         });
     } catch (error) {
-        console.error(`[LESSON DELETE] HATA: ${error.message}`);
+        console.error(`[LESSON RESTORE] HATA: ${error.message}`);
+        next(error);
+    }
+};
+
+/**
+ * Soft-delete edilmis bolumu geri yukle. Bolum geri yuklenirken
+ * iceindeki dersler OTOMATIK gizliden cikarilmaz; egitmen istedigi
+ * dersleri ayrica geri yuklemelidir (acik kasit).
+ * @route POST /api/curriculum/sections/:id/restore
+ */
+exports.restoreSection = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const section = await CourseSection.findOne({
+            where: { id },
+            include: [{
+                model: Course,
+                attributes: ['id', 'egitmen_id', 'durum', 'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi']
+            }]
+        });
+
+        if (!section) {
+            const error = new Error('Bölüm bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (section.Course.egitmen_id !== userId) {
+            const error = new Error('Bu bölümü geri yükleme yetkiniz yok.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        assertCourseNotArchived(section.Course, 'bolum geri yukleme');
+
+        if (!section.gizli_mi) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'Bölüm zaten görünür durumda.'
+            });
+        }
+
+        await section.update({ gizli_mi: false, gizlenme_tarihi: null });
+        await markCourseEdited(section.Course);
+        recalcAllStudentsAsync(section.Course.id);
+
+        console.log(`[SECTION RESTORE] Bolum geri yuklendi: ${id}`);
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Bölüm geri yüklendi. İçindeki dersleri tek tek geri yüklemeniz gerekebilir.'
+        });
+    } catch (error) {
+        console.error(`[SECTION RESTORE] HATA: ${error.message}`);
         next(error);
     }
 };
@@ -555,13 +748,15 @@ exports.getFullCurriculum = async (req, res, next) => {
     try {
         const { courseId } = req.params;
 
+        // Egitmen kendi mufredatini gorurken gizli icerigi de gormeli (bayrakli olarak),
+        // boylece UI'dan geri yukleyebilir.
         const curriculum = await CourseSection.findAll({
             where: { kurs_id: courseId },
-            attributes: ['id', 'kurs_id', 'baslik', 'aciklama', 'sira_numarasi'],
+            attributes: ['id', 'kurs_id', 'baslik', 'aciklama', 'sira_numarasi', 'gizli_mi', 'gizlenme_tarihi'],
             include: [{
                 model: Lesson,
                 as: 'Lessons',
-                attributes: ['id', 'bolum_id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi', 'kaynak_url', 'aciklama', 'video_saglayici_id'],
+                attributes: ['id', 'bolum_id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi', 'kaynak_url', 'aciklama', 'video_saglayici_id', 'gizli_mi', 'gizlenme_tarihi'],
                 required: false
             }],
             order: [
@@ -570,12 +765,18 @@ exports.getFullCurriculum = async (req, res, next) => {
             ]
         });
 
+        // UI'da silme onayi metnini dogru yazabilmek icin kursun durum bilgisini de ekle.
+        const course = await Course.findByPk(courseId, {
+            attributes: ['id', 'durum', 'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi']
+        });
+
         console.log(`[CURRICULUM GET] Müfredat getirildi: ${courseId} (${curriculum.length} bölüm)`);
 
         return res.status(200).json({
             status: 'success',
             message: curriculum.length === 0 ? 'Bu kurs için henüz bölüm eklenmemiş.' : 'Müfredat başarıyla alındı.',
-            data: curriculum
+            data: curriculum,
+            course: course || null
         });
     } catch (error) {
         console.error(`[CURRICULUM GET] HATA: ${error.message}`);
