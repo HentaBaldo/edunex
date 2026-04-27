@@ -12,6 +12,8 @@ const upload = require('../middleware/uploadMiddleware');
 router.post('/sections', verifyToken, isInstructor, curriculumController.createSection);
 router.put('/sections/:id', verifyToken, isInstructor, curriculumController.updateSection);
 router.delete('/sections/:id', verifyToken, isInstructor, curriculumController.deleteSection);
+// Soft-delete edilmis bolumu geri yukle
+router.post('/sections/:id/restore', verifyToken, isInstructor, curriculumController.restoreSection);
 
 /**
  * === LESSON (DERS) ROUTES ===
@@ -51,6 +53,8 @@ router.put('/lessons/:id', verifyToken, isInstructor, curriculumController.updat
  * Ders sil
  */
 router.delete('/lessons/:id', verifyToken, isInstructor, curriculumController.deleteLesson);
+// Soft-delete edilmis dersi geri yukle
+router.post('/lessons/:id/restore', verifyToken, isInstructor, curriculumController.restoreLesson);
 
 /**
  * === CURRICULUM GET ROUTES ===

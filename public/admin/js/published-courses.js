@@ -40,12 +40,20 @@ function renderReports(courses) {
         const instructorName = course.Egitmen ? `${course.Egitmen.ad} ${course.Egitmen.soyad}` : 'Bilinmiyor';
         const categoryName = course.Category ? course.Category.ad : 'Genel';
 
+        // Onay sonrası düzenleme rozeti
+        const editedBadge = course.onaydan_sonra_duzenlendi_mi
+            ? `<span title="Bu kurs onaydan/yayından sonra eğitmen tarafından düzenlendi" style="display:inline-block; background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:8px;"><i class="fas fa-pen"></i> Düzenlenmiş</span>`
+            : '';
+        const lastEditText = course.son_duzenleme_tarihi
+            ? ` | Son düzenleme: ${new Date(course.son_duzenleme_tarihi).toLocaleString('tr-TR')}`
+            : '';
+
         const courseCard = `
-            <div class="course-report-card" style="margin-bottom:20px; border:1px solid #e2e8f0; border-radius:12px; background:#fff;">
+            <div class="course-report-card" style="margin-bottom:20px; border:1px solid ${course.onaydan_sonra_duzenlendi_mi ? '#fbbf24' : '#e2e8f0'}; border-radius:12px; background:#fff;">
                 <div class="course-info-bar" style="padding:15px 20px; background:#f8fafc; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0;">
                     <div>
-                        <h3 style="margin:0; font-size:1.1rem; color:#1e293b;">${course.baslik}</h3>
-                        <small style="color:#64748b;">Eğitmen: <strong>${instructorName}</strong> | Kategori: ${categoryName}</small>
+                        <h3 style="margin:0; font-size:1.1rem; color:#1e293b;">${course.baslik}${editedBadge}</h3>
+                        <small style="color:#64748b;">Eğitmen: <strong>${instructorName}</strong> | Kategori: ${categoryName}${lastEditText}</small>
                     </div>
                     <div style="display:flex; gap:10px;">
                         <button class="btn-primary" onclick="viewCourseContent('${course.id}')" style="background:#3b82f6; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
@@ -78,8 +86,26 @@ window.viewCourseContent = async (courseId) => {
 
         document.getElementById('modalCourseTitle').innerText = course.baslik;
 
+        let html = '';
+
+        // Onay sonrası düzenleme uyarı bandı
+        if (course.onaydan_sonra_duzenlendi_mi) {
+            const lastEdit = course.son_duzenleme_tarihi
+                ? new Date(course.son_duzenleme_tarihi).toLocaleString('tr-TR')
+                : 'bilinmiyor';
+            html += `
+                <div style="background:#fef3c7; border:1px solid #fbbf24; color:#92400e; padding:14px 18px; border-radius:10px; margin-bottom:18px; display:flex; align-items:center; gap:12px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:1.3rem;"></i>
+                    <div>
+                        <div style="font-weight:700; font-size:0.95rem;">Bu kurs onaydan/yayından sonra eğitmen tarafından düzenlendi.</div>
+                        <div style="font-size:0.8rem; margin-top:2px;">Son düzenleme: <strong>${lastEdit}</strong> — Aşağıda gizlenmiş bölüm/dersler de işaretlenmiştir.</div>
+                    </div>
+                </div>
+            `;
+        }
+
         // --- SORUN 2 ÇÖZÜMÜ: TAM KURS BİLGİLERİ (Kategori, Fiyat, Seviye vb.) ---
-        let html = `
+        html += `
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px; background:#f8fafc; padding:20px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:25px;">
                 <div><small style="color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7rem;">Kategori</small><div style="font-weight:600; color:#1e293b;">${course.Category?.ad || '-'}</div></div>
                 <div><small style="color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7rem;">Fiyat</small><div style="font-weight:600; color:#1e293b;">${course.fiyat > 0 ? course.fiyat + ' ₺' : 'Ücretsiz'}</div></div>
@@ -93,17 +119,26 @@ window.viewCourseContent = async (courseId) => {
             html += '<div style="background:#fef2f2; padding:15px; border-radius:8px; color:#dc2626; text-align:center;">Uyarı: Müfredat boş!</div>';
         } else {
             course.Sections.forEach(sec => {
+                const secHidden = !!sec.gizli_mi;
+                const secHiddenAt = sec.gizlenme_tarihi ? new Date(sec.gizlenme_tarihi).toLocaleString('tr-TR') : null;
+                const secBadge = secHidden
+                    ? `<span title="${secHiddenAt ? 'Gizlenme: ' + secHiddenAt : ''}" style="display:inline-block; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; padding:2px 8px; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:8px;"><i class="fas fa-eye-slash"></i> Gizli</span>`
+                    : '';
+                const secStyle = secHidden
+                    ? 'margin-bottom: 20px; border: 1px dashed #fca5a5; border-radius: 10px; overflow: hidden; background:#fef2f2; opacity:0.85;'
+                    : 'margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; background:#fff;';
+
                 html += `
-                <div class="modal-section" style="margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; background:#fff;">
-                    <div style="background:#f1f5f9; padding:12px 15px; border-bottom:1px solid #cbd5e1;">
-                        <h4 style="margin:0; font-size:0.95rem; color:#1e293b;"><i class="fas fa-folder-open" style="color:#3b82f6;"></i> ${sec.sira_numarasi}. Bölüm: ${sec.baslik}</h4>
+                <div class="modal-section" style="${secStyle}">
+                    <div style="background:${secHidden ? '#fee2e2' : '#f1f5f9'}; padding:12px 15px; border-bottom:1px solid ${secHidden ? '#fca5a5' : '#cbd5e1'};">
+                        <h4 style="margin:0; font-size:0.95rem; color:#1e293b;"><i class="fas fa-folder-open" style="color:${secHidden ? '#991b1b' : '#3b82f6'};"></i> ${sec.sira_numarasi}. Bölüm: ${sec.baslik}${secBadge}</h4>
                         <p style="margin:4px 0 0; font-size:0.75rem; color:#64748b;">${sec.aciklama || 'Bölüm açıklaması yok.'}</p>
                     </div>
                     <div style="padding:5px;">
                         ${(sec.Lessons || []).map(les => {
                             let actionButtons = '';
                             const isBunny = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-                            
+
                             // 1. BUTON: Yüklü Video veya Dosya (video_saglayici_id)
                             if (les.video_saglayici_id) {
                                 if (isBunny(les.video_saglayici_id)) {
@@ -118,10 +153,19 @@ window.viewCourseContent = async (courseId) => {
                                 actionButtons += `<button onclick="viewExternalVideo('${les.kaynak_url}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:600; margin-left:5px;"><i class="fab fa-youtube"></i> URL Video</button>`;
                             }
 
+                            const lesHidden = !!les.gizli_mi;
+                            const lesHiddenAt = les.gizlenme_tarihi ? new Date(les.gizlenme_tarihi).toLocaleString('tr-TR') : null;
+                            const lesBadge = lesHidden
+                                ? `<span title="${lesHiddenAt ? 'Gizlenme: ' + lesHiddenAt : ''}" style="display:inline-block; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; padding:2px 6px; border-radius:5px; font-size:0.65rem; font-weight:600; margin-left:6px;"><i class="fas fa-eye-slash"></i> Gizli</span>`
+                                : '';
+                            const lesRowStyle = lesHidden
+                                ? 'padding:12px 15px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#fff7f7;'
+                                : 'padding:12px 15px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;';
+
                             return `
-                                <div style="padding:12px 15px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="${lesRowStyle}">
                                     <div style="flex:1;">
-                                        <div style="font-weight:600; color:#334155; font-size:0.85rem;">${les.sira_numarasi}. ${les.baslik}</div>
+                                        <div style="font-weight:600; color:${lesHidden ? '#991b1b' : '#334155'}; font-size:0.85rem; ${lesHidden ? 'text-decoration:line-through;' : ''}">${les.sira_numarasi}. ${les.baslik}${lesBadge}</div>
                                         <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">${les.aciklama || 'Ders açıklaması yok.'}</div>
                                         ${les.kaynak_url ? `<div style="font-size:0.65rem; color:#94a3b8; font-family:monospace; margin-top:4px;">Link: ${les.kaynak_url}</div>` : ''}
                                     </div>

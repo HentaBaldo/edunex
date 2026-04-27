@@ -58,6 +58,17 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      son_duzenleme_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Mufredat veya kurs meta verisi son ne zaman degistirildi.'
+      },
+      onaydan_sonra_duzenlendi_mi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Onay/yayin durumundayken duzenleme yapildi mi (admin paneline rozet basmak icin).'
+      },
     },
     {
       tableName: 'kurslar',

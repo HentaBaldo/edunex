@@ -1,14 +1,15 @@
-const { 
-    Course, 
-    Profile, 
-    CourseSection, 
-    Lesson, 
+const {
+    Course,
+    Profile,
+    CourseSection,
+    Lesson,
     LessonProgress,
     CourseEnrollment,
     Category,
     InstructorDetail,
     Review
 } = require('../models');
+const { recalculateCourseProgress } = require('../services/progressService');
 
 /**
  * Tüm Kursları Getir (Sayfalama ile)
@@ -76,10 +77,14 @@ exports.getInstructorCourses = async (req, res, next) => {
                     model: CourseSection,
                     as: 'Sections',
                     attributes: ['id', 'baslik', 'sira_numarasi'],
+                    where: { gizli_mi: false },
+                    required: false,
                     include: [{
                         model: Lesson,
                         as: 'Lessons',
                         attributes: ['id', 'baslik', 'sira_numarasi'],
+                        where: { gizli_mi: false },
+                        required: false,
                         order: [['sira_numarasi', 'ASC']]
                     }],
                     order: [['sira_numarasi', 'ASC']]
@@ -161,14 +166,18 @@ exports.getCourseDetails = async (req, res, next) => {
                     attributes: ['unvan', 'biyografi']
                 },
                 {
-                    // 3. Müfredatı ve altındaki dersleri çekiyoruz
+                    // 3. Müfredatı ve altındaki dersleri çekiyoruz (gizli olanlar haric)
                     model: CourseSection,
                     as: 'Sections',
+                    where: { gizli_mi: false },
+                    required: false,
                     include: [
                         {
                             model: Lesson,
                             as: 'Lessons',
-                            attributes: ['id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi']
+                            attributes: ['id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi'],
+                            where: { gizli_mi: false },
+                            required: false
                         }
                     ]
                 },
@@ -486,13 +495,15 @@ exports.getCourseCurriculumForStudent = async (req, res, next) => {
             ],
             include: [
                 {
-                    // Kursun bölümleri
+                    // Kursun bölümleri (gizli olanlar haric)
                     model: CourseSection,
                     as: 'Sections',
                     attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi'],
+                    where: { gizli_mi: false },
+                    required: false,
                     include: [
                         {
-                            // Her bölümün dersleri
+                            // Her bölümün dersleri (gizli olanlar haric)
                             model: Lesson,
                             as: 'Lessons',
                             attributes: [
@@ -506,6 +517,8 @@ exports.getCourseCurriculumForStudent = async (req, res, next) => {
                                 'icerik_tipi',
                                 'kaynak_url'
                             ],
+                            where: { gizli_mi: false },
+                            required: false,
                             include: [
                                 {
                                     // Her dersin öğrenci ilerlemesi
@@ -519,8 +532,7 @@ exports.getCourseCurriculumForStudent = async (req, res, next) => {
                                 }
                             ]
                         }
-                    ],
-                    required: false
+                    ]
                 },
                 {
                     // Eğitmen bilgileri
@@ -649,19 +661,26 @@ exports.markLessonAsComplete = async (req, res, next) => {
 
         console.log(`[LEARNING] Ders tamamlanıyor: ${studentId} → ${lessonId}`);
 
-        // === Ders bul ===
+        // === Ders bul (gizli olanlar tamamlanamaz) ===
         const lesson = await Lesson.findOne({
-            where: { id: lessonId },
+            where: { id: lessonId, gizli_mi: false },
             include: [{
                 model: CourseSection,
-                attributes: ['kurs_id']
+                attributes: ['kurs_id', 'gizli_mi']
             }],
-            attributes: ['id', 'sure_saniye']
+            attributes: ['id', 'sure_saniye', 'gizli_mi']
         });
 
         if (!lesson) {
             const error = new Error('Ders bulunamadı.');
             error.statusCode = 404;
+            throw error;
+        }
+
+        // Bolum gizliyse de ilerleme yazma
+        if (lesson.CourseSection?.gizli_mi) {
+            const error = new Error('Bu ders artik mevcut degil.');
+            error.statusCode = 410;
             throw error;
         }
 
@@ -704,13 +723,25 @@ exports.markLessonAsComplete = async (req, res, next) => {
 
         console.log(`[LEARNING] Ders tamamlandı işareti kondu`);
 
+        // === Kurs ilerleme yuzdesini bolum-tabanli olarak yeniden hesapla ===
+        // Gizli (gizli_mi=true) dersler bu hesaba dahil edilmez.
+        let yeniIlerleme = null;
+        try {
+            yeniIlerleme = await recalculateCourseProgress(studentId, courseId);
+            console.log(`[PROGRESS] Yeni ilerleme: %${yeniIlerleme}`);
+        } catch (recalcErr) {
+            // Hesaplama hatasi tamamlama isaretini geri alma sebebi degil; sadece logla.
+            console.error(`[PROGRESS] Hesaplama hatasi: ${recalcErr.message}`);
+        }
+
         return res.status(200).json({
             status: 'success',
             message: 'Ders tamamlandı olarak işaretlendi.',
             data: {
                 lesson_id: lessonId,
                 tamamlandi_mi: progress.tamamlandi_mi,
-                tamamlanma_tarihi: progress.tamamlanma_tarihi
+                tamamlanma_tarihi: progress.tamamlanma_tarihi,
+                ilerleme_yuzdesi: yeniIlerleme
             }
         });
 

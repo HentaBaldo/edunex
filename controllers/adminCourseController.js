@@ -18,7 +18,10 @@ exports.getPublishedCoursesReport = async (req, res, next) => {
 
         const courses = await Course.findAll({
             where: { durum: 'yayinda' },
-            attributes: ['id', 'baslik', 'fiyat', 'olusturulma_tarihi'],
+            attributes: [
+                'id', 'baslik', 'fiyat', 'olusturulma_tarihi',
+                'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi'
+            ],
             include: [
                 {
                     model: Profile,
@@ -57,8 +60,9 @@ exports.getCourseFullContent = async (req, res, next) => {
        const { id } = req.params;
        const course = await Course.findByPk(id, {
            attributes: [
-               'id', 'baslik', 'alt_baslik', 'dil', 'seviye', 
-               'fiyat', 'durum', 'kazanimlar', 'gereksinimler' // Kurs detayları eklendi
+               'id', 'baslik', 'alt_baslik', 'dil', 'seviye',
+               'fiyat', 'durum', 'kazanimlar', 'gereksinimler', // Kurs detayları eklendi
+               'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi' // Düzenleme izleme
            ],
            include: [
                {
@@ -71,13 +75,17 @@ exports.getCourseFullContent = async (req, res, next) => {
                {
                    model: CourseSection,
                    as: 'Sections',
-                   attributes: ['id', 'baslik', 'aciklama', 'sira_numarasi'], // Bölüm açıklaması eklendi
-                   include: [{ 
-                       model: Lesson, 
+                   attributes: [
+                       'id', 'baslik', 'aciklama', 'sira_numarasi',
+                       'gizli_mi', 'gizlenme_tarihi' // Soft-delete izleme
+                   ],
+                   include: [{
+                       model: Lesson,
                        as: 'Lessons',
                        attributes: [
-                           'id', 'baslik', 'icerik_tipi', 'video_saglayici_id', 
-                           'kaynak_url', 'sira_numarasi', 'aciklama' // Ders açıklaması eklendi
+                           'id', 'baslik', 'icerik_tipi', 'video_saglayici_id',
+                           'kaynak_url', 'sira_numarasi', 'aciklama',
+                           'gizli_mi', 'gizlenme_tarihi' // Soft-delete izleme
                        ]
                    }]
                }
