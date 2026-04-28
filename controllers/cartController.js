@@ -74,9 +74,9 @@ exports.addItem = async (req, res, next) => {
             throw err;
         }
 
-        // Kurs yayında mı?
+        // Kurs yayında mı? (silinmis veya iade edilmis kurslar sepete eklenemez)
         const course = await Course.findOne({
-            where: { id: kurs_id, durum: 'yayinda' },
+            where: { id: kurs_id, durum: 'yayinda', silindi_mi: false },
             attributes: ['id', 'baslik', 'fiyat'],
         });
         if (!course) {

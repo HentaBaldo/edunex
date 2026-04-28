@@ -84,6 +84,21 @@
         </header>
 
         <section class="admin-content">
+            <div id="filterTabs" style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+                <button class="filter-tab active" data-filter="yayinda" onclick="switchFilter('yayinda')">
+                    <i class="fas fa-broadcast-tower"></i> Yayında <span class="tab-count" id="count-yayinda">-</span>
+                </button>
+                <button class="filter-tab" data-filter="iade" onclick="switchFilter('iade')">
+                    <i class="fas fa-undo"></i> İade Edilen <span class="tab-count" id="count-iade">-</span>
+                </button>
+                <button class="filter-tab" data-filter="arsiv" onclick="switchFilter('arsiv')">
+                    <i class="fas fa-archive"></i> Arşivde <span class="tab-count" id="count-arsiv">-</span>
+                </button>
+                <button class="filter-tab" data-filter="silinmis" onclick="switchFilter('silinmis')">
+                    <i class="fas fa-trash"></i> Silinmiş <span class="tab-count" id="count-silinmis">-</span>
+                </button>
+            </div>
+
             <div class="search-filter-box">
                 <input type="text" id="courseSearch" placeholder="Kurs adına veya eğitmene göre ara..." oninput="filterReports()">
                 <button class="btn-primary" onclick="fetchPublishedReport()"><i class="fas fa-sync"></i> Yenile</button>
@@ -91,6 +106,36 @@
 
             <div id="reportContainer" class="report-grid"></div>
         </section>
+
+        <style>
+            .filter-tab { padding: 9px 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.15s; }
+            .filter-tab:hover { background: #f1f5f9; border-color: #cbd5e1; }
+            .filter-tab.active { background: #3b82f6; color: white; border-color: #2563eb; }
+            .filter-tab.active .tab-count { background: rgba(255,255,255,0.25); color: white; }
+            .tab-count { background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; min-width: 20px; text-align: center; }
+            .action-modal { position: fixed; inset: 0; background: rgba(15,23,42,0.7); display: flex; align-items: center; justify-content: center; z-index: 10005; padding: 20px; backdrop-filter: blur(4px); }
+            .action-modal-card { background: #fff; border-radius: 12px; max-width: 520px; width: 100%; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); }
+            .action-modal-card h3 { margin: 0 0 12px; font-size: 1.15rem; color: #0f172a; }
+            .action-modal-card textarea { width: 100%; min-height: 90px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box; }
+            .action-modal-card .alert { padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 0.85rem; }
+            .alert-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+            .alert-warn { background: #fef3c7; border: 1px solid #fbbf24; color: #92400e; }
+            .alert-info { background: #dbeafe; border: 1px solid #93c5fd; color: #1e40af; }
+            .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+            .btn-modal { padding: 9px 18px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.88rem; }
+            .btn-cancel { background: #e2e8f0; color: #475569; }
+            .btn-confirm-warn { background: #f97316; color: white; }
+            .btn-confirm-danger { background: #dc2626; color: white; }
+            .btn-confirm-success { background: #10b981; color: white; }
+            .action-btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+            .action-btn-row button { padding: 7px 11px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+            .btn-content { background: #3b82f6; color: white; }
+            .btn-participants { background: #10b981; color: white; }
+            .btn-unpublish { background: #f97316; color: white; }
+            .btn-republish { background: #16a34a; color: white; }
+            .btn-delete { background: #dc2626; color: white; }
+            .btn-restore { background: #0ea5e9; color: white; }
+        </style>
         <div id="courseDetailModal" class="modal-overlay" style="position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; padding:20px; backdrop-filter: blur(4px);">
             <div style="background:#fff; border-radius:12px; max-width:900px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
                 <div style="padding:20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; position: sticky; top:0; z-index:10;">

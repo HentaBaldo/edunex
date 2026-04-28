@@ -138,21 +138,22 @@ const ApiService = {
     },
 
     /**
-     * DELETE isteği
+     * DELETE isteği (opsiyonel body ile - ornegin sebep alani icin)
      */
-    async delete(endpoint) {
+    async delete(endpoint, body) {
         const token = this.getActiveToken();
         const headers = { 'Content-Type': 'application/json' };
-        
+
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
         try {
-            const response = await fetch(`/api${endpoint}`, {
-                method: 'DELETE',
-                headers
-            });
+            const fetchOptions = { method: 'DELETE', headers };
+            if (body !== undefined && body !== null) {
+                fetchOptions.body = JSON.stringify(body);
+            }
+            const response = await fetch(`/api${endpoint}`, fetchOptions);
 
             let data;
             try {
