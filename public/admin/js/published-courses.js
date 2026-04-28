@@ -30,6 +30,8 @@ async function fetchPublishedReport() {
             document.getElementById('count-iade').innerText = response.counts.iade;
             document.getElementById('count-arsiv').innerText = response.counts.arsiv;
             document.getElementById('count-silinmis').innerText = response.counts.silinmis;
+            const cd = document.getElementById('count-duzenlenmis');
+            if (cd && response.counts.duzenlenmis !== undefined) cd.innerText = response.counts.duzenlenmis;
         }
 
         renderReports(allReports);
@@ -58,7 +60,8 @@ function renderReports(courses) {
             yayinda: 'Yayında kurs bulunamadı.',
             iade: 'İade edilmiş kurs yok.',
             arsiv: 'Arşivde kurs yok.',
-            silinmis: 'Silinmiş kurs yok.'
+            silinmis: 'Silinmiş kurs yok.',
+            duzenlenmis: 'Onaydan sonra düzenlenmiş kurs yok.'
         };
         container.innerHTML = `<p style="text-align:center; color:#64748b; padding:40px;">${emptyMessages[currentFilter] || 'Kurs bulunamadı.'}</p>`;
         return;
@@ -72,7 +75,18 @@ function renderReports(courses) {
         // Status rozetleri (filtreye gore)
         let statusBadge = '';
         let cardBorder = '#e2e8f0';
-        if (currentFilter === 'yayinda' && course.onaydan_sonra_duzenlendi_mi) {
+        if (currentFilter === 'duzenlenmis') {
+            // Kursun gercek durumu (yayinda / onay_bekliyor / onaylandi) rozet olarak gosterilir
+            const durumLabel = ({
+                yayinda: 'Yayında', onay_bekliyor: 'Onay Bekliyor',
+                onaylandi: 'Onaylandı', taslak: 'Taslak', arsiv: 'Arşivde'
+            })[course.durum] || course.durum;
+            statusBadge = `
+                <span style="display:inline-block; background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:8px;">${escapeHtml(durumLabel)}</span>
+                <span title="Bu kurs onaydan/yayından sonra eğitmen tarafından düzenlendi" style="display:inline-block; background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:6px;"><i class="fas fa-pen"></i> Düzenlenmiş</span>
+            `;
+            cardBorder = '#fbbf24';
+        } else if (currentFilter === 'yayinda' && course.onaydan_sonra_duzenlendi_mi) {
             statusBadge = `<span title="Bu kurs onaydan/yayından sonra eğitmen tarafından düzenlendi" style="display:inline-block; background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:8px;"><i class="fas fa-pen"></i> Düzenlenmiş</span>`;
             cardBorder = '#fbbf24';
         } else if (currentFilter === 'iade') {
@@ -143,6 +157,20 @@ function buildActionButtons(course, filter) {
     if (filter === 'silinmis') {
         return `${incele}
             <button class="btn-restore" onclick="openRestoreModal('${id}', '${escapeAttr(course.baslik)}')"><i class="fas fa-trash-restore"></i> Geri Yükle</button>`;
+    }
+    if (filter === 'duzenlenmis') {
+        // Aksiyonlar kursun gercek durumuna gore degisir; bu sekme cok-durumlu bir gorunum.
+        const baseBtns = `${incele} ${katilim}`;
+        if (course.durum === 'yayinda') {
+            return `${baseBtns}
+                <button class="btn-unpublish" onclick="openUnpublishModal('${id}', '${escapeAttr(course.baslik)}')"><i class="fas fa-undo"></i> Yayından Kaldır</button>
+                <button class="btn-delete" onclick="openDeleteModal('${id}', '${escapeAttr(course.baslik)}', ${enrollCount})"><i class="fas fa-trash"></i> Sil</button>`;
+        }
+        if (course.durum === 'onay_bekliyor' || course.durum === 'onaylandi') {
+            // Bu durumlardaki kurslar zaten Onay Yonetimi sayfasindan yonetiliyor; burada read-only olsun.
+            return baseBtns;
+        }
+        return baseBtns;
     }
     return '';
 }

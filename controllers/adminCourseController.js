@@ -16,6 +16,8 @@ const { Op } = require('sequelize');
  * - iade: durum=taslak, admin_tarafindan_iade_edildi=true, silindi_mi=false
  * - arsiv: durum=arsiv, silindi_mi=false
  * - silinmis: silindi_mi=true (her durum)
+ * - duzenlenmis: silindi_mi=false, onaydan_sonra_duzenlendi_mi=true
+ *   (yayinda/onay_bekliyor/onaylandi - egitmen onaydan sonra duzenleme yapmis tum kurslar)
  */
 const buildTrackingWhere = (filter) => {
     switch (filter) {
@@ -25,6 +27,8 @@ const buildTrackingWhere = (filter) => {
             return { silindi_mi: false, durum: 'arsiv' };
         case 'silinmis':
             return { silindi_mi: true };
+        case 'duzenlenmis':
+            return { silindi_mi: false, onaydan_sonra_duzenlendi_mi: true };
         case 'yayinda':
         default:
             return { silindi_mi: false, durum: 'yayinda' };
@@ -93,18 +97,19 @@ exports.getCoursesTracking = async (req, res, next) => {
         });
 
         // Sekme rozetleri icin sayim (search uygulamadan).
-        const [yayinda, iade, arsiv, silinmis] = await Promise.all([
+        const [yayinda, iade, arsiv, silinmis, duzenlenmis] = await Promise.all([
             Course.count({ where: buildTrackingWhere('yayinda') }),
             Course.count({ where: buildTrackingWhere('iade') }),
             Course.count({ where: buildTrackingWhere('arsiv') }),
             Course.count({ where: buildTrackingWhere('silinmis') }),
+            Course.count({ where: buildTrackingWhere('duzenlenmis') }),
         ]);
 
         return res.status(200).json({
             success: true,
             filter,
             data: courses,
-            counts: { yayinda, iade, arsiv, silinmis }
+            counts: { yayinda, iade, arsiv, silinmis, duzenlenmis }
         });
     } catch (error) {
         console.error(`[ADMIN] courses-tracking hatasi: ${error.message}`);
