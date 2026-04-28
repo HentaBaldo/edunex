@@ -48,19 +48,37 @@ async function loadCurriculum() {
         if (result.course) {
             window.__courseDurum = result.course.durum;
             window.__courseEditedAfterApproval = !!result.course.onaydan_sonra_duzenlendi_mi;
-        }
-
-        if (sections.length === 0) {
-            listDiv.innerHTML = `
-                <div class="empty-section">
-                    <i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
-                    <p>Henüz bölüm eklemediniz.</p>
-                </div>
-            `;
-            return;
+            window.__courseIadeEdildi = !!result.course.admin_tarafindan_iade_edildi;
+            window.__courseIadeSebebi = result.course.iade_sebebi || '';
+            window.__courseIadeTarihi = result.course.iade_tarihi || '';
         }
 
         listDiv.innerHTML = '';
+
+        // Admin tarafindan iade edildiyse en ustte kirmizi banner goster
+        // (bolum sayisindan bagimsiz olarak; ogretmen bos kursta da uyariyi gormeli)
+        if (window.__courseIadeEdildi) {
+            const iadeAt = window.__courseIadeTarihi
+                ? new Date(window.__courseIadeTarihi).toLocaleString('tr-TR')
+                : '';
+            const sebepHtml = window.__courseIadeSebebi
+                ? `<div style="margin-top:8px; padding:10px; background:#fff; border-left:3px solid #dc2626; border-radius:4px; color:#7f1d1d; font-size:0.88rem; font-style:italic;">"${escapeHtml(window.__courseIadeSebebi)}"</div>`
+                : '';
+            const iadeBanner = `
+                <div style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; padding:14px 18px; border-radius:10px; margin-bottom:14px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size:1.3rem; color:#dc2626;"></i>
+                        <div style="flex:1;">
+                            <div style="font-weight:700; font-size:0.95rem;">Bu kurs admin tarafından yayından kaldırılıp size iade edildi.</div>
+                            ${iadeAt ? `<div style="font-size:0.78rem; margin-top:2px; color:#7f1d1d;">İade tarihi: <strong>${iadeAt}</strong></div>` : ''}
+                            <div style="font-size:0.85rem; margin-top:6px;">Düzeltmeleri yapıp sayfanın üstündeki <strong>"Onaya Gönder"</strong> butonuyla yeniden onaya gönderebilirsiniz.</div>
+                        </div>
+                    </div>
+                    ${sebepHtml}
+                </div>
+            `;
+            listDiv.insertAdjacentHTML('beforeend', iadeBanner);
+        }
 
         // Onaylı/yayında kursta düzenleme bayrağı varsa eğitmene de hatırlat
         if (window.__courseDurum && window.__courseDurum !== 'taslak' && window.__courseDurum !== 'arsiv') {
@@ -71,6 +89,16 @@ async function loadCurriculum() {
                 </div>
             `;
             listDiv.insertAdjacentHTML('beforeend', banner);
+        }
+
+        if (sections.length === 0) {
+            listDiv.insertAdjacentHTML('beforeend', `
+                <div class="empty-section">
+                    <i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                    <p>Henüz bölüm eklemediniz.</p>
+                </div>
+            `);
+            return;
         }
 
         sections.forEach(section => {

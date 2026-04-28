@@ -1,5 +1,5 @@
 const { CourseEnrollment, Course, Profile } = require('../models');
-const { UniqueConstraintError, ValidationError } = require('sequelize');
+const { UniqueConstraintError, ValidationError, Op } = require('sequelize');
 
 /**
  * Öğrenciyi bir kursa kayıt etme
@@ -18,9 +18,9 @@ exports.enrollCourse = async (req, res, next) => {
             throw error;
         }
 
-        // 2. Kursun var mı ve yayında mı kontrol et
+        // 2. Kursun var mı ve yayında mı kontrol et (silinmis kurs satin alinamaz)
         const course = await Course.findOne({
-            where: { id: kurs_id, durum: 'yayinda' },
+            where: { id: kurs_id, durum: 'yayinda', silindi_mi: false },
             attributes: ['id', 'baslik', 'fiyat', 'egitmen_id']
         });
 
@@ -81,7 +81,19 @@ exports.getMyEnrollments = async (req, res, next) => {
             include: [
                 {
                     model: Course,
-                    attributes: ['id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'dil', 'egitmen_id'],
+                    attributes: ['id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'dil', 'egitmen_id', 'durum'],
+                    // Politika:
+                    // - silindi_mi=true -> ogrenciye gosterme
+                    // - durum='taslak' AND admin_tarafindan_iade_edildi=true -> ogrenciye gosterme
+                    //   (admin iade etti, egitmen duzelttiginde tekrar ogrenciye acilacak)
+                    // - durum yayinda/arsiv -> goster (eski erisim hakki korunur)
+                    where: {
+                        silindi_mi: false,
+                        [Op.not]: {
+                            durum: 'taslak',
+                            admin_tarafindan_iade_edildi: true
+                        }
+                    },
                     include: [
                         {
                             model: Profile,

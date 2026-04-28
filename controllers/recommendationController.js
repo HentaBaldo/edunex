@@ -61,7 +61,7 @@ function kursBicimlendir(kurs) {
  */
 async function _enPopulerKurslariGetir(sinir = 8) {
     const kurslar = await Course.findAll({
-        where: { durum: 'yayinda' },
+        where: { durum: 'yayinda', silindi_mi: false },
         attributes: [
             'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
             [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
@@ -249,7 +249,7 @@ async function _kategoriCarprazGetir(tohumKategoriId, sinir = 5) {
  */
 async function _enCokBegenilenGetir(sinir = 8, minYorum = 5) {
     const kurslar = await Course.findAll({
-        where: { durum: 'yayinda' },
+        where: { durum: 'yayinda', silindi_mi: false },
         attributes: [
             'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],

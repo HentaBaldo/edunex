@@ -69,6 +69,44 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: false,
         comment: 'Onay/yayin durumundayken duzenleme yapildi mi (admin paneline rozet basmak icin).'
       },
+      // --- Soft-delete (admin tarafindan) ---
+      silindi_mi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Admin tarafindan soft-delete edildi mi. Tum ogrenci/magaza endpointlerinde filtrelenir.'
+      },
+      silinme_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      silen_admin_id: {
+        type: DataTypes.UUID,
+        allowNull: true
+      },
+      silme_sebebi: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
+      // --- Yayindan kaldirilip taslaga iade (admin tarafindan) ---
+      admin_tarafindan_iade_edildi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Admin yayindan kaldirip taslaga geri yolladi mi. Egitmen UIda kirmizi banner ile gosterilir.'
+      },
+      iade_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      iade_eden_admin_id: {
+        type: DataTypes.UUID,
+        allowNull: true
+      },
+      iade_sebebi: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
     },
     {
       tableName: 'kurslar',

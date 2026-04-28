@@ -85,8 +85,8 @@ exports.getDashboardStats = async (req, res, next) => {
         // Promise.all ile paralel sorgular çalıştırılarak performans artırılır
         const [totalUsers, activeCourses, pendingCourses] = await Promise.all([
             Profile.count(),
-            Course.count({ where: { durum: 'yayinda' } }),
-            Course.count({ where: { durum: 'onay_bekliyor' } })
+            Course.count({ where: { durum: 'yayinda', silindi_mi: false } }),
+            Course.count({ where: { durum: 'onay_bekliyor', silindi_mi: false } })
         ]);
 
         return res.status(200).json({
@@ -112,7 +112,7 @@ exports.getDashboardStats = async (req, res, next) => {
 exports.getPendingCourses = async (req, res, next) => {
     try {
         const courses = await Course.findAll({
-            where: { durum: 'onay_bekliyor' },
+            where: { durum: 'onay_bekliyor', silindi_mi: false },
             include: [
                 { model: Profile, as: 'Egitmen', attributes: ['ad', 'soyad'] },
                 { model: Category, attributes: ['ad'] }
@@ -315,6 +315,8 @@ exports.getAllCourses = async (req, res, next) => {
         console.log(`[ADMIN] Kurslar istendi - Sayfa: ${page}`);
 
         const { count, rows } = await Course.findAndCountAll({
+            // Soft-deleted kurslari admin'in genel listesinden de gizle (yalnizca courses-tracking?filter=silinmis listesinde gorunsun)
+            where: { silindi_mi: false },
             include: [
                 {
                     model: Profile,
