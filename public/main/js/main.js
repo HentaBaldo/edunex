@@ -1,122 +1,82 @@
+// public/main/js/main.js
+// EduNex Ana Sayfa — Navigasyon, Kurslar ve 5 Modüllü Öneri Motoru
+
 document.addEventListener('DOMContentLoaded', async () => {
-    checkAuth();
-    loadCategoriesForMenu();
-    loadPublishedCourses();
-    await loadAllRecommendations();
+    kimlikKontrol();
+    menuIcinKategorileriYukle();
+    yayindakiKurslariYukle();
+    await tumOnerileriYukle();
 });
 
-/**
- * Kullanıcı oturum durumunu kontrol eder ve profesyonel navigasyon menüsünü günceller
- */
-function checkAuth() {
-    const token = localStorage.getItem('edunex_token');
-    const userJson = localStorage.getItem('edunex_user');
-    const authContainer = document.getElementById('authNavContainer');
-    
-    // 1. Durum: Kullanıcı Giriş Yapmış
-    if (token && userJson) {
-        let user;
-        
+// ============================================================
+// KİMLİK DOĞRULAMA VE NAVBAR
+// ============================================================
+
+function kimlikKontrol() {
+    const jeton         = localStorage.getItem('edunex_token');
+    const kullanicJson  = localStorage.getItem('edunex_user');
+    const authKonteynir = document.getElementById('authNavContainer');
+
+    if (jeton && kullanicJson) {
+        let kullanici;
         try {
-            user = JSON.parse(userJson);
-        } catch (error) {
-            console.error('[HATA] Kullanıcı verisi okunamadı.');
-            logout(); 
+            kullanici = JSON.parse(kullanicJson);
+        } catch {
+            cikisYap();
             return;
         }
-        
-        if (!authContainer) return;
 
-        // Kişinin rolüne göre doğru paneli belirle
-        const dashboardLink = user.rol === 'egitmen' 
-            ? '/instructor/dashboard.html' 
+        if (!authKonteynir) return;
+
+        const panelLinki = kullanici.rol === 'egitmen'
+            ? '/instructor/dashboard.html'
             : '/student/dashboard.html';
 
-        const isStudent = user.rol === 'ogrenci';
-        const cartIconHtml = isStudent ? `
-            <a href="/student/cart.html" class="nav-cart-link" title="Sepetim" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;color:#0f172a;text-decoration:none;margin-right:8px;transition:background .15s;">
-                <i class="fas fa-shopping-cart" style="font-size:1.15rem;"></i>
-                <span id="cartCountBadge" class="cart-count-badge" style="display:none;position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ef4444;color:#fff;font-size:0.7rem;font-weight:700;line-height:18px;text-align:center;"></span>
+        const ogrenciMi = kullanici.rol === 'ogrenci';
+
+        const sepetSimgesiHtml = ogrenciMi ? `
+            <a href="/student/cart.html" class="nav-sepet-link" title="Sepetim">
+                <i class="fas fa-shopping-cart"></i>
+                <span id="cartCountBadge" class="sepet-rozet" style="display:none;"></span>
             </a>
         ` : '';
 
-        const studentDropdownItems = isStudent ? `
+        const ogrenciMenusu = ogrenciMi ? `
             <a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a>
             <a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>
         ` : '';
 
-        authContainer.innerHTML = `
-            ${cartIconHtml}
+        authKonteynir.innerHTML = `
+            ${sepetSimgesiHtml}
             <div class="user-dropdown">
                 <button class="dropdown-trigger">
-                    <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i>
-                    ${user.ad}
-                    <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 5px;"></i>
+                    <i class="fas fa-user-circle" style="font-size:1.2rem;"></i>
+                    ${kullanici.ad}
+                    <i class="fas fa-chevron-down" style="font-size:0.8rem;margin-left:5px;"></i>
                 </button>
-
                 <div class="dropdown-content">
                     <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
-                    <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
-                    ${studentDropdownItems}
+                    <a href="${panelLinki}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
+                    ${ogrenciMenusu}
                     <hr>
-                    <button onclick="logout()" class="text-danger"><i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap</button>
+                    <button onclick="cikisYap()" class="text-danger">
+                        <i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap
+                    </button>
                 </div>
             </div>
         `;
 
-        if (isStudent) {
-            updateCartBadge();
-        }
-    } 
-    // 2. Durum: Kullanıcı Giriş YAPMAMIŞ (Ziyaretçi)
-    else {
-        if (authContainer) {
-            authContainer.innerHTML = `
+        if (ogrenciMi) sepetRozetiniGuncelle();
+    } else {
+        if (authKonteynir) {
+            authKonteynir.innerHTML = `
                 <a href="/auth/index.html" class="btn-auth-blue">Giriş Yap / Kayıt Ol</a>
             `;
         }
     }
 }
 
-/**
- * Yayınlanmış kursları backendden çeker ve YENİ Ortak Kart Tasarımı ile basar
- */
-async function loadPublishedCourses() {
-    const grid = document.getElementById('courseGrid');
-    
-    if (!grid) return; 
-
-    grid.innerHTML = '<div class="loading-state"><p>Kurslar yükleniyor, lütfen bekleyin...</p></div>';
-    
-    try {
-        const result = await ApiService.get('/courses/published');
-        const courses = result.data || [];
-        
-        if (courses.length === 0) {
-            grid.innerHTML = '<p class="info-message">Henüz yayınlanmış bir kurs bulunmuyor.</p>';
-            return;
-        }
-
-        grid.innerHTML = ''; 
-
-        courses.forEach(course => {
-            // YENİ EKLENEN KISIM: Eski hardcoded HTML silindi, ortak renderCourseCard kullanılıyor
-            const cardHtml = renderCourseCard(course);
-            grid.insertAdjacentHTML('beforeend', cardHtml);
-        });
-
-    } catch (error) {
-        console.error("[HATA] Kurslar yüklenemedi:", error.message);
-        grid.innerHTML = `
-            <div class="error-container" style="text-align: center; color: #dc3545; padding: 20px;">
-                <p>Şu anda kurslar yüklenemiyor.</p>
-                <small>${error.message}</small>
-            </div>
-        `;
-    }
-}
-
-function logout() {
+function cikisYap() {
     if (typeof ApiService !== 'undefined' && ApiService.logout) {
         ApiService.logout();
     } else {
@@ -124,317 +84,436 @@ function logout() {
         window.location.reload();
     }
 }
+window.cikisYap = cikisYap;
 
-async function updateCartBadge() {
-    const badge = document.getElementById('cartCountBadge');
-    if (!badge) return;
+// Eski isimle de çalışsın (geriye dönük uyumluluk)
+function logout() { cikisYap(); }
+window.logout = logout;
+
+async function sepetRozetiniGuncelle() {
+    const rozet = document.getElementById('cartCountBadge');
+    if (!rozet) return;
     try {
-        const result = await ApiService.get('/cart');
-        const count = result?.data?.kalem_sayisi || 0;
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : String(count);
-            badge.style.display = 'inline-block';
+        const sonuc = await ApiService.get('/cart');
+        const sayi  = sonuc?.data?.kalem_sayisi || 0;
+        if (sayi > 0) {
+            rozet.textContent    = sayi > 99 ? '99+' : String(sayi);
+            rozet.style.display  = 'inline-block';
         } else {
-            badge.style.display = 'none';
+            rozet.style.display  = 'none';
         }
-    } catch (_) { /* sessiz */ }
+    } catch { /* sessiz hata */ }
 }
-window.updateCartBadge = updateCartBadge;
+window.updateCartBadge = sepetRozetiniGuncelle;
 
-// ==========================================
-// KATEGORİ VE MEGA MENÜ YÖNETİMİ
-// ==========================================
+// ============================================================
+// KATEGORİ MEGA MENÜ
+// ============================================================
 
-window.allCategories = [];
+window.tumKategoriler = [];
 
-async function loadCategoriesForMenu() {
-    const parentList = document.getElementById('parentList');
-    if (!parentList) return;
-
+async function menuIcinKategorileriYukle() {
+    const anaListe = document.getElementById('parentList');
+    if (!anaListe) return;
     try {
-        const result = await ApiService.get('/categories');
-        const categories = result.data || [];
-        window.allCategories = categories;
-        
-        const mainCategories = categories.filter(k => {
-            const parentId = k.ust_kategori_id || k.ustKategoriId || k.KategoriId || k.parentId || k.parent_id || null;
-            return parentId === null || parentId === undefined || parentId === ""; 
+        const sonuc      = await ApiService.get('/categories');
+        const kategoriler = sonuc.data || [];
+        window.tumKategoriler = kategoriler;
+
+        const anaKategoriler = kategoriler.filter(k => {
+            const ustId = k.ust_kategori_id || k.ustKategoriId || k.parent_id || null;
+            return ustId === null || ustId === undefined || ustId === '';
         });
-        
-        if (mainCategories.length > 0) {
-            parentList.innerHTML = mainCategories.map(p => `
-                <div class="cat-item p-item" onmouseenter="showChildCategories('${p.id}', this)">
+
+        anaListe.innerHTML = anaKategoriler.length
+            ? anaKategoriler.map(p => `
+                <div class="cat-item p-item" onmouseenter="altKategorileriGoster('${p.id}', this)">
                     ${p.ad} <i class="fas fa-chevron-right"></i>
                 </div>
-            `).join('');
-        } else {
-            parentList.innerHTML = '<p style="padding: 10px 20px; color: #64748b;">Kategori bulunamadı.</p>';
-        }
-
-    } catch (error) {
-        console.error("[HATA] Mega menü kategorileri yüklenemedi:", error);
+              `).join('')
+            : '<p style="padding:10px 20px;color:#64748b;">Kategori bulunamadı.</p>';
+    } catch (hata) {
+        console.error('[MEGA_MENU] Kategoriler yüklenemedi:', hata);
     }
 }
 
-function showChildCategories(parentId, element) {
+function altKategorileriGoster(anaId, element) {
     document.querySelectorAll('.p-item').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
-    
     document.getElementById('grandChildCol').style.display = 'none';
-    
-    const children = window.allCategories.filter(k => {
-        const kParent = k.ust_kategori_id || k.ustKategoriId || k.KategoriId || k.parentId || k.parent_id;
-        return kParent == parentId;
+
+    const cocuklar = window.tumKategoriler.filter(k => {
+        const ustId = k.ust_kategori_id || k.ustKategoriId || k.parent_id;
+        return ustId == anaId;
     });
-    
-    const childCol = document.getElementById('childCol');
-    const childList = document.getElementById('childList');
-    
-    if (children.length > 0) {
-        childCol.style.display = 'block';
-        childList.innerHTML = children.map(c => `
-            <div class="cat-item c-item" onmouseenter="showGrandChildCategories('${c.id}', this)">
+
+    const cocukKol   = document.getElementById('childCol');
+    const cocukListe = document.getElementById('childList');
+
+    if (cocuklar.length > 0) {
+        cocukKol.style.display = 'block';
+        cocukListe.innerHTML = cocuklar.map(c => `
+            <div class="cat-item c-item" onmouseenter="torunKategorileriGoster('${c.id}', this)">
                 ${c.ad} <i class="fas fa-chevron-right"></i>
             </div>
         `).join('');
     } else {
-        childCol.style.display = 'none';
+        cocukKol.style.display = 'none';
     }
 }
 
-function showGrandChildCategories(childId, element) {
+function torunKategorileriGoster(cocukId, element) {
     document.querySelectorAll('.c-item').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
-    
-    const grandChildren = window.allCategories.filter(k => {
-        const kParent = k.ust_kategori_id || k.ustKategoriId || k.KategoriId || k.parentId || k.parent_id;
-        return kParent == childId;
+
+    const torunlar = window.tumKategoriler.filter(k => {
+        const ustId = k.ust_kategori_id || k.ustKategoriId || k.parent_id;
+        return ustId == cocukId;
     });
-    
-    const grandChildCol = document.getElementById('grandChildCol');
-    const grandChildList = document.getElementById('grandChildList');
-    
-    if (grandChildren.length > 0) {
-        grandChildCol.style.display = 'block';
-        grandChildList.innerHTML = grandChildren.map(g => `
-            <div class="cat-item">
-                ${g.ad}
-            </div>
-        `).join(''); 
-    } else { 
-        grandChildCol.style.display = 'none'; 
+
+    const torunKol   = document.getElementById('grandChildCol');
+    const torunListe = document.getElementById('grandChildList');
+
+    if (torunlar.length > 0) {
+        torunKol.style.display = 'block';
+        torunListe.innerHTML = torunlar.map(g => `
+            <div class="cat-item">${g.ad}</div>
+        `).join('');
+    } else {
+        torunKol.style.display = 'none';
     }
 }
 
-// ==========================================
-// ORTAK KART VE ÖNERİ SİSTEMİ
-// ==========================================
+// Eski isimleri de dışa aç (mega menu HTML'de inline onmouseenter var)
+window.showChildCategories     = altKategorileriGoster;
+window.showGrandChildCategories = torunKategorileriGoster;
 
-function escapeHtml(text) {
-    if (!text) return '';
+// ============================================================
+// ÖNE ÇIKAN EĞİTİMLER
+// ============================================================
+
+async function yayindakiKurslariYukle() {
+    const izgara = document.getElementById('courseGrid');
+    if (!izgara) return;
+
+    izgara.innerHTML = '<div class="loading-state"><p>Kurslar yükleniyor...</p></div>';
+    try {
+        const sonuc   = await ApiService.get('/courses/published');
+        const kurslar = sonuc.data || [];
+
+        if (kurslar.length === 0) {
+            izgara.innerHTML = '<p class="info-message">Henüz yayınlanmış bir kurs bulunmuyor.</p>';
+            return;
+        }
+        izgara.innerHTML = '';
+        kurslar.forEach(kurs => izgara.insertAdjacentHTML('beforeend', kursKartiOlustur(kurs)));
+    } catch (hata) {
+        console.error('[KURSLAR] Yüklenemedi:', hata.message);
+        izgara.innerHTML = `<div class="hata-mesaji"><p>Kurslar şu anda yüklenemiyor.</p></div>`;
+    }
+}
+
+// ============================================================
+// TÜM ÖNERİLERİ TEK API ÇAĞRISIYLA YÜKLEYİP RENDER ET
+// ============================================================
+
+async function tumOnerileriYukle() {
+    // Oturum bellekten son görüntülenen kurs/kategori ID'sini al (varsa)
+    const tohumKursId     = sessionStorage.getItem('son_goruntulenen_kurs_id') || '';
+    const tohumKategoriId = sessionStorage.getItem('son_goruntulenen_kategori_id') || '';
+
+    const parametreler = new URLSearchParams();
+    if (tohumKursId)     parametreler.append('kurs_id',     tohumKursId);
+    if (tohumKategoriId) parametreler.append('kategori_id', tohumKategoriId);
+    const sorguStr = parametreler.toString() ? `?${parametreler.toString()}` : '';
+
+    try {
+        const sonuc = await ApiService.get(`/recommendations/anasayfa${sorguStr}`);
+        const veri  = sonuc.veri || {};
+
+        renderEnPopulerKurslar(veri.enPopulerKurslar        || []);
+        renderPopulerKategoriler(veri.populerKategoriler    || []);
+        renderBirlikteAlinan(veri.birlikteAlinanKurslar     || []);
+        renderKategoriCarpraz(veri.kategoriBazliCarpraz     || []);
+        renderEnCokBegenilen(veri.enCokBegenilen            || []);
+    } catch (hata) {
+        console.error('[ÖNERİLER] Ana sayfa yüklenemedi:', hata.message);
+        ['enPopulerGrid','birlikteAlinanGrid','enCokBegenilenGrid'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<div class="hata-mesaji"><p>Öneriler yüklenemedi.</p></div>';
+        });
+    }
+
+    // Kişiselleştirilmiş bölüm ayrı istekle çağrılır (auth gerektirir)
+    await kisisellestirilmisOnerileriYukle();
+}
+
+// ── MODÜL 1 render ──────────────────────────────────────────
+function renderEnPopulerKurslar(kurslar) {
+    const izgara = document.getElementById('enPopulerGrid');
+    if (!izgara) return;
+
+    if (kurslar.length === 0) {
+        izgara.innerHTML = '<div class="bos-durum"><p>Henüz popüler kurs verisi bulunmuyor.</p></div>';
+        return;
+    }
+    izgara.innerHTML = '';
+    kurslar.forEach(kurs => izgara.insertAdjacentHTML('beforeend', kursKartiOlustur(kurs)));
+}
+
+// ── MODÜL 2 render — Kategori kartları ──────────────────────
+function renderPopulerKategoriler(kategoriler) {
+    const izgara = document.getElementById('populerKategorilerGrid');
+    if (!izgara) return;
+
+    if (kategoriler.length === 0) {
+        izgara.innerHTML = '<div class="bos-durum"><p>Kategori verisi bulunamadı.</p></div>';
+        return;
+    }
+    izgara.innerHTML = '';
+    kategoriler.forEach(kat => {
+        const ornekKursHtml = (kat.ornek_kurslar || []).map(k => `
+            <a href="/main/course-detail.html?id=${guvenliMetin(k.id)}" class="kategori-kurs-chip">
+                <span class="chip-baslik">${guvenliMetin(k.baslik)}</span>
+                <span class="chip-fiyat">${k.fiyat > 0 ? parseFloat(k.fiyat).toFixed(2) + ' ₺' : 'Ücretsiz'}</span>
+            </a>
+        `).join('');
+
+        const kayitSayisi = kat.istatistikler?.toplam_kayit || 0;
+        const kursSayisi  = kat.istatistikler?.kurs_sayisi  || 0;
+
+        izgara.insertAdjacentHTML('beforeend', `
+            <div class="kategori-karti">
+                <div class="kategori-karti-ust">
+                    <div class="kategori-ikon"><i class="fas fa-graduation-cap"></i></div>
+                    <div>
+                        <h3 class="kategori-adi">${guvenliMetin(kat.ad)}</h3>
+                        <p class="kategori-meta">
+                            <span>${kursSayisi} kurs</span>
+                            <span class="meta-ayirici">·</span>
+                            <span>${kayitSayisi.toLocaleString('tr-TR')} kayıt</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="kategori-kurslar">${ornekKursHtml}</div>
+                <a href="#courses" class="kategori-tum-link">
+                    Tüm kursları gör <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        `);
+    });
+}
+
+// ── MODÜL 3 render — Collaborative filtering ────────────────
+function renderBirlikteAlinan(kurslar) {
+    const izgara = document.getElementById('birlikteAlinanGrid');
+    if (!izgara) return;
+
+    if (kurslar.length === 0) {
+        izgara.innerHTML = `
+            <div class="bos-durum bos-durum-acik">
+                <i class="fas fa-users" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.5;"></i>
+                <p>Henüz birlikte alınma verisi yeterli değil.</p>
+            </div>`;
+        return;
+    }
+    izgara.innerHTML = '';
+    kurslar.forEach(kurs => izgara.insertAdjacentHTML('beforeend', kursKartiOlustur(kurs)));
+}
+
+// ── MODÜL 4 render — Kategori çapraz öneri ──────────────────
+function renderKategoriCarpraz(kategoriler) {
+    const bolum  = document.getElementById('kategoriCarprazSection');
+    const izgara = document.getElementById('kategoriCarprazGrid');
+    if (!bolum || !izgara) return;
+
+    if (kategoriler.length === 0) {
+        bolum.style.display = 'none';
+        return;
+    }
+
+    bolum.style.display = 'block';
+    izgara.innerHTML = '';
+
+    kategoriler.forEach(kat => {
+        const ornekKursHtml = (kat.ornek_kurslar || []).map(k => `
+            <a href="/main/course-detail.html?id=${guvenliMetin(k.id)}" class="kategori-kurs-chip">
+                <span class="chip-baslik">${guvenliMetin(k.baslik)}</span>
+                <span class="chip-fiyat">${k.fiyat > 0 ? parseFloat(k.fiyat).toFixed(2) + ' ₺' : 'Ücretsiz'}</span>
+            </a>
+        `).join('');
+
+        izgara.insertAdjacentHTML('beforeend', `
+            <div class="kategori-karti kategori-karti-carpraz">
+                <div class="kategori-karti-ust">
+                    <div class="kategori-ikon kategori-ikon-mor"><i class="fas fa-random"></i></div>
+                    <div>
+                        <h3 class="kategori-adi">${guvenliMetin(kat.ad)}</h3>
+                        <p class="kategori-meta">
+                            <span>${kat.ortak_kullanici_sayisi?.toLocaleString('tr-TR') || 0} ortak öğrenci</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="kategori-kurslar">${ornekKursHtml}</div>
+            </div>
+        `);
+    });
+}
+
+// ── MODÜL 5 render ──────────────────────────────────────────
+function renderEnCokBegenilen(kurslar) {
+    const izgara = document.getElementById('enCokBegenilenGrid');
+    if (!izgara) return;
+
+    if (kurslar.length === 0) {
+        izgara.innerHTML = '<div class="bos-durum"><p>Henüz yeterli değerlendirme bulunmuyor.</p></div>';
+        return;
+    }
+    izgara.innerHTML = '';
+    kurslar.forEach(kurs => izgara.insertAdjacentHTML('beforeend', kursKartiOlustur(kurs)));
+}
+
+// ── KİŞİSELLEŞTİRİLMİŞ (ayrı auth endpoint) ─────────────────
+async function kisisellestirilmisOnerileriYukle() {
+    const bolum    = document.getElementById('recommendedSection');
+    const izgara   = document.getElementById('recommendedGrid');
+    if (!izgara) return;
+
+    const jeton = localStorage.getItem('edunex_token');
+    if (!jeton) {
+        if (bolum) bolum.style.display = 'none';
+        return;
+    }
+
+    if (bolum) bolum.style.display = 'block';
+
+    try {
+        const sonuc   = await ApiService.get('/recommendations/personalized');
+        const kurslar = sonuc.veri || sonuc.data || [];
+
+        if (kurslar.length === 0) {
+            izgara.innerHTML = `
+                <div class="bos-durum bos-durum-acik" style="grid-column:1/-1;">
+                    <i class="fas fa-info-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+                    <p>Henüz kişiselleştirilmiş öneri oluşturulamadı.</p>
+                    <a href="/profile/index.html" style="color:white;text-decoration:underline;margin-top:10px;display:inline-block;">
+                        Profil Ayarlarına Git →
+                    </a>
+                </div>`;
+            return;
+        }
+        izgara.innerHTML = '';
+        kurslar.forEach(kurs => izgara.insertAdjacentHTML('beforeend', kursKartiOlustur(kurs)));
+    } catch {
+        if (bolum) bolum.style.display = 'none';
+    }
+}
+
+// Eski fonksiyon isimlerini geriye dönük olarak dışa aç
+async function loadAllRecommendations()  { await tumOnerileriYukle(); }
+async function loadTrendingCourses()     { /* anasayfa endpoint'i karşılar */ }
+async function loadTopRatedCourses()     { /* anasayfa endpoint'i karşılar */ }
+window.loadAllRecommendations  = loadAllRecommendations;
+window.loadTrendingCourses     = loadTrendingCourses;
+window.loadTopRatedCourses     = loadTopRatedCourses;
+
+// ============================================================
+// ORTAK KART VE YARDIMCI FONKSİYONLAR
+// ============================================================
+
+function guvenliMetin(metin) {
+    if (metin === null || metin === undefined) return '';
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(metin);
     return div.innerHTML;
 }
 
+// Eski isimle de erişilebilsin
+function escapeHtml(text) { return guvenliMetin(text); }
+window.escapeHtml = escapeHtml;
+
 /**
- * Verilen puana göre görsel yıldız (HTML) oluşturur
+ * Puana göre yıldız HTML'i üretir
  */
-function generateStarRatingHtml(rating, reviewCount) {
-    if (!rating || rating === 0) {
-        return `<div style="color: #94a3b8; font-size: 0.9rem; margin: 8px 0;">
+function yildizHtmlOlustur(puan, yorumSayisi) {
+    if (!puan || parseFloat(puan) === 0) {
+        return `<div class="kurs-puan kurs-puan-bos">
                     <i class="far fa-star"></i> Henüz değerlendirilmedi
                 </div>`;
     }
 
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = (rating - fullStars) >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    const puanSayi    = parseFloat(puan);
+    const tamYildiz   = Math.floor(puanSayi);
+    const yarimYildiz = (puanSayi - tamYildiz) >= 0.5;
+    const bosYildiz   = 5 - tamYildiz - (yarimYildiz ? 1 : 0);
 
-    let starsHtml = '';
-    for (let i = 0; i < fullStars; i++) starsHtml += '<i class="fas fa-star"></i> ';
-    if (hasHalfStar) starsHtml += '<i class="fas fa-star-half-alt"></i> ';
-    for (let i = 0; i < emptyStars; i++) starsHtml += '<i class="far fa-star"></i> ';
+    let yildizHtml = '';
+    for (let i = 0; i < tamYildiz; i++)   yildizHtml += '<i class="fas fa-star"></i> ';
+    if (yarimYildiz)                       yildizHtml += '<i class="fas fa-star-half-alt"></i> ';
+    for (let i = 0; i < bosYildiz; i++)    yildizHtml += '<i class="far fa-star"></i> ';
 
-    return `
-        <div style="color: #fbbf24; font-size: 0.95rem; margin: 8px 0; display: flex; align-items: center; gap: 5px;">
-            <span style="font-weight: bold; color: #b45309; margin-right: 2px;">${rating}</span>
-            <span>${starsHtml}</span>
-            <span style="color: #64748b; font-size: 0.85rem; margin-left: 4px;">(${reviewCount})</span>
-        </div>
-    `;
+    return `<div class="kurs-puan">
+                <span class="puan-deger">${puanSayi.toFixed(1)}</span>
+                <span class="yildizlar">${yildizHtml}</span>
+                <span class="puan-yorum">(${yorumSayisi || 0})</span>
+            </div>`;
 }
+// Eski isimle de erişilebilsin
+function generateStarRatingHtml(rating, reviewCount) { return yildizHtmlOlustur(rating, reviewCount); }
+window.generateStarRatingHtml = generateStarRatingHtml;
 
 /**
- * Tek bir kurs kartı oluşturur (Ortak fonksiyon)
+ * Tek bir kurs kartı HTML'i oluşturur (tüm bölümler bu fonksiyonu kullanır)
  */
-function renderCourseCard(course) {
-    const courseId = course.id || '';
-    const courseTitle = course.baslik || 'Başlıksız Kurs';
-    const courseDesc = course.alt_baslik || '';
-    
-    let instructorName = 'Uzman Eğitmen';
-    if (course.Egitmen) {
-        instructorName = `${course.Egitmen.ad || ''} ${course.Egitmen.soyad || ''}`.trim();
-    } else if (course.egitmen) {
-        instructorName = `${course.egitmen.ad || ''} ${course.egitmen.soyad || ''}`.trim();
+function kursKartiOlustur(kurs) {
+    const kursId     = kurs.id || '';
+    const baslik     = kurs.baslik || 'Başlıksız Kurs';
+    const altBaslik  = kurs.alt_baslik || '';
+
+    // Eğitmen adı — hem ORM hem ham SQL formatını destekler
+    let egitmenAdi = 'Uzman Eğitmen';
+    if (kurs.egitmen) {
+        egitmenAdi = `${kurs.egitmen.ad || ''} ${kurs.egitmen.soyad || ''}`.trim();
+    } else if (kurs.Egitmen) {
+        egitmenAdi = `${kurs.Egitmen.ad || ''} ${kurs.Egitmen.soyad || ''}`.trim();
     }
 
-    const coursePrice = course.fiyat > 0 ? `${parseFloat(course.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
-    const categoryName = course.Kategori?.ad || course.kategori?.ad || 'Genel';
-    
-    const avgRating = course.istatistikler?.ortalama_puan || 0;
-    const totalReviews = course.istatistikler?.toplam_yorum || 0;
-    
-    const ratingDisplay = generateStarRatingHtml(avgRating, totalReviews);
+    const fiyat      = kurs.fiyat > 0 ? `${parseFloat(kurs.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
+    const kategoriAd = kurs.kategori?.ad || kurs.Kategori?.ad || kurs.Category?.ad || 'Genel';
 
-    const safeTitle = escapeHtml(courseTitle);
-    const safeInstructor = escapeHtml(instructorName);
+    const ortalamaPuan = kurs.istatistikler?.ortalama_puan
+                         || kurs.dataValues?.ortalama_puan
+                         || 0;
+    const yorumSayisi  = kurs.istatistikler?.toplam_yorum
+                         || kurs.dataValues?.toplam_yorum
+                         || 0;
+
+    const yildizHtml = yildizHtmlOlustur(ortalamaPuan, yorumSayisi);
 
     return `
-        <a href="/main/course-detail.html?id=${courseId}" class="course-card" style="text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s;">
-            <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.3s; height: 100%; display: flex; flex-direction: column;">
-                
-                <div style="height: 160px; background: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; position: relative;">
-                    <i class="fas fa-laptop-code" style="opacity: 0.8;"></i>
-                    <span style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">
-                        ${escapeHtml(categoryName)}
-                    </span>
+        <a href="/main/course-detail.html?id=${guvenliMetin(kursId)}" class="course-card">
+            <div class="kurs-kart-ic">
+                <div class="kurs-kart-kapak">
+                    <i class="fas fa-laptop-code"></i>
+                    <span class="kurs-kategori-rozet">${guvenliMetin(kategoriAd)}</span>
                 </div>
-
-                <div style="padding: 20px; display: flex; flex-direction: column; flex-grow: 1;">
-                    <h3 style="margin: 0 0 10px 0; font-size: 1.15rem; color: #0f172a; line-height: 1.4; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                        ${safeTitle}
-                    </h3>
-
-                    <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #475569;">
-                        <i class="fas fa-chalkboard-teacher" style="margin-right: 6px; color: #94a3b8;"></i>
-                        ${safeInstructor}
+                <div class="kurs-kart-govde">
+                    <h3 class="kurs-kart-baslik">${guvenliMetin(baslik)}</h3>
+                    ${altBaslik ? `<p class="kurs-kart-alt-baslik">${guvenliMetin(altBaslik)}</p>` : ''}
+                    <p class="kurs-kart-egitmen">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        ${guvenliMetin(egitmenAdi)}
                     </p>
-
-                    ${ratingDisplay}
-
-                    <div style="flex-grow: 1;"></div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 12px;">
-                        <span style="font-weight: 800; font-size: 1.3rem; color: #0f172a;">${coursePrice}</span>
-                        <span style="color: #2563eb; font-size: 0.9rem; font-weight: 700;">İncele <i class="fas fa-arrow-right" style="margin-left: 4px;"></i></span>
+                    ${yildizHtml}
+                    <div class="kurs-kart-alt">
+                        <span class="kurs-fiyat">${fiyat}</span>
+                        <span class="kurs-incele">İncele <i class="fas fa-arrow-right"></i></span>
                     </div>
                 </div>
             </div>
         </a>
     `;
 }
-
-async function loadPersonalizedRecommendations() {
-    const recommendedGrid = document.getElementById('recommendedGrid');
-    if (!recommendedGrid) return;
-
-    const token = localStorage.getItem('edunex_token');
-    const recommendedSection = document.getElementById('recommendedSection');
-
-    if (!token) {
-        recommendedSection.style.display = 'none';
-        return;
-    }
-
-    try {
-        const result = await ApiService.get('/recommendations/personalized');
-        const courses = result.data || [];
-
-        recommendedSection.style.display = 'block';
-
-        if (courses.length === 0) {
-            recommendedGrid.innerHTML = `
-                <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: white;">
-                    <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                    <p>Henüz kişiselleştirilmiş öneriler oluşturulamadı. Lütfen ilgi alanlarınızı profil sayfasında ayarlayın.</p>
-                    <a href="/profile/index.html" style="color: white; text-decoration: underline; margin-top: 10px; display: inline-block;">Profil Ayarlarına Git →</a>
-                </div>
-            `;
-            return;
-        }
-
-        recommendedGrid.innerHTML = '';
-        courses.forEach(course => {
-            const cardHtml = renderCourseCard(course);
-            recommendedGrid.insertAdjacentHTML('beforeend', cardHtml);
-        });
-    } catch (error) {
-        recommendedGrid.innerHTML = `
-            <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #dc3545;">
-                <p>Öneriler yüklenemedi. Lütfen daha sonra tekrar deneyin.</p>
-            </div>
-        `;
-    }
-}
-
-async function loadTrendingCourses() {
-    const trendingGrid = document.getElementById('trendingGrid');
-    if (!trendingGrid) return;
-
-    try {
-        const result = await ApiService.get('/recommendations/trending');
-        const courses = result.data || [];
-
-        if (courses.length === 0) {
-            trendingGrid.innerHTML = `
-                <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #64748b;">
-                    <p>Şu anda trend olan kurs bulunmuyor.</p>
-                </div>
-            `;
-            return;
-        }
-
-        trendingGrid.innerHTML = '';
-        courses.forEach(course => {
-            const cardHtml = renderCourseCard(course);
-            trendingGrid.insertAdjacentHTML('beforeend', cardHtml);
-        });
-    } catch (error) {
-        trendingGrid.innerHTML = `
-            <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #dc3545;">
-                <p>Trend kurslar yüklenemedi.</p>
-            </div>
-        `;
-    }
-}
-
-async function loadTopRatedCourses() {
-    const topRatedGrid = document.getElementById('topRatedGrid');
-    if (!topRatedGrid) return;
-
-    try {
-        const result = await ApiService.get('/recommendations/top-rated');
-        const courses = result.data || [];
-
-        if (courses.length === 0) {
-            topRatedGrid.innerHTML = `
-                <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #64748b;">
-                    <p>Henüz puanlanmış kurs bulunmuyor.</p>
-                </div>
-            `;
-            return;
-        }
-
-        topRatedGrid.innerHTML = '';
-        courses.forEach(course => {
-            const cardHtml = renderCourseCard(course);
-            topRatedGrid.insertAdjacentHTML('beforeend', cardHtml);
-        });
-    } catch (error) {
-        topRatedGrid.innerHTML = `
-            <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #dc3545;">
-                <p>En yüksek puanlı kurslar yüklenemedi.</p>
-            </div>
-        `;
-    }
-}
-
-async function loadAllRecommendations() {
-    await Promise.all([
-        loadPersonalizedRecommendations(),
-        loadTrendingCourses(),
-        loadTopRatedCourses()
-    ]);
-}
+// Eski isimle de erişilebilsin
+function renderCourseCard(course) { return kursKartiOlustur(course); }
+window.renderCourseCard = renderCourseCard;

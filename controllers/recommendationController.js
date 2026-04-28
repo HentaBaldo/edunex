@@ -1,247 +1,570 @@
-const { 
-    StudentInterest, 
-    Category, 
-    Course, 
-    CourseEnrollment, 
-    Review, 
-    Profile 
+// controllers/recommendationController.js
+// EduNex Kurs Öneri Motoru - 5 Modüllü Kolaboratif Filtreleme Algoritması
+
+const {
+    Course,
+    CourseEnrollment,
+    Profile,
+    Category,
+    StudentInterest,
+    sequelize
 } = require('../models');
-const { Op, fn, col, literal } = require('sequelize');
+const { Op, literal, QueryTypes } = require('sequelize');
+
+// ============================================================
+// YARDIMCI: Sequelize kurs nesnesini frontend formatına çevir
+// Hem ORM nesneleri hem de ham SQL sonuçları için çalışır
+// ============================================================
+function kursBicimlendir(kurs) {
+    const degerler = kurs.dataValues || kurs;
+    const egitmen  = kurs.Egitmen  || kurs.egitmen  || null;
+    const kategori = kurs.Category || kurs.Kategori || kurs.kategori || null;
+
+    return {
+        id:        degerler.id,
+        baslik:    degerler.baslik,
+        alt_baslik: degerler.alt_baslik || '',
+        fiyat:     degerler.fiyat ? parseFloat(degerler.fiyat).toFixed(2) : '0.00',
+        seviye:    degerler.seviye || 'Başlangıç',
+        egitmen: egitmen ? {
+            id:    egitmen.id    || degerler.egitmen_id,
+            ad:    egitmen.ad    || '',
+            soyad: egitmen.soyad || ''
+        } : {
+            id:    degerler.egitmen_id,
+            ad:    degerler.egitmen_ad    || '',
+            soyad: degerler.egitmen_soyad || ''
+        },
+        kategori: kategori ? {
+            id: kategori.id || degerler.kategori_id,
+            ad: kategori.ad || ''
+        } : {
+            id: degerler.kategori_id,
+            ad: degerler.kategori_ad || ''
+        },
+        istatistikler: {
+            toplam_ogrenci: parseInt(degerler.toplam_ogrenci || 0),
+            ortalama_puan:  degerler.ortalama_puan
+                                ? parseFloat(degerler.ortalama_puan).toFixed(2)
+                                : null,
+            toplam_yorum:   parseInt(degerler.toplam_yorum || degerler.yorum_sayisi || 0)
+        }
+    };
+}
+
+// ============================================================
+// ÖZEL (INTERNAL) FONKSİYONLAR — route handler değil
+// ============================================================
 
 /**
- * Öğrenciye Kişiselleştirilmiş Kurs Önerileri Getir
- * 
- * Mantık:
- * 1. Öğrencinin ilgi alanlarını (kategori_id) bul
- * 2. Bu kategorilerdeki kursları çek
- * 3. Daha önce kayıt olmaları filtreleyip
- * 4. En yüksek puanlı veya en çok kayıtlı 5 kursu döndür
- * 
+ * MODÜL 1 (İÇ): En çok kayıt olunan kursları döndürür
+ */
+async function _enPopulerKurslariGetir(sinir = 8) {
+    const kurslar = await Course.findAll({
+        where: { durum: 'yayinda' },
+        attributes: [
+            'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
+            [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
+            [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
+            [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
+        ],
+        include: [
+            { model: Profile,   as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] },
+            { model: Category,  attributes: ['id', 'ad'] }
+        ],
+        order: [
+            [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC']
+        ],
+        limit:    sinir,
+        subQuery: false
+    });
+    return kurslar.map(kursBicimlendir);
+}
+
+/**
+ * MODÜL 2 (İÇ): Satış hacmine göre popüler kategoriler + kategori başı örnek kurslar
+ */
+async function _populerKategorileriGetir(sinir = 6) {
+    // Kategori başına toplam benzersiz öğrenci ve kurs sayısını hesapla
+    const populerKategoriler = await sequelize.query(
+        `SELECT
+            kat.id,
+            kat.ad,
+            kat.slug,
+            COUNT(DISTINCT kk.ogrenci_id) AS toplam_kayit,
+            COUNT(DISTINCT kk.kurs_id)    AS kurs_sayisi
+         FROM kategoriler kat
+         INNER JOIN kurslar k         ON k.kategori_id = kat.id AND k.durum = 'yayinda'
+         INNER JOIN kurs_kayitlari kk ON kk.kurs_id = k.id
+         GROUP BY kat.id, kat.ad, kat.slug
+         ORDER BY toplam_kayit DESC
+         LIMIT :sinir`,
+        { replacements: { sinir }, type: QueryTypes.SELECT }
+    );
+
+    if (!populerKategoriler || populerKategoriler.length === 0) return [];
+
+    // Her popüler kategori için max 3 kurs — tek sorgu, N+1 yok
+    const kategoriIdleri = populerKategoriler.map(k => k.id);
+    const ornekKurslar = await Course.findAll({
+        where: { kategori_id: { [Op.in]: kategoriIdleri }, durum: 'yayinda' },
+        attributes: [
+            'id', 'baslik', 'fiyat', 'seviye', 'kategori_id',
+            [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
+            [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
+            [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
+        ],
+        include: [{ model: Profile, as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] }],
+        order: [[literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC']],
+        subQuery: false
+    });
+
+    // Kursları kategorilere göre grupla
+    const kurslarGruplu = {};
+    ornekKurslar.forEach(kurs => {
+        const katId = kurs.kategori_id;
+        if (!kurslarGruplu[katId]) kurslarGruplu[katId] = [];
+        if (kurslarGruplu[katId].length < 3) {
+            kurslarGruplu[katId].push(kursBicimlendir(kurs));
+        }
+    });
+
+    return populerKategoriler.map(kat => ({
+        id:   kat.id,
+        ad:   kat.ad,
+        slug: kat.slug,
+        istatistikler: {
+            toplam_kayit: parseInt(kat.toplam_kayit),
+            kurs_sayisi:  parseInt(kat.kurs_sayisi)
+        },
+        ornek_kurslar: kurslarGruplu[kat.id] || []
+    }));
+}
+
+/**
+ * MODÜL 3 (İÇ): Ham SQL ile kurs bazlı collaborative filtering
+ * tohumKursId kursunu alanların başka ne aldığını hesaplar
+ */
+async function _birlikteAlinanKurslariGetir(tohumKursId, sinir = 8) {
+    const sonuclar = await sequelize.query(
+        `SELECT
+            k.id,
+            k.baslik,
+            k.alt_baslik,
+            k.fiyat,
+            k.seviye,
+            k.egitmen_id,
+            k.kategori_id,
+            COUNT(DISTINCT kk2.ogrenci_id)                                              AS birlikte_alinma_sayisi,
+            (SELECT COUNT(*)         FROM kurs_kayitlari WHERE kurs_id = k.id)          AS toplam_ogrenci,
+            (SELECT ROUND(AVG(puan), 2) FROM yorumlar    WHERE kurs_id = k.id)          AS ortalama_puan,
+            (SELECT COUNT(*)         FROM yorumlar        WHERE kurs_id = k.id)          AS toplam_yorum,
+            p.ad    AS egitmen_ad,
+            p.soyad AS egitmen_soyad,
+            kat.ad  AS kategori_ad
+         FROM kurs_kayitlari kk1
+         INNER JOIN kurs_kayitlari kk2
+             ON  kk1.ogrenci_id = kk2.ogrenci_id
+             AND kk2.kurs_id   != :tohumKursId
+         INNER JOIN kurslar     k   ON kk2.kurs_id    = k.id   AND k.durum = 'yayinda'
+         INNER JOIN profiller   p   ON k.egitmen_id   = p.id
+         INNER JOIN kategoriler kat ON k.kategori_id  = kat.id
+         WHERE kk1.kurs_id = :tohumKursId
+         GROUP BY
+             k.id, k.baslik, k.alt_baslik, k.fiyat, k.seviye,
+             k.egitmen_id, k.kategori_id, p.ad, p.soyad, kat.ad
+         ORDER BY birlikte_alinma_sayisi DESC
+         LIMIT :sinir`,
+        { replacements: { tohumKursId, sinir }, type: QueryTypes.SELECT }
+    );
+
+    return (sonuclar || []).map(kursBicimlendir);
+}
+
+/**
+ * MODÜL 4 (İÇ): Kategori bazlı çapraz-satış öneri algoritması
+ * tohumKategoriId kategorisinden kurs alanların istatistiksel olarak hangi
+ * diğer kategorilere yöneldiğini hesaplar; her kategori için örnek kursları döndürür
+ */
+async function _kategoriCarprazGetir(tohumKategoriId, sinir = 5) {
+    const carprazKategoriler = await sequelize.query(
+        `SELECT
+            kat.id,
+            kat.ad,
+            kat.slug,
+            COUNT(DISTINCT kk2.ogrenci_id) AS ortak_kullanici_sayisi
+         FROM kurs_kayitlari kk1
+         INNER JOIN kurslar k1
+             ON  kk1.kurs_id    = k1.id
+             AND k1.kategori_id = :tohumKategoriId
+         INNER JOIN kurs_kayitlari kk2 ON kk1.ogrenci_id = kk2.ogrenci_id
+         INNER JOIN kurslar k2
+             ON  kk2.kurs_id    = k2.id
+             AND k2.durum       = 'yayinda'
+             AND k2.kategori_id != :tohumKategoriId
+         INNER JOIN kategoriler kat ON k2.kategori_id = kat.id
+         GROUP BY kat.id, kat.ad, kat.slug
+         ORDER BY ortak_kullanici_sayisi DESC
+         LIMIT :sinir`,
+        { replacements: { tohumKategoriId, sinir }, type: QueryTypes.SELECT }
+    );
+
+    if (!carprazKategoriler || carprazKategoriler.length === 0) return [];
+
+    // Her çapraz kategori için max 4 örnek kurs — tek sorgu
+    const carprazKatIdleri = carprazKategoriler.map(k => k.id);
+    const ornekKurslar = await Course.findAll({
+        where: { kategori_id: { [Op.in]: carprazKatIdleri }, durum: 'yayinda' },
+        attributes: [
+            'id', 'baslik', 'fiyat', 'seviye', 'kategori_id',
+            [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
+            [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
+            [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
+        ],
+        include: [{ model: Profile, as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] }],
+        order: [[literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC']],
+        subQuery: false
+    });
+
+    const kurslarGruplu = {};
+    ornekKurslar.forEach(kurs => {
+        const katId = kurs.kategori_id;
+        if (!kurslarGruplu[katId]) kurslarGruplu[katId] = [];
+        if (kurslarGruplu[katId].length < 4) {
+            kurslarGruplu[katId].push(kursBicimlendir(kurs));
+        }
+    });
+
+    return carprazKategoriler.map(kat => ({
+        id:    kat.id,
+        ad:    kat.ad,
+        slug:  kat.slug,
+        ortak_kullanici_sayisi: parseInt(kat.ortak_kullanici_sayisi),
+        ornek_kurslar: kurslarGruplu[kat.id] || []
+    }));
+}
+
+/**
+ * MODÜL 5 (İÇ): Min yorum şartıyla en yüksek puanlı kurslar
+ */
+async function _enCokBegenilenGetir(sinir = 8, minYorum = 5) {
+    const kurslar = await Course.findAll({
+        where: { durum: 'yayinda' },
+        attributes: [
+            'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
+            [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
+            [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum'],
+            [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci']
+        ],
+        include: [
+            { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] },
+            { model: Category, attributes: ['id', 'ad'] }
+        ],
+        having: literal(`(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id) >= ${parseInt(minYorum)}`),
+        order: [
+            [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'DESC'],
+            [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'DESC']
+        ],
+        limit:    sinir,
+        subQuery: false
+    });
+    return kurslar.map(kursBicimlendir);
+}
+
+/**
+ * Seed kurs yoksa: platformun en çok kayıtlı kursunu seed olarak kullan
+ */
+async function _enPopulerTohumKursuBul() {
+    const [satir] = await sequelize.query(
+        `SELECT kurs_id FROM kurs_kayitlari GROUP BY kurs_id ORDER BY COUNT(*) DESC LIMIT 1`,
+        { type: QueryTypes.SELECT }
+    );
+    return satir ? satir.kurs_id : null;
+}
+
+/**
+ * Seed kategori yoksa: platformun en çok kayıtlı kategorisini seed olarak kullan
+ */
+async function _enPopulerTohumKategorisiniBul() {
+    const [satir] = await sequelize.query(
+        `SELECT k.kategori_id
+         FROM kurs_kayitlari kk
+         INNER JOIN kurslar k ON kk.kurs_id = k.id AND k.durum = 'yayinda'
+         GROUP BY k.kategori_id
+         ORDER BY COUNT(*) DESC
+         LIMIT 1`,
+        { type: QueryTypes.SELECT }
+    );
+    return satir ? satir.kategori_id : null;
+}
+
+// ============================================================
+// MODÜL 1 — PUBLIC ROUTE HANDLER: En Popüler Kurslar
+// @route GET /api/recommendations/populer-kurslar
+// @access Public
+// ============================================================
+exports.getEnPopulerKurslar = async (req, res, next) => {
+    try {
+        const sinir = Math.min(parseInt(req.query.sinir) || 8, 20);
+        const veri  = await _enPopulerKurslariGetir(sinir);
+
+        return res.status(200).json({
+            status: 'basarili',
+            mesaj:  `En popüler ${veri.length} kurs getirildi.`,
+            veri
+        });
+    } catch (hata) {
+        console.error('[EN_POPULER] Hata:', hata.message);
+        next(hata);
+    }
+};
+
+// ============================================================
+// MODÜL 2 — PUBLIC ROUTE HANDLER: Popüler Kategoriler
+// @route GET /api/recommendations/populer-kategoriler
+// @access Public
+// ============================================================
+exports.getPopulerKategoriler = async (req, res, next) => {
+    try {
+        const sinir = Math.min(parseInt(req.query.sinir) || 6, 12);
+        const veri  = await _populerKategorileriGetir(sinir);
+
+        return res.status(200).json({
+            status: 'basarili',
+            mesaj:  `${veri.length} popüler kategori getirildi.`,
+            veri
+        });
+    } catch (hata) {
+        console.error('[POPULER_KATEGORILER] Hata:', hata.message);
+        next(hata);
+    }
+};
+
+// ============================================================
+// MODÜL 3 — PUBLIC ROUTE HANDLER: Bunu Alanlar Şunu da Aldı
+// @route GET /api/recommendations/birlikte-alinan?kurs_id=UUID
+// @access Public
+// ============================================================
+exports.getBirlikteAlinan = async (req, res, next) => {
+    try {
+        const tohumKursId = req.query.kurs_id;
+        if (!tohumKursId) {
+            return res.status(400).json({
+                status: 'hata',
+                mesaj:  '`kurs_id` query parametresi zorunludur.'
+            });
+        }
+
+        const sinir = Math.min(parseInt(req.query.sinir) || 8, 20);
+        const veri  = await _birlikteAlinanKurslariGetir(tohumKursId, sinir);
+
+        return res.status(200).json({
+            status:        'basarili',
+            mesaj:         `Bu kursu alanların ${veri.length} ortak kursu getirildi.`,
+            tohum_kurs_id: tohumKursId,
+            veri
+        });
+    } catch (hata) {
+        console.error('[BIRLIKTE_ALINAN] Hata:', hata.message);
+        next(hata);
+    }
+};
+
+// ============================================================
+// MODÜL 4 — PUBLIC ROUTE HANDLER: Bu Kategoriden Alanlar Şuradan da Aldı
+// @route GET /api/recommendations/kategori-carpraz?kategori_id=UUID
+// @access Public
+// ============================================================
+exports.getKategoriCarpraz = async (req, res, next) => {
+    try {
+        const tohumKategoriId = req.query.kategori_id;
+        if (!tohumKategoriId) {
+            return res.status(400).json({
+                status: 'hata',
+                mesaj:  '`kategori_id` query parametresi zorunludur.'
+            });
+        }
+
+        const sinir = Math.min(parseInt(req.query.sinir) || 5, 10);
+        const veri  = await _kategoriCarprazGetir(tohumKategoriId, sinir);
+
+        return res.status(200).json({
+            status:              'basarili',
+            mesaj:               `${veri.length} çapraz kategori önerisi getirildi.`,
+            tohum_kategori_id:   tohumKategoriId,
+            veri
+        });
+    } catch (hata) {
+        console.error('[KATEGORI_CARPRAZ] Hata:', hata.message);
+        next(hata);
+    }
+};
+
+// ============================================================
+// MODÜL 5 — PUBLIC ROUTE HANDLER: En Çok Beğenilenler
+// @route GET /api/recommendations/en-cok-begenilen?min_yorum=5
+// @access Public
+// ============================================================
+exports.getEnCokBegenilen = async (req, res, next) => {
+    try {
+        const sinir    = Math.min(parseInt(req.query.sinir)     || 8, 20);
+        const minYorum = Math.max(parseInt(req.query.min_yorum) || 5,  1);
+        const veri     = await _enCokBegenilenGetir(sinir, minYorum);
+
+        return res.status(200).json({
+            status: 'basarili',
+            mesaj:  `En çok beğenilen ${veri.length} kurs getirildi (min ${minYorum} yorum).`,
+            veri
+        });
+    } catch (hata) {
+        console.error('[EN_COK_BEGENILEN] Hata:', hata.message);
+        next(hata);
+    }
+};
+
+// ============================================================
+// ANA FONKSİYON — Tüm 5 modülü tek HTTP isteğinde döndürür
+// @route GET /api/recommendations/anasayfa
+// @access Public (opsiyonel: ?kurs_id, ?kategori_id)
+// ============================================================
+exports.getRecommendations = async (req, res, next) => {
+    try {
+        let tohumKursId     = req.query.kurs_id     || null;
+        let tohumKategoriId = req.query.kategori_id || null;
+
+        // Seed parametreleri yoksa platform geneli en popülerleri kullan
+        if (!tohumKursId) {
+            tohumKursId = await _enPopulerTohumKursuBul();
+        }
+        if (!tohumKategoriId) {
+            tohumKategoriId = await _enPopulerTohumKategorisiniBul();
+        }
+
+        // Tüm 5 modül paralel çalışır — N+1 sorgu riski sıfır
+        const [
+            enPopulerKurslar,
+            populerKategoriler,
+            birlikteAlinanKurslar,
+            kategoriBazliCarpraz,
+            enCokBegenilen
+        ] = await Promise.all([
+            _enPopulerKurslariGetir(8),
+            _populerKategorileriGetir(6),
+            tohumKursId     ? _birlikteAlinanKurslariGetir(tohumKursId, 8)     : Promise.resolve([]),
+            tohumKategoriId ? _kategoriCarprazGetir(tohumKategoriId, 5)        : Promise.resolve([]),
+            _enCokBegenilenGetir(8, 5)
+        ]);
+
+        return res.status(200).json({
+            status: 'basarili',
+            mesaj:  'Ana sayfa öneri modülleri hazırlandı.',
+            meta: {
+                tohum_kurs_id:     tohumKursId,
+                tohum_kategori_id: tohumKategoriId
+            },
+            veri: {
+                enPopulerKurslar,
+                populerKategoriler,
+                birlikteAlinanKurslar,
+                kategoriBazliCarpraz,
+                enCokBegenilen
+            }
+        });
+    } catch (hata) {
+        console.error('[RECOMMENDATIONS_ANASAYFA] Hata:', hata.message);
+        next(hata);
+    }
+};
+
+// ============================================================
+// GERİYE DÖNÜK UYUMLULUK — Eski frontend çağrıları için
+// ============================================================
+
+/**
+ * Kişiselleştirilmiş öneriler — öğrencinin ilgi alanları
  * @route GET /api/recommendations/personalized
- * @access Private (Öğrenci)
+ * @access Private
  */
 exports.getPersonalizedRecommendations = async (req, res, next) => {
     try {
-        const studentId = req.user.id;
+        const ogrenciId = req.user.id;
 
-        console.log(`[RECOMMENDATION] Öğrenci ${studentId} için öneriler hazırlanıyor...`);
-
-        // 1. ADIM: Öğrencinin İlgi Alanlarını Bul
-        const studentInterests = await StudentInterest.findAll({
-            where: { ogrenci_id: studentId },
+        const ilgiAlanlari = await StudentInterest.findAll({
+            where: { ogrenci_id: ogrenciId },
             attributes: ['kategori_id'],
             raw: true
         });
 
-        console.log(`[RECOMMENDATION] Öğrenci ${studentId} ilgi alanları:`, studentInterests);
-
-        if (studentInterests.length === 0) {
-            console.log(`[RECOMMENDATION] Öğrenci ${studentId} ilgi alanı tanımlanmamış.`);
+        // İlgi alanı yoksa en popülerleri döndür
+        if (ilgiAlanlari.length === 0) {
+            const veri = await _enPopulerKurslariGetir(5);
             return res.status(200).json({
-                status: 'success',
-                message: 'İlgi alanı tanımlanmadığı için genel öneriler getiriliyor.',
-                data: []
+                status: 'basarili',
+                mesaj:  'İlgi alanı bulunamadı; genel öneriler döndürüldü.',
+                veri
             });
         }
 
-        // İlgi alanı ID'lerini dizi haline getir
-        const categoryIds = studentInterests.map(interest => interest.kategori_id);
-        console.log(`[RECOMMENDATION] Kategori ID'leri: ${categoryIds.join(', ')}`);
+        const kategoriIdleri = ilgiAlanlari.map(i => i.kategori_id);
 
-        // 2. ADIM: Öğrencinin Zaten Kayıtlı Olduğu Kursları Bul
-        const enrolledCourses = await CourseEnrollment.findAll({
-            where: { ogrenci_id: studentId },
+        const kayitliKurslar = await CourseEnrollment.findAll({
+            where: { ogrenci_id: ogrenciId },
             attributes: ['kurs_id'],
             raw: true
         });
+        const kayitliKursIdleri = kayitliKurslar.map(k => k.kurs_id);
 
-        const enrolledCourseIds = enrolledCourses.map(enr => enr.kurs_id);
-        console.log(`[RECOMMENDATION] Kayıtlı kurslar: ${enrolledCourseIds.join(', ') || 'Hiçbiri'}`);
+        const whereKosulu = {
+            kategori_id: { [Op.in]: kategoriIdleri },
+            durum: 'yayinda'
+        };
+        if (kayitliKursIdleri.length > 0) {
+            whereKosulu.id = { [Op.notIn]: kayitliKursIdleri };
+        }
 
-        // 3. ADIM: İlgi Alanlarındaki Yayında Kursları Çek (Kayıtlı Olmadığı)
-        const recommendations = await Course.findAll({
-            where: {
-                kategori_id: { [Op.in]: categoryIds }, // İlgi alanlarında
-                durum: 'yayinda',                      // Yayında olan
-                id: { [Op.notIn]: enrolledCourseIds }  // Kayıtlı olmadığı
-            },
+        const oneriler = await Course.findAll({
+            where: whereKosulu,
             attributes: [
-                'id',
-                'baslik',
-                'alt_baslik',
-                'aciklama',
-                'kategori_id',
-                'fiyat',
-                'seviye',
-                'egitmen_id',
+                'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
                 [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
-                [literal('(SELECT AVG(puan) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan']
+                [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
+                [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
             ],
             include: [
-                {
-                    model: Profile,
-                    as: 'Egitmen',
-                    attributes: ['id', 'ad', 'soyad', 'profil_fotografi']
-                },
-                {
-                    model: Category,
-                    attributes: ['id', 'ad']
-                },
-                {
-                    model: Review,
-                    attributes: ['id', 'puan'],
-                    required: false
-                }
+                { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] },
+                { model: Category, attributes: ['id', 'ad'] }
             ],
             order: [
-                // ÖNCELİK: Puanı yüksek olanlar
-                [literal('(SELECT AVG(puan) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'DESC'],
-                // İKİNCİL: Kayıtlı öğrenci sayısı yüksek olanlar
-                [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC'],
-                // ÜÇÜNCÜL: Oluşturma tarihi
-                ['createdAt', 'DESC']
-            ],
-            limit: 5,
-            subQuery: false,
-            raw: false
-        });
-
-        console.log(`[RECOMMENDATION] ${recommendations.length} kurs önerisi hazırlandı.`);
-
-        // 4. ADIM: Yanıt Formatı Oluştur
-        const formattedRecommendations = recommendations.map(course => ({
-            id: course.id,
-            baslik: course.baslik,
-            alt_baslik: course.alt_baslik,
-            aciklama: course.aciklama,
-            fiyat: course.fiyat,
-            seviye: course.seviye,
-            egitmen: {
-                id: course.Egitmen?.id,
-                ad: course.Egitmen?.ad,
-                soyad: course.Egitmen?.soyad,
-                profil_fotografi: course.Egitmen?.profil_fotografi
-            },
-            kategori: {
-                id: course.Category?.id,
-                ad: course.Category?.ad
-            },
-            istatistikler: {
-                toplam_ogrenci: course.dataValues.toplam_ogrenci || 0,
-                ortalama_puan: course.dataValues.ortalama_puan 
-                    ? parseFloat(course.dataValues.ortalama_puan).toFixed(2) 
-                    : null,
-                yorum_sayisi: course.Reviews?.length || 0
-            }
-        }));
-
-        return res.status(200).json({
-            status: 'success',
-            message: `${studentId} için ${formattedRecommendations.length} kurs önerileri hazırlandı.`,
-            data: formattedRecommendations
-        });
-
-    } catch (error) {
-        console.error('[RECOMMENDATION] Hata:', error.message);
-        console.error('[RECOMMENDATION] Stack:', error.stack);
-        next(error);
-    }
-};
-
-/**
- * Trending Kurslar Getir (En Çok Kayıtlı)
- * 
- * @route GET /api/recommendations/trending
- * @access Public
- */
-exports.getTrendingCourses = async (req, res, next) => {
-    try {
-        const trendingCourses = await Course.findAll({
-            where: { durum: 'yayinda' },
-            attributes: [
-                'id',
-                'baslik',
-                'fiyat',
-                'seviye',
-                [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
-                [literal('(SELECT AVG(puan) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan']
-            ],
-            include: [
-                {
-                    model: Profile,
-                    as: 'Egitmen',
-                    attributes: ['ad', 'soyad']
-                },
-                {
-                    model: Category,
-                    attributes: ['ad']
-                }
-            ],
-            order: [
+                [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'DESC'],
                 [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC']
             ],
-            limit: 10,
-            subQuery: false,
-            raw: false
+            limit:    5,
+            subQuery: false
         });
 
         return res.status(200).json({
-            status: 'success',
-            message: 'Trend olan kurslar başarıyla getirildi.',
-            data: trendingCourses
+            status: 'basarili',
+            mesaj:  `${oneriler.length} kişiselleştirilmiş öneri hazırlandı.`,
+            veri:   oneriler.map(kursBicimlendir)
         });
-
-    } catch (error) {
-        console.error('[TRENDING] Hata:', error.message);
-        next(error);
+    } catch (hata) {
+        console.error('[PERSONALIZED] Hata:', hata.message);
+        next(hata);
     }
 };
 
-/**
- * En Yüksek Puanlı Kurslar Getir
- * 
- * @route GET /api/recommendations/top-rated
- * @access Public
- */
-exports.getTopRatedCourses = async (req, res, next) => {
+/** @route GET /api/recommendations/trending  @access Public */
+exports.getTrendingCourses = async (_req, res, next) => {
     try {
-        const topRatedCourses = await Course.findAll({
-            where: { durum: 'yayinda' },
-            attributes: [
-                'id',
-                'baslik',
-                'fiyat',
-                [literal('(SELECT AVG(puan) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
-                [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'yorum_sayisi'],
-                [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci']
-            ],
-            include: [
-                {
-                    model: Profile,
-                    as: 'Egitmen',
-                    attributes: ['ad', 'soyad']
-                }
-            ],
-            order: [
-                [literal('(SELECT AVG(puan) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'DESC']
-            ],
-            limit: 10,
-            subQuery: false,
-            raw: false
-        });
+        const veri = await _enPopulerKurslariGetir(10);
+        return res.status(200).json({ status: 'basarili', mesaj: 'Trend kurslar getirildi.', veri });
+    } catch (hata) { next(hata); }
+};
 
-        const filtered = topRatedCourses.filter(course => 
-            course.dataValues.ortalama_puan !== null
-        );
-
-        return res.status(200).json({
-            status: 'success',
-            message: 'En yüksek puanlı kurslar başarıyla getirildi.',
-            data: filtered
-        });
-
-    } catch (error) {
-        console.error('[TOP-RATED] Hata:', error.message);
-        next(error);
-    }
+/** @route GET /api/recommendations/top-rated  @access Public */
+exports.getTopRatedCourses = async (_req, res, next) => {
+    try {
+        const veri = await _enCokBegenilenGetir(10, 1);
+        return res.status(200).json({ status: 'basarili', mesaj: 'En yüksek puanlı kurslar getirildi.', veri });
+    } catch (hata) { next(hata); }
 };

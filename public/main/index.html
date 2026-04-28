@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>EduNex - Geleceğin Eğitim Platformu</title>
-    
+
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
     <link rel="stylesheet" href="/main/css/main.css">
@@ -13,13 +13,13 @@
 
     <header class="navbar">
         <div class="container navbar-content">
-            
+
             <div class="nav-left">
                 <a href="/" class="logo">EduNex</a>
-                
+
                 <div class="nav-item mega-menu-trigger">
                     <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></span>
-                    
+
                     <div class="mega-menu" id="megaMenu">
                         <div class="menu-col">
                             <h4>Kategoriler</h4>
@@ -44,19 +44,19 @@
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="Geleceğinizi şekillendirecek kursu arayın...">
                 </div>
-                <span class="nav-text-link"><i class="fas fa-filter"></i> Filtrele</span>
             </div>
 
             <div class="nav-right">
                 <a href="#courses" class="nav-text-link">Kurslar</a>
-                <div id="authNavContainer">
-                    </div>
+                <div id="authNavContainer"></div>
             </div>
 
         </div>
     </header>
 
     <main>
+
+        <!-- ─── HERO ─────────────────────────────────────────────── -->
         <section class="hero">
             <div class="container hero-grid">
                 <div class="hero-content">
@@ -64,79 +64,110 @@
                     <p>EduNex, uzman eğitmenler ile öğrenmeye istekli bireyleri bir araya getiren yeni nesil eğitim pazaryeridir.</p>
                     <div class="hero-actions">
                         <a href="#courses" class="btn-primary">Eğitimleri Keşfet</a>
-                        <a href="/auth/index.html" class="btn-secondary" style="background:transparent; border:2px solid white; color:white; padding:12px 24px; border-radius:8px; text-decoration:none; margin-left:10px;">Eğitmen Ol</a>
+                        <a href="/auth/index.html" class="btn-secondary">Eğitmen Ol</a>
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- ─── ÖNE ÇIKAN EĞİTİMLER ─────────────────────────────── -->
         <section id="courses" class="courses-section">
             <div class="container">
                 <header class="section-header">
                     <h2>Öne Çıkan Eğitimler</h2>
                     <p>Dünyanın her yerinden uzmanlarca hazırlanan kursları keşfedin.</p>
                 </header>
-                
                 <div id="courseGrid" class="course-grid">
-                    <div class="loading-state">
-                        <p>Kurslar hazırlanıyor...</p>
-                    </div>
+                    <div class="loading-state"><p>Kurslar hazırlanıyor...</p></div>
                 </div>
             </div>
         </section>
 
-    <!-- ========================================
-     ÖNERİ SİSTEMİ BÖLÜMÜ
-     ======================================== -->
-
-        <!-- 1. SİZİN İÇİN ÖNERİLENLER (Giriş yapmış öğrenciler için) -->
-        <section id="recommendedSection" class="recommendations-section" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 0; margin: 40px 0;">
+        <!-- ─── SİZİN İÇİN ÖNERİLENLER (Giriş yapmış öğrenciler) ── -->
+        <section id="recommendedSection" class="oneri-bolumu oneri-mor" style="display: none;">
             <div class="container">
-                <header class="section-header" style="color: white; margin-bottom: 40px;">
-                    <h2 style="color: white;">✨ Sizin İçin Önerilenenler</h2>
-                    <p style="color: rgba(255, 255, 255, 0.9);">Sizin ilgi alanlarınıza göre özel olarak seçilen kurslar</p>
+                <header class="section-header oneri-baslik-beyaz">
+                    <div class="oneri-etiket"><i class="fas fa-magic"></i> Kişisel</div>
+                    <h2>Sizin İçin Önerilenenler</h2>
+                    <p>İlgi alanlarınıza göre özel seçilen kurslar</p>
                 </header>
-                
-                <div id="recommendedGrid" class="course-grid" style="gap: 20px;">
-                    <div class="loading-state" style="grid-column: 1/-1; color: white;">
-                        <p>Öneriler hazırlanıyor...</p>
-                    </div>
+                <div id="recommendedGrid" class="course-grid">
+                    <div class="loading-state oneri-yukleniyor"><p>Öneriler hazırlanıyor...</p></div>
                 </div>
             </div>
         </section>
 
-        <!-- 2. TREND OLAN KURSLAR (Herkese açık) -->
-        <section class="trending-section" style="background: #f8f9fa; padding: 60px 0; margin: 40px 0;">
+        <!-- ─── EN POPÜLER KURSLAR ────────────────────────────────── -->
+        <section class="oneri-bolumu oneri-gri">
             <div class="container">
-                <header class="section-header" style="margin-bottom: 40px;">
-                    <h2>🔥 Trend Olan Kurslar</h2>
-                    <p>Bu hafta en çok kayıt olunan, en popüler kurslar</p>
+                <header class="section-header">
+                    <div class="oneri-etiket oneri-etiket-mavi"><i class="fas fa-fire"></i> Trend</div>
+                    <h2>En Popüler Kurslar</h2>
+                    <p>Bu hafta en çok kayıt olunan kurslar</p>
                 </header>
-                
-                <div id="trendingGrid" class="course-grid" style="gap: 20px;">
-                    <div class="loading-state" style="grid-column: 1/-1;">
-                        <p>Trend kurslar yükleniyor...</p>
-                    </div>
+                <div id="enPopulerGrid" class="course-grid">
+                    <div class="loading-state"><p>Popüler kurslar yükleniyor...</p></div>
                 </div>
             </div>
         </section>
 
-        <!-- 3. EN YÜKSEK PUANLI KURSLAR (Herkese açık) -->
-        <section class="top-rated-section" style="padding: 60px 0; margin: 40px 0;">
+        <!-- ─── POPÜLER KATEGORİLER ───────────────────────────────── -->
+        <section class="oneri-bolumu oneri-beyaz">
             <div class="container">
-                <header class="section-header" style="margin-bottom: 40px;">
-                    <h2>⭐ En Yüksek Puanlılar</h2>
-                    <p>Kullanıcılar tarafından en yüksek puan alan, kaliteli kurslar</p>
+                <header class="section-header">
+                    <div class="oneri-etiket oneri-etiket-yesil"><i class="fas fa-th-large"></i> Keşfet</div>
+                    <h2>Popüler Kategoriler</h2>
+                    <p>En çok kurs satın alınan kategorileri ve öne çıkan kurslarını keşfedin</p>
                 </header>
-                
-                <div id="topRatedGrid" class="course-grid" style="gap: 20px;">
-                    <div class="loading-state" style="grid-column: 1/-1;">
-                        <p>En yüksek puanlı kurslar yükleniyor...</p>
-                    </div>
+                <div id="populerKategorilerGrid" class="kategori-grid">
+                    <div class="loading-state"><p>Kategoriler yükleniyor...</p></div>
                 </div>
             </div>
-        </section>        
+        </section>
 
+        <!-- ─── BUNU ALANLAR ŞUNU DA ALDI (Collaborative Filtering) ── -->
+        <section class="oneri-bolumu oneri-koyu">
+            <div class="container">
+                <header class="section-header oneri-baslik-beyaz">
+                    <div class="oneri-etiket oneri-etiket-turuncu"><i class="fas fa-users"></i> Birlikte Alınan</div>
+                    <h2>Bunu Alanlar Şunu da Aldı</h2>
+                    <p>Benzer ilgi alanlarına sahip öğrencilerin tercih ettiği kurslar</p>
+                </header>
+                <div id="birlikteAlinanGrid" class="course-grid">
+                    <div class="loading-state oneri-yukleniyor"><p>Öneriler hesaplanıyor...</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── KATEGORİ ÇAPRAZ ÖNERİ ─────────────────────────────── -->
+        <section id="kategoriCarprazSection" class="oneri-bolumu oneri-gri" style="display: none;">
+            <div class="container">
+                <header class="section-header">
+                    <div class="oneri-etiket oneri-etiket-mor"><i class="fas fa-random"></i> Çapraz</div>
+                    <h2>Bu Kategoriden Alanlar Şuradan da Aldı</h2>
+                    <p>Seçtiğiniz kategorideki öğrencilerin ilgi gösterdiği diğer alanlar</p>
+                </header>
+                <div id="kategoriCarprazGrid" class="kategori-grid">
+                    <div class="loading-state"><p>Çapraz öneriler hesaplanıyor...</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── EN ÇOK BEĞENİLENLER ──────────────────────────────── -->
+        <section class="oneri-bolumu oneri-beyaz">
+            <div class="container">
+                <header class="section-header">
+                    <div class="oneri-etiket oneri-etiket-sari"><i class="fas fa-star"></i> En İyiler</div>
+                    <h2>En Çok Beğenilenler</h2>
+                    <p>Kullanıcılar tarafından en yüksek puan alan kaliteli kurslar</p>
+                </header>
+                <div id="enCokBegenilenGrid" class="course-grid">
+                    <div class="loading-state"><p>En çok beğenilen kurslar yükleniyor...</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── NEDEN EDUNEX ──────────────────────────────────────── -->
         <section class="features">
             <div class="container features-grid">
                 <div class="feature-card">
@@ -156,6 +187,7 @@
                 </div>
             </div>
         </section>
+
     </main>
 
     <footer class="footer">

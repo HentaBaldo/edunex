@@ -1,36 +1,40 @@
 /**
  * EduNex Recommendation Routes
- * Kurs önerileri sistemi API endpoint'leri
+ * Kurs öneri motoru API endpoint'leri
  */
 
 const express = require('express');
-const router = express.Router();
-const recommendationController = require('../controllers/recommendationController');
+const router  = express.Router();
+const ctrl    = require('../controllers/recommendationController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-// --- Protected Routes (Sadece Kayıtlı Kullanıcılar) ---
+// ── Ana sayfa: 5 modülü tek istekte döndürür ────────────────
+// GET /api/recommendations/anasayfa?kurs_id=X&kategori_id=Y
+router.get('/anasayfa', ctrl.getRecommendations);
 
-/**
- * GET /api/recommendations/personalized
- * Öğrenciye kişiselleştirilmiş kurs önerileri
- * - Öğrencinin ilgi alanlarına dayalı
- * - Daha önce kayıt olmadığı kurslar
- * - En yüksek puanlı ve en çok kayıtlı 5 kurs
- */
-router.get('/personalized', verifyToken, recommendationController.getPersonalizedRecommendations);
+// ── Modül 1: En Popüler Kurslar (kayıt sayısına göre) ───────
+// GET /api/recommendations/populer-kurslar?sinir=8
+router.get('/populer-kurslar', ctrl.getEnPopulerKurslar);
 
-// --- Public Routes (Herkese Açık) ---
+// ── Modül 2: Popüler Kategoriler (satış hacmine göre) ───────
+// GET /api/recommendations/populer-kategoriler?sinir=6
+router.get('/populer-kategoriler', ctrl.getPopulerKategoriler);
 
-/**
- * GET /api/recommendations/trending
- * En çok kayıtlı (trending) kurslar
- */
-router.get('/trending', recommendationController.getTrendingCourses);
+// ── Modül 3: Bunu Alanlar Şunu da Aldı (kurs bazlı) ────────
+// GET /api/recommendations/birlikte-alinan?kurs_id=UUID&sinir=8
+router.get('/birlikte-alinan', ctrl.getBirlikteAlinan);
 
-/**
- * GET /api/recommendations/top-rated
- * En yüksek puanlı kurslar
- */
-router.get('/top-rated', recommendationController.getTopRatedCourses);
+// ── Modül 4: Bu Kategoriden Alanlar Şuradan da Aldı ─────────
+// GET /api/recommendations/kategori-carpraz?kategori_id=UUID&sinir=5
+router.get('/kategori-carpraz', ctrl.getKategoriCarpraz);
+
+// ── Modül 5: En Çok Beğenilenler (min yorum şartıyla) ───────
+// GET /api/recommendations/en-cok-begenilen?sinir=8&min_yorum=5
+router.get('/en-cok-begenilen', ctrl.getEnCokBegenilen);
+
+// ── Geriye dönük uyumluluk ──────────────────────────────────
+router.get('/personalized', verifyToken, ctrl.getPersonalizedRecommendations);
+router.get('/trending',                  ctrl.getTrendingCourses);
+router.get('/top-rated',                 ctrl.getTopRatedCourses);
 
 module.exports = router;
