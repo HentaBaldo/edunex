@@ -130,17 +130,256 @@
 /* --- Footer --- */
 .footer { background: #0f172a; color: #94a3b8; padding: 40px 0; text-align: center; }
 .footer-logo { font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 10px; }
+/* ─── Kurs Kartı ─────────────────────────────────────────── */
 .course-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.course-card:hover { transform: translateY(-6px); box-shadow: 0 16px 32px rgba(0,0,0,0.12); }
+
+.kurs-kart-ic {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.25s ease;
+}
+.kurs-kart-kapak {
+    height: 148px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2.8rem;
+    position: relative;
+}
+.kurs-kategori-rozet {
+    position: absolute;
+    top: 10px; right: 12px;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+}
+.kurs-kart-govde {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 6px;
+}
+.kurs-kart-baslik {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #0f172a;
+    line-height: 1.4;
+    font-weight: 700;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.kurs-kart-alt-baslik {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #64748b;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.kurs-kart-egitmen {
+    margin: 0;
+    font-size: 0.86rem;
+    color: #475569;
+}
+.kurs-kart-egitmen i { margin-right: 5px; color: #94a3b8; }
+.kurs-puan { display: flex; align-items: center; gap: 5px; font-size: 0.88rem; color: #fbbf24; }
+.kurs-puan-bos { color: #94a3b8; font-size: 0.86rem; }
+.puan-deger { font-weight: 700; color: #b45309; }
+.yildizlar  { color: #fbbf24; }
+.puan-yorum { color: #64748b; font-size: 0.8rem; }
+.kurs-kart-alt {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+    margin-top: auto;
+}
+.kurs-fiyat  { font-weight: 800; font-size: 1.2rem; color: #0f172a; }
+.kurs-incele { color: #2563eb; font-size: 0.88rem; font-weight: 700; }
+
+/* ─── Öneri Bölümleri (Genel) ────────────────────────────── */
+.oneri-bolumu { padding: 64px 0; }
+.oneri-gri    { background: #f8fafc; }
+.oneri-beyaz  { background: #ffffff; }
+.oneri-mor    { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.oneri-koyu   { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+
+.oneri-baslik-beyaz h2,
+.oneri-baslik-beyaz p { color: white !important; }
+
+.oneri-etiket {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+.oneri-etiket-mavi   { background: #eff6ff;  color: #2563eb; border-color: #bfdbfe; }
+.oneri-etiket-yesil  { background: #f0fdf4;  color: #16a34a; border-color: #bbf7d0; }
+.oneri-etiket-sari   { background: #fffbeb;  color: #b45309; border-color: #fde68a; }
+.oneri-etiket-turuncu{ background: #fff7ed;  color: #c2410c; border-color: #fed7aa; }
+.oneri-etiket-mor    { background: #faf5ff;  color: #7c3aed; border-color: #ddd6fe; }
+
+/* ─── Yükleniyor / Boş / Hata durumları ──────────────────── */
+.loading-state, .bos-durum { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: #64748b; }
+.bos-durum-acik { color: rgba(255,255,255,0.75); }
+.hata-mesaji    { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: #dc2626; }
+.oneri-yukleniyor { color: rgba(255,255,255,0.8); }
+
+/* ─── Kategori Kart Izgarası ─────────────────────────────── */
+.kategori-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+}
+.kategori-karti {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.kategori-karti:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,0.1); }
+.kategori-karti-carpraz { border-top: 3px solid #7c3aed; }
+
+.kategori-karti-ust { display: flex; align-items: flex-start; gap: 14px; }
+.kategori-ikon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #3b82f6, #2dd4bf);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.kategori-ikon-mor { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+
+.kategori-adi  { margin: 0 0 4px; font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+.kategori-meta { margin: 0; font-size: 0.82rem; color: #64748b; display: flex; align-items: center; gap: 6px; }
+.meta-ayirici  { color: #cbd5e1; }
+
+/* Kategori içindeki kurs chip'leri */
+.kategori-kurslar { display: flex; flex-direction: column; gap: 8px; }
+.kategori-kurs-chip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    gap: 8px;
+}
+.kategori-kurs-chip:hover { background: #eff6ff; border-color: #bfdbfe; }
+.chip-baslik {
+    font-size: 0.88rem;
+    color: #1e293b;
+    font-weight: 500;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.chip-fiyat { font-size: 0.82rem; font-weight: 700; color: #2563eb; white-space: nowrap; }
+
+.kategori-tum-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #2563eb;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 4px;
+}
+.kategori-tum-link:hover { text-decoration: underline; }
+
+/* ─── Hero Düzeltmesi ────────────────────────────────────── */
+.btn-secondary {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    margin-left: 10px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+/* ─── Sepet Rozeti ───────────────────────────────────────── */
+.nav-sepet-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    color: #0f172a;
+    text-decoration: none;
+    margin-right: 8px;
+    transition: background 0.15s;
+}
+.nav-sepet-link:hover { background: #f1f5f9; }
+.nav-sepet-link i { font-size: 1.15rem; }
+.sepet-rozet {
+    position: absolute;
+    top: 2px; right: 2px;
+    min-width: 18px; height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #ef4444;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
 }
 
-.course-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-}
-
+/* ─── Responsive ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-    .course-grid {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
-    }
+    .course-grid   { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
+    .kategori-grid { grid-template-columns: 1fr; }
+    .oneri-bolumu  { padding: 40px 0; }
 }
