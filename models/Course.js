@@ -35,6 +35,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: 'Baslangic',
       },
+      aciklama: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       gereksinimler: {
         type: DataTypes.TEXT,
         allowNull: true,
@@ -53,6 +57,7 @@ module.exports = (sequelize, DataTypes) => {
       olusturulma_tarihi: {
         type: DataTypes.DATE,
         allowNull: true,
+        defaultValue: DataTypes.NOW,
       },
       kazanimlar: {
         type: DataTypes.TEXT,
@@ -75,6 +80,7 @@ module.exports = (sequelize, DataTypes) => {
       indexes: [
         { fields: ['egitmen_id'] },
         { fields: ['kategori_id'] },
+        { fields: ['durum'] },
       ],
     }
   );

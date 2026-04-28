@@ -48,7 +48,7 @@ exports.adminLogin = async (req, res, next) => {
         // === TOKEN OLUŞTURMA ===
         const token = jwt.sign(
             { id: adminUser.id, rol: adminUser.rol },
-            process.env.JWT_SECRET || 'your-secret-key',
+            process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
         );
 

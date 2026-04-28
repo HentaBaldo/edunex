@@ -32,7 +32,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'yorumlar',
-      indexes: [{ fields: ['ogrenci_id'] }],
+      indexes: [
+        { fields: ['kurs_id'] },
+        { fields: ['ogrenci_id'] },
+      ],
     }
   );
 

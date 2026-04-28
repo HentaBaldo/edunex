@@ -383,3 +383,88 @@
     .kategori-grid { grid-template-columns: 1fr; }
     .oneri-bolumu  { padding: 40px 0; }
 }
+
+/* ─── Global Akıllı Arama Dropdown ───────────────────────── */
+.global-search-wrapper { position: relative; flex: 1; }
+
+.search-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0; right: 0;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0,86,179,0.06);
+    z-index: 2000;
+    max-height: 460px;
+    overflow-y: auto;
+    animation: dropdownFadeIn 0.15s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.search-group { border-bottom: 1px solid #f1f5f9; }
+.search-group:last-of-type { border-bottom: none; }
+
+.search-group-title {
+    padding: 10px 16px 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.search-group-title i { color: var(--primary-color); }
+
+.search-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    color: #1e293b;
+    text-decoration: none;
+    transition: background 0.15s;
+    cursor: pointer;
+}
+.search-item:hover { background: #f0f7ff; color: var(--primary-color); }
+.search-item > i { font-size: 0.88rem; color: #94a3b8; width: 18px; flex-shrink: 0; }
+.search-item:hover > i { color: var(--primary-color); }
+
+.search-item-course { align-items: flex-start; }
+.search-item-body { flex: 1; min-width: 0; }
+.search-item-title { font-size: 0.9rem; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-item-sub   { font-size: 0.78rem; color: #64748b; margin-top: 1px; display: block; }
+.search-item-price { font-size: 0.82rem; font-weight: 700; color: var(--primary-color); white-space: nowrap; flex-shrink: 0; }
+
+.search-see-all {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+    border-top: 1px solid #f1f5f9;
+    transition: background 0.15s;
+}
+.search-see-all:hover { background: #f0f7ff; }
+
+.search-empty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+.search-empty i { font-size: 1.3rem; color: #cbd5e1; }

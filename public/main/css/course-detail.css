@@ -104,3 +104,140 @@
 .course-includes { list-style: none; padding: 0; margin: 0; }
 .course-includes li { font-size: 0.9rem; color: #475569; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
 .course-includes li i { color: #64748b; width: 16px; text-align: center; }
+
+/* --- Kurs Açıklaması & Header Meta --- */
+.course-description {
+    color: #cbd5e1;
+    font-size: 0.97rem;
+    line-height: 1.65;
+    margin-bottom: 18px;
+}
+.course-description p { margin: 0 0 8px; }
+
+.course-header-meta { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+
+.header-rating { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #fbbf24; }
+.header-rating .hr-score { font-weight: 700; color: #fde68a; }
+.header-rating .hr-count { color: #94a3b8; font-size: 0.82rem; }
+
+/* --- Eğitmen Kartı --- */
+.instructor-section { margin-bottom: 30px; }
+
+.instructor-card-inner {
+    display: flex; align-items: flex-start; gap: 20px;
+    padding: 20px; background: #fff;
+    border: 1px solid var(--border-color); border-radius: 12px;
+    cursor: pointer; transition: box-shadow 0.2s;
+    text-decoration: none;
+}
+.instructor-card-inner:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+
+.instructor-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0; background: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: 2rem;
+}
+.instructor-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+.instructor-card-info { flex: 1; min-width: 0; }
+.instructor-name { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0 0 3px; }
+.instructor-title-text { font-size: 0.88rem; color: var(--text-muted); margin: 0 0 8px; }
+.instructor-bio { font-size: 0.88rem; color: #475569; line-height: 1.55; margin: 0 0 10px; }
+.instructor-link-hint { font-size: 0.82rem; color: var(--primary-color); }
+.instructor-link-hint i { font-size: 0.75rem; }
+
+/* --- Zengin Ders Satırı --- */
+.lesson-info { display: flex; flex-direction: column; gap: 2px; }
+.lesson-desc { font-size: 0.78rem; color: #94a3b8; }
+
+.content-badge {
+    font-size: 0.7rem; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em;
+    background: #f1f5f9; color: #64748b; white-space: nowrap;
+}
+.content-badge.badge-video  { background: #dbeafe; color: #2563eb; }
+.content-badge.badge-quiz   { background: #fef3c7; color: #d97706; }
+.content-badge.badge-metin,
+.content-badge.badge-belge  { background: #f0fdf4; color: #16a34a; }
+
+.preview-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.78rem; font-weight: 600;
+    color: var(--primary-color); background: #eff6ff;
+    border: 1px solid #bfdbfe; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer;
+    transition: background 0.15s; white-space: nowrap;
+}
+.preview-btn:hover { background: #dbeafe; }
+
+.enrolled-icon { color: #10b981; font-size: 0.95rem; }
+.lock-icon     { color: #cbd5e1; font-size: 0.9rem; }
+
+.lesson-row.lesson-clickable    { cursor: pointer; }
+.lesson-row.lesson-preview-open { cursor: pointer; }
+
+/* --- Önizleme Modalı --- */
+.preview-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.preview-modal-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.78);
+    backdrop-filter: blur(4px);
+}
+.preview-modal-box {
+    position: relative; width: min(800px, 95vw);
+    background: #0f172a; border-radius: 16px;
+    overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.55);
+}
+.preview-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.preview-modal-title { color: #f1f5f9; font-size: 0.97rem; font-weight: 600; }
+.preview-modal-close {
+    background: none; border: none; color: #94a3b8;
+    font-size: 1.2rem; cursor: pointer;
+    padding: 4px 8px; border-radius: 4px; transition: color 0.2s, background 0.2s;
+}
+.preview-modal-close:hover { color: #fff; background: rgba(255,255,255,0.12); }
+
+.preview-player-wrap { background: #000; min-height: 180px; }
+.preview-player-wrap iframe { width: 100%; aspect-ratio: 16/9; border: none; display: block; }
+
+.preview-fallback {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 200px;
+    color: #94a3b8; gap: 12px; font-size: 0.93rem; padding: 20px;
+}
+.preview-fallback i { font-size: 2.8rem; }
+.preview-fallback a { color: var(--primary-color); }
+
+/* --- Belge Önizleme Kartı --- */
+.doc-preview-card {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px;
+    padding: 40px 24px; min-height: 220px;
+    background: #1e293b; text-align: center;
+}
+.doc-preview-icon { font-size: 3.5rem; color: #e2e8f0; line-height: 1; }
+.doc-preview-icon .fa-file-pdf  { color: #f87171; }
+.doc-preview-icon .fa-file-word { color: #60a5fa; }
+.doc-preview-name {
+    font-size: 0.97rem; font-weight: 600;
+    color: #f1f5f9; margin: 0; word-break: break-all;
+    max-width: 420px;
+}
+.doc-preview-hint { font-size: 0.85rem; color: #94a3b8; margin: 0; }
+.doc-preview-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.doc-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 22px; border-radius: 8px;
+    font-size: 0.88rem; font-weight: 600; text-decoration: none;
+    transition: opacity 0.15s;
+}
+.doc-btn:hover { opacity: 0.85; }
+.doc-btn-view     { background: #2563eb; color: #fff; }
+.doc-btn-download { background: #1e293b; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); }

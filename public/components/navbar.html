@@ -1,24 +1,23 @@
 <header class="navbar">
     <div class="container navbar-content">
-        
+
         <div class="nav-left">
             <a href="/main/index.html" class="logo">EduNex</a>
-            
+
             <div class="nav-item mega-menu-trigger">
-                <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></span>
-                
+                <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size:0.7rem;margin-left:5px;"></i></span>
                 <div class="mega-menu" id="megaMenu">
                     <div class="menu-col">
                         <h4>Kategoriler</h4>
                         <div id="parentList" class="menu-list">
-                            <p style="padding: 10px 20px; color: #64748b;">Yükleniyor...</p>
+                            <p style="padding:10px 20px;color:#64748b;">Yükleniyor...</p>
                         </div>
                     </div>
-                    <div class="menu-col" id="childCol" style="display: none;">
+                    <div class="menu-col" id="childCol" style="display:none;">
                         <h4>Alt Kategoriler</h4>
                         <div id="childList" class="menu-list"></div>
                     </div>
-                    <div class="menu-col" id="grandChildCol" style="display: none;">
+                    <div class="menu-col" id="grandChildCol" style="display:none;">
                         <h4>Popüler Konular</h4>
                         <div id="grandChildList" class="menu-list"></div>
                     </div>
@@ -27,17 +26,18 @@
         </div>
 
         <div class="nav-middle">
-            <div class="search-container">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Geleceğinizi şekillendirecek kursu arayın...">
+            <div class="global-search-wrapper">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input id="globalSearchInput" type="text" placeholder="Kurs, eğitmen veya kategori arayın..." autocomplete="off">
+                </div>
+                <div id="globalSearchResults" class="search-dropdown-menu" style="display:none;"></div>
             </div>
-            <span class="nav-text-link"><i class="fas fa-filter"></i> Filtrele</span>
         </div>
 
         <div class="nav-right">
-            <a href="#courses" class="nav-text-link">Kurslar</a>
-            <div id="authNavContainer">
-                </div>
+            <a href="/main/courses.html" class="nav-text-link">Tüm Kurslar</a>
+            <div id="authNavContainer"></div>
         </div>
 
     </div>

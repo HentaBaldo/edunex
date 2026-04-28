@@ -265,7 +265,7 @@ exports.createLesson = async (req, res, next) => {
             video_saglayici_id: finalVideoProvider, // Sadece yüklü dosya ID'si/Yolu
             kaynak_url: finalKaynakUrl,             // Harici Linkler BİZİM YENİ SÜTUNA!
             sure_saniye: parseInt(sure_saniye) || 0,
-            onizleme_mi: Boolean(onizleme_mi),
+            onizleme_mi: onizleme_mi === true || onizleme_mi === 'true' || onizleme_mi === 1 || onizleme_mi === '1',
             sira_numarasi: nextOrder,
             icerik_tipi: icerik_tipi || 'video'
         });

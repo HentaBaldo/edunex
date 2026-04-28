@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>EduNex - Geleceğin Eğitim Platformu</title>
-
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
     <link rel="stylesheet" href="/main/css/main.css">
@@ -11,48 +10,7 @@
 </head>
 <body>
 
-    <header class="navbar">
-        <div class="container navbar-content">
-
-            <div class="nav-left">
-                <a href="/" class="logo">EduNex</a>
-
-                <div class="nav-item mega-menu-trigger">
-                    <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></span>
-
-                    <div class="mega-menu" id="megaMenu">
-                        <div class="menu-col">
-                            <h4>Kategoriler</h4>
-                            <div id="parentList" class="menu-list">
-                                <p style="padding: 10px 20px; color: #64748b;">Yükleniyor...</p>
-                            </div>
-                        </div>
-                        <div class="menu-col" id="childCol" style="display: none;">
-                            <h4>Alt Kategoriler</h4>
-                            <div id="childList" class="menu-list"></div>
-                        </div>
-                        <div class="menu-col" id="grandChildCol" style="display: none;">
-                            <h4>Popüler Konular</h4>
-                            <div id="grandChildList" class="menu-list"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="nav-middle">
-                <div class="search-container">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Geleceğinizi şekillendirecek kursu arayın...">
-                </div>
-            </div>
-
-            <div class="nav-right">
-                <a href="#courses" class="nav-text-link">Kurslar</a>
-                <div id="authNavContainer"></div>
-            </div>
-
-        </div>
-    </header>
+    <div id="navbar-placeholder"></div>
 
     <main>
 
@@ -83,8 +41,8 @@
             </div>
         </section>
 
-        <!-- ─── SİZİN İÇİN ÖNERİLENLER (Giriş yapmış öğrenciler) ── -->
-        <section id="recommendedSection" class="oneri-bolumu oneri-mor" style="display: none;">
+        <!-- ─── SİZİN İÇİN ÖNERİLENLER ──────────────────────────── -->
+        <section id="recommendedSection" class="oneri-bolumu oneri-mor" style="display:none;">
             <div class="container">
                 <header class="section-header oneri-baslik-beyaz">
                     <div class="oneri-etiket"><i class="fas fa-magic"></i> Kişisel</div>
@@ -125,7 +83,7 @@
             </div>
         </section>
 
-        <!-- ─── BUNU ALANLAR ŞUNU DA ALDI (Collaborative Filtering) ── -->
+        <!-- ─── BUNU ALANLAR ŞUNU DA ALDI ────────────────────────── -->
         <section class="oneri-bolumu oneri-koyu">
             <div class="container">
                 <header class="section-header oneri-baslik-beyaz">
@@ -140,7 +98,7 @@
         </section>
 
         <!-- ─── KATEGORİ ÇAPRAZ ÖNERİ ─────────────────────────────── -->
-        <section id="kategoriCarprazSection" class="oneri-bolumu oneri-gri" style="display: none;">
+        <section id="kategoriCarprazSection" class="oneri-bolumu oneri-gri" style="display:none;">
             <div class="container">
                 <header class="section-header">
                     <div class="oneri-etiket oneri-etiket-mor"><i class="fas fa-random"></i> Çapraz</div>
@@ -200,6 +158,7 @@
     </footer>
 
     <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
     <script src="/main/js/main.js"></script>
 </body>
 </html>

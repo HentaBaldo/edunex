@@ -10,11 +10,12 @@ const adminOrderController = require('../controllers/adminOrderController');
 const adminCourseController = require('../controllers/adminCourseController');
 const reviewController = require('../controllers/reviewController');
 const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
+const { loginLimiter } = require('../middleware/rateLimitMiddleware');
 
 /**
  * PUBLIC ROUTES
  */
-router.post('/login', adminController.adminLogin);
+router.post('/login', loginLimiter, adminController.adminLogin);
 
 /**
  * PROTECTED ROUTES
