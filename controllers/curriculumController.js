@@ -767,7 +767,10 @@ exports.getFullCurriculum = async (req, res, next) => {
 
         // UI'da silme onayi metnini dogru yazabilmek icin kursun durum bilgisini de ekle.
         const course = await Course.findByPk(courseId, {
-            attributes: ['id', 'durum', 'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi']
+            attributes: [
+                'id', 'durum', 'son_duzenleme_tarihi', 'onaydan_sonra_duzenlendi_mi',
+                'admin_tarafindan_iade_edildi', 'iade_tarihi', 'iade_sebebi'
+            ]
         });
 
         console.log(`[CURRICULUM GET] Müfredat getirildi: ${courseId} (${curriculum.length} bölüm)`);

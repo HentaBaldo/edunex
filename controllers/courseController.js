@@ -9,7 +9,7 @@ const {
     InstructorDetail,
     Review
 } = require('../models');
-const { fn, col } = require('sequelize');
+const { fn, col, Op } = require('sequelize');
 const { recalculateCourseProgress } = require('../services/progressService');
 
 /**
@@ -23,12 +23,12 @@ exports.getAllCourses = async (req, res, next) => {
         const offset = (page - 1) * limit;
 
         const { count, rows } = await Course.findAndCountAll({
-            where: { durum: 'yayinda' },
+            where: { durum: 'yayinda', silindi_mi: false },
             include: [
-                { 
-                    model: Profile, 
-                    as: 'Egitmen', 
-                    attributes: ['ad', 'soyad'] 
+                {
+                    model: Profile,
+                    as: 'Egitmen',
+                    attributes: ['ad', 'soyad']
                 },
                 {
                     model: Category,
@@ -67,12 +67,13 @@ exports.getInstructorCourses = async (req, res, next) => {
         const instructorId = req.user.id;
 
         const courses = await Course.findAll({
-            where: { egitmen_id: instructorId },
+            // Egitmen kendi kurslarini her durumda gorur, ama admin tarafindan soft-deleted edilen kurslari gormemeli.
+            where: { egitmen_id: instructorId, silindi_mi: false },
             include: [
-                { 
-                    model: Profile, 
+                {
+                    model: Profile,
                     as: 'Egitmen',
-                    attributes: ['ad', 'soyad'] 
+                    attributes: ['ad', 'soyad']
                 },
                 {
                     model: CourseSection,
@@ -154,7 +155,7 @@ exports.getCourseDetails = async (req, res, next) => {
         const { id } = req.params;
 
         const course = await Course.findOne({
-            where: { id },
+            where: { id, silindi_mi: false },
             include: [
                 {
                     // 1. Profil tablosundan temel ad ve soyad bilgilerini çekiyoruz
@@ -200,6 +201,15 @@ exports.getCourseDetails = async (req, res, next) => {
             throw error;
         }
 
+        // Iade taslak veya yayinda olmayan kurslar magazada gorunmemeli (admin/instructor disi).
+        // Kurs detay sayfasi public; sadece yayinda olan veya kullanicinin satin aldigi (arsiv) kurslara izin verilir.
+        // Burada sadece silindi/iade-taslak'i 404 gibi gosteriyoruz; yayinda kontrolu zaten ust seviyede mevcut.
+        if (course.silindi_mi || (course.durum === 'taslak' && course.admin_tarafindan_iade_edildi)) {
+            const error = new Error('Kurs bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
         // Yorum istatistikleri tek aggregate sorguda hesaplanir (tum puan satirlari yerine).
         const ratingStats = await Review.findOne({
             where: { kurs_id: id },
@@ -233,6 +243,7 @@ exports.getCourseDetails = async (req, res, next) => {
 
         courseJson.istatistikler = { ortalama_puan, toplam_yorum };
         courseJson.bunny_library_id = process.env.BUNNY_LIBRARY_ID || null;
+
 
         return res.status(200).json({
             success: true,
@@ -350,7 +361,18 @@ exports.updateCourseStatus = async (req, res, next) => {
             throw error;
         }
 
-        await course.update({ durum });
+        // Eğitmen iade taslağı (admin_tarafindan_iade_edildi=true) yeniden onaya/yayına
+        // gönderiyorsa iade bayrağı ve sebebi temizlenmelidir; aksi halde kırmızı banner
+        // kurs yeniden yayında olsa bile eğitmen UI'ında inatla görünmeye devam eder.
+        const updates = { durum };
+        if (durum !== 'taslak') {
+            updates.admin_tarafindan_iade_edildi = false;
+            updates.iade_tarihi = null;
+            updates.iade_eden_admin_id = null;
+            updates.iade_sebebi = null;
+        }
+
+        await course.update(updates);
 
         return res.status(200).json({
             status: 'success',
@@ -416,12 +438,12 @@ exports.getAllPublishedCourses = async (req, res, next) => {
         const offset = (page - 1) * limit;
 
         const { count, rows } = await Course.findAndCountAll({
-            where: { durum: 'yayinda' },
+            where: { durum: 'yayinda', silindi_mi: false },
             include: [
-                { 
-                    model: Profile, 
-                    as: 'Egitmen', 
-                    attributes: ['id', 'ad', 'soyad'] 
+                {
+                    model: Profile,
+                    as: 'Egitmen',
+                    attributes: ['id', 'ad', 'soyad']
                 },
                 {
                     model: Category,
@@ -429,7 +451,7 @@ exports.getAllPublishedCourses = async (req, res, next) => {
                 },
                 {
                     // Puanları hesaplamak için Yorumlar tablosunu dahil ediyoruz
-                    model: Review, 
+                    model: Review,
                     attributes: ['puan']
                 }
             ],
@@ -519,8 +541,14 @@ exports.getCourseCurriculumForStudent = async (req, res, next) => {
         console.log(`[LEARNING] Kayıt doğrulandı. İlerleme: ${enrollment.ilerleme_yuzdesi}%`);
 
         // === ADIM 2: Kurs bilgilerini ve bölümleri getir ===
+        // Politika: Yayinda VEYA arsivdeki kursa kayitli ogrenci erisimi korur.
+        // Taslak (admin iade etti), onay_bekliyor, onaylandi, silindi -> erisim engellenir.
         const course = await Course.findOne({
-            where: { id: courseId, durum: 'yayinda' },
+            where: {
+                id: courseId,
+                durum: { [Op.in]: ['yayinda', 'arsiv'] },
+                silindi_mi: false
+            },
             attributes: [
                 'id',
                 'baslik',

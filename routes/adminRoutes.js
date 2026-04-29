@@ -32,9 +32,16 @@ router.get('/orders/:id', adminOrderController.getOrderDetail);
 router.get('/orders', adminOrderController.listOrders);
 
 // --- Kurs Takibi ve Raporlama (YENİ EKLEDİĞİMİZ GOD MODE) ---
-router.get('/published-courses-report', adminCourseController.getPublishedCoursesReport);
+router.get('/published-courses-report', adminCourseController.getPublishedCoursesReport); // legacy
+router.get('/courses-tracking', adminCourseController.getCoursesTracking); // yeni filtreli endpoint
 router.get('/courses/:id/full-content', adminCourseController.getCourseFullContent);
 router.get('/courses/:id/participants', adminCourseController.getCourseParticipants);
+
+// --- Admin Kurs Yonetim Aksiyonlari (Yayindan Kaldir / Yayina Al / Sil / Geri Yukle) ---
+router.put('/courses/:id/unpublish', adminCourseController.unpublishCourse);
+router.put('/courses/:id/republish', adminCourseController.republishCourse);
+router.delete('/courses/:id', adminCourseController.deleteCourseAsAdmin);
+router.post('/courses/:id/restore', adminCourseController.restoreDeletedCourse);
 
 // --- Kurs Onay İşlemleri ---
 router.get('/pending-courses', adminController.getPendingCourses);
