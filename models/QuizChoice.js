@@ -30,6 +30,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'quiz_secenekleri',
+      timestamps: false,
       indexes: [{ fields: ['soru_id'] }],
     }
   );

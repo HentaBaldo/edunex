@@ -24,6 +24,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'quiz_cevaplari',
+      timestamps: false,
       indexes: [{ fields: ['deneme_id'] }],
     }
   );
