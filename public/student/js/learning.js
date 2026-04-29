@@ -105,6 +105,23 @@ function updateHeader() {
 }
 
 /**
+ * Önceki bölümlerin tümü tamamlanmış mı? (frontend kilit hesabı)
+ * sectionIndex 0-tabanlı; ilk bölüm her zaman açık.
+ */
+function isSectionLocked(sectionIndex) {
+    if (sectionIndex === 0) return false;
+    const curriculum = currentCourseData.curriculum;
+    for (let i = 0; i < sectionIndex; i++) {
+        const prev = curriculum[i];
+        const hasLessons = prev.lessons && prev.lessons.length > 0;
+        if (!hasLessons) continue; // boş bölüm kilit koymaz
+        const allDone = prev.lessons.every(l => l.tamamlandi_mi);
+        if (!allDone) return true;
+    }
+    return false;
+}
+
+/**
  * Müfredatı render et (Accordion)
  */
 function renderCurriculum() {
@@ -129,23 +146,28 @@ function renderCurriculum() {
     curriculumContent.innerHTML = '';
 
     curriculum.forEach((section, sectionIndex) => {
+        const locked = isSectionLocked(sectionIndex);
         const sectionHtml = `
             <div class="section-accordion">
-                <div class="section-header" data-section-id="${section.id}" onclick="toggleSection(this)">
+                <div class="section-header${locked ? ' section-locked' : ''}"
+                     data-section-id="${section.id}"
+                     onclick="${locked ? 'showSectionLockedToast()' : 'toggleSection(this)'}">
                     <div class="section-title">
-                        <i class="fas fa-folder-open"></i>
-                        <span>${escapeHtml(section.baslik)}</span>
+                        <i class="fas ${locked ? 'fa-lock' : 'fa-folder-open'}"
+                           style="${locked ? 'color:#64748b;' : ''}"></i>
+                        <span style="${locked ? 'color:#64748b;' : ''}">${escapeHtml(section.baslik)}</span>
                         <span style="color: #64748b; font-size: 0.8rem; margin-left: 5px;">
                             (${section.lessons.length})
                         </span>
                     </div>
                     <div class="section-toggle">
-                        <i class="fas fa-chevron-down"></i>
+                        <i class="fas ${locked ? 'fa-lock' : 'fa-chevron-down'}"
+                           style="${locked ? 'color:#64748b;font-size:0.85rem;' : ''}"></i>
                     </div>
                 </div>
-                <div class="lesson-list" data-section-id="${section.id}">
+                ${!locked ? `<div class="lesson-list" data-section-id="${section.id}">
                     ${renderLessons(section.lessons)}
-                </div>
+                </div>` : ''}
             </div>
         `;
 
@@ -153,10 +175,24 @@ function renderCurriculum() {
     });
 
     // İlk bölümü aç
-    const firstSectionHeader = document.querySelector('.section-header');
+    const firstSectionHeader = document.querySelector('.section-header:not(.section-locked)');
     if (firstSectionHeader) {
         toggleSection(firstSectionHeader);
     }
+}
+
+function showSectionLockedToast() {
+    let banner = document.getElementById('sectionLockedBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'sectionLockedBanner';
+        banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fcd34d;border:1px solid #f59e0b;padding:10px 22px;border-radius:8px;font-size:0.9rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);pointer-events:none;';
+        banner.innerHTML = '<i class="fas fa-lock" style="margin-right:8px;"></i>Önceki bölümü tamamlamadan bu bölüme geçemezsiniz.';
+        document.body.appendChild(banner);
+    }
+    banner.style.display = 'block';
+    clearTimeout(banner._hideTimer);
+    banner._hideTimer = setTimeout(() => { banner.style.display = 'none'; }, 2500);
 }
 
 /**
@@ -175,14 +211,19 @@ function renderLessons(lessons) {
     return lessons.map(lesson => {
         const isCompleted = lesson.tamamlandi_mi;
         const isPreview = lesson.onizleme_mi;
-        const durationText = lesson.sure_saniye 
+        const isQuiz = lesson.icerik_tipi === 'quiz';
+        const durationText = lesson.sure_saniye
             ? `${Math.floor(lesson.sure_saniye / 60)}m`
-            : 'N/A';
+            : (isQuiz ? 'Quiz' : 'N/A');
+
+        let icon = 'fa-play-circle';
+        if (isQuiz) icon = 'fa-clipboard-list';
+        else if (lesson.icerik_tipi === 'metin') icon = 'fa-file-alt';
 
         return `
             <div class="lesson-item" data-lesson-id="${lesson.id}" onclick="selectLesson('${lesson.id}')">
                 <div class="lesson-name">
-                    <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
+                    <i class="fas ${icon}" style="${isQuiz ? 'color:#8b5cf6;' : ''}"></i>
                     <span>${escapeHtml(lesson.baslik)}</span>
                     ${isPreview ? '<span style="background: #dbeafe; color: #075985; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 5px; font-weight: 600;">ÖNİZLEME</span>' : ''}
                 </div>
