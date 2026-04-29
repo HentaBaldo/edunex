@@ -9,8 +9,11 @@ const {
     InstructorDetail,
     Review
 } = require('../models');
+const path = require('path');
+const fs = require('fs');
 const { fn, col, Op } = require('sequelize');
 const { recalculateCourseProgress } = require('../services/progressService');
+const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
 
 /**
  * Tüm Kursları Getir (Sayfalama ile)
@@ -396,7 +399,6 @@ exports.deleteCourse = async (req, res, next) => {
         const { id } = req.params;
         const userId = req.user.id;
 
-        // Kursun sahibini kontrol et
         const course = await Course.findOne({
             where: { id },
             attributes: ['id', 'egitmen_id']
@@ -408,10 +410,16 @@ exports.deleteCourse = async (req, res, next) => {
             throw error;
         }
 
-        // Yetki kontrolü
         if (course.egitmen_id !== userId) {
             const error = new Error('Bu kurs üzerinde işlem yapma yetkiniz yok.');
             error.statusCode = 403;
+            throw error;
+        }
+
+        const enrolledCount = await CourseEnrollment.count({ where: { kurs_id: id } });
+        if (enrolledCount > 0) {
+            const error = new Error(`Bu kursa kayıtlı ${enrolledCount} öğrenci olduğu için silinemez.`);
+            error.statusCode = 400;
             throw error;
         }
 
@@ -1188,7 +1196,7 @@ exports.getPublicCourses = async (req, res) => {
                 alt_baslik: kursData.alt_baslik,
                 aciklama: kursData.aciklama,
                 fiyat: kursData.fiyat,
-                kapak_resmi: kursData.kapak_resmi || '/images/default-course.jpg',
+                kapak_fotografi: kursData.kapak_fotografi || null,
                 ogrenciSayisi: kursData.ogrenciSayisi || 0, // Modelde yoksa 0 döner
                 ortalamaPuan: parseFloat(hesaplananPuan)
             };
@@ -1206,6 +1214,245 @@ exports.getPublicCourses = async (req, res) => {
     } catch (error) {
         console.error("Public kurslar hatası:", error.message);
         res.status(500).json({ success: false, message: 'Kurslar yüklenirken bir hata oluştu.' });
+    }
+};
+
+/**
+ * Kurs Ayarlarını Güncelle (İş Mantığı Korumalı)
+ * @route PUT /api/courses/:id/settings
+ */
+exports.updateCourseSettings = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const { baslik, alt_baslik, aciklama, kategori_id, seviye, fiyat, dil, gereksinimler, kazanimlar } = req.body;
+
+        const course = await Course.findOne({
+            where: { id, silindi_mi: false },
+            attributes: ['id', 'egitmen_id', 'durum']
+        });
+
+        if (!course) {
+            const err = new Error('Kurs bulunamadı.'); err.statusCode = 404; throw err;
+        }
+        if (course.egitmen_id !== userId) {
+            const err = new Error('Bu kurs üzerinde işlem yapma yetkiniz yok.'); err.statusCode = 403; throw err;
+        }
+
+        let criticalFieldWarning = false;
+        if (course.durum === 'yayinda' && (kategori_id !== undefined || fiyat !== undefined)) {
+            const enrolledCount = await CourseEnrollment.count({ where: { kurs_id: id } });
+            if (enrolledCount > 0) criticalFieldWarning = true;
+        }
+
+        const updateData = {};
+        if (baslik !== undefined) updateData.baslik = baslik;
+        if (alt_baslik !== undefined) updateData.alt_baslik = alt_baslik;
+        if (aciklama !== undefined) updateData.aciklama = aciklama;
+        if (seviye !== undefined) updateData.seviye = seviye;
+        if (dil !== undefined) updateData.dil = dil;
+        if (gereksinimler !== undefined) updateData.gereksinimler = gereksinimler;
+        if (kazanimlar !== undefined) updateData.kazanimlar = kazanimlar;
+        if (!criticalFieldWarning) {
+            if (kategori_id !== undefined) updateData.kategori_id = kategori_id;
+            if (fiyat !== undefined) updateData.fiyat = parseFloat(fiyat);
+        }
+
+        await course.update(updateData);
+        return res.status(200).json({
+            success: true,
+            message: criticalFieldWarning
+                ? 'Ayarlar güncellendi. Yayında ve kayıtlı öğrencisi olan kursun kategori/fiyatı değiştirilemez.'
+                : 'Kurs ayarları güncellendi.',
+            criticalFieldWarning,
+            data: course
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Kurs Kapak Fotoğrafı Yükle
+ * @route POST /api/courses/:id/thumbnail
+ */
+exports.uploadCourseThumbnail = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const course = await Course.findOne({
+            where: { id, egitmen_id: userId, silindi_mi: false },
+            attributes: ['id', 'egitmen_id', 'kapak_fotografi']
+        });
+
+        if (!course) {
+            const err = new Error('Kurs bulunamadı veya yetki yok.'); err.statusCode = 404; throw err;
+        }
+        if (!req.file) {
+            const err = new Error('Dosya yüklenmedi.'); err.statusCode = 400; throw err;
+        }
+
+        const oldUrl = course.kapak_fotografi;
+        const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const remoteName = `thumbnails/${safeName}`;
+        const bunnyResult = await uploadFileToBunnyStorage(req.file.path, remoteName);
+
+        let kapak_fotografi;
+        if (bunnyResult.success) {
+            try { if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); } catch (e) {}
+            kapak_fotografi = bunnyResult.publicUrl;
+        } else {
+            const thumbDir = path.join(__dirname, '..', 'uploads', 'thumbnails');
+            if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
+            fs.renameSync(req.file.path, path.join(thumbDir, safeName));
+            kapak_fotografi = `/uploads/thumbnails/${safeName}`;
+        }
+
+        await course.update({ kapak_fotografi });
+
+        if (oldUrl) {
+            (async () => {
+                try {
+                    if (/^https?:\/\//i.test(oldUrl)) {
+                        await deleteFileFromBunnyStorage(oldUrl);
+                    } else if (oldUrl.startsWith('/uploads/thumbnails/')) {
+                        const localPath = path.join(__dirname, '..', oldUrl);
+                        if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+                    }
+                } catch (e) { console.warn(`[THUMBNAIL CLEANUP] ${e.message}`); }
+            })();
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Kapak fotoğrafı güncellendi.',
+            data: { kapak_fotografi }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Kurs Durumunu Eğitmen Tarafından Değiştir
+ * @route POST /api/courses/:id/toggle-status
+ * - Yayında → Arşiv
+ * - Diğer → Onay Bekliyor (en az 1 bölüm + 1 ders şartı)
+ */
+exports.toggleCourseStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const course = await Course.findOne({
+            where: { id, silindi_mi: false },
+            attributes: ['id', 'egitmen_id', 'durum']
+        });
+
+        if (!course) {
+            const err = new Error('Kurs bulunamadı.'); err.statusCode = 404; throw err;
+        }
+        if (course.egitmen_id !== userId) {
+            const err = new Error('Yetki yok.'); err.statusCode = 403; throw err;
+        }
+
+        if (course.durum === 'yayinda') {
+            await course.update({ durum: 'arsiv' });
+            return res.status(200).json({
+                success: true,
+                message: 'Kurs yayından kaldırıldı ve arşive alındı.',
+                data: { durum: 'arsiv' }
+            });
+        }
+
+        const sections = await CourseSection.findAll({
+            where: { kurs_id: id, gizli_mi: false },
+            attributes: ['id'],
+            include: [{ model: Lesson, as: 'Lessons', attributes: ['id'], where: { gizli_mi: false }, required: false }]
+        });
+        const totalLessons = sections.reduce((sum, s) => sum + (s.Lessons?.length || 0), 0);
+
+        if (sections.length < 1 || totalLessons < 1) {
+            const err = new Error('Kursu onaya göndermek için en az 1 bölüm ve 1 ders eklemeniz gerekiyor.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        await course.update({
+            durum: 'onay_bekliyor',
+            admin_tarafindan_iade_edildi: false,
+            iade_tarihi: null,
+            iade_eden_admin_id: null,
+            iade_sebebi: null
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Kurs onaya gönderildi. Admin onayından sonra yayına alınacak.',
+            data: { durum: 'onay_bekliyor' }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Eğitmen İçin Kurs Detay (Düzenleme Sayfası)
+ * @route GET /api/courses/:id/for-edit
+ */
+exports.getInstructorCourseForEdit = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const course = await Course.findOne({
+            where: { id, egitmen_id: userId, silindi_mi: false },
+            include: [{ model: Category, attributes: ['id', 'ad'] }]
+        });
+
+        if (!course) {
+            const err = new Error('Kurs bulunamadı veya erişim yetkiniz yok.'); err.statusCode = 404; throw err;
+        }
+
+        const kayitli_ogrenci_sayisi = await CourseEnrollment.count({ where: { kurs_id: id } });
+
+        return res.status(200).json({
+            success: true,
+            data: { ...course.toJSON(), kayitli_ogrenci_sayisi }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Eğitmen Kurs Yorumları
+ * @route GET /api/courses/:id/instructor-reviews
+ */
+exports.getInstructorCourseReviews = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const course = await Course.findOne({
+            where: { id, egitmen_id: userId, silindi_mi: false },
+            attributes: ['id']
+        });
+        if (!course) {
+            const err = new Error('Kurs bulunamadı.'); err.statusCode = 404; throw err;
+        }
+
+        const reviews = await Review.findAll({
+            where: { kurs_id: id },
+            include: [{ model: Profile, as: 'Yazar', attributes: ['ad', 'soyad'] }],
+            order: [['olusturulma_tarihi', 'DESC']],
+            limit: 100
+        });
+
+        return res.status(200).json({ success: true, data: reviews });
+    } catch (error) {
+        next(error);
     }
 };
 
@@ -1228,5 +1475,10 @@ module.exports = {
     updateLesson: exports.updateLesson,
     deleteCourseSection: exports.deleteCourseSection,
     deleteLesson: exports.deleteLesson,
-    getPublicCourses:exports.getPublicCourses
+    getPublicCourses: exports.getPublicCourses,
+    updateCourseSettings: exports.updateCourseSettings,
+    uploadCourseThumbnail: exports.uploadCourseThumbnail,
+    toggleCourseStatus: exports.toggleCourseStatus,
+    getInstructorCourseForEdit: exports.getInstructorCourseForEdit,
+    getInstructorCourseReviews: exports.getInstructorCourseReviews
 };

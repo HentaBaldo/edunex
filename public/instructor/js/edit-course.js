@@ -29,6 +29,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await loadCurriculum();
     setupEventListeners();
+    await loadCourseForEdit();
+    await loadCategoriesForEdit();
+    initQuillEditor();
+    setupSettingsListeners();
 });
 
 /**
@@ -694,10 +698,15 @@ window.switchTab = (tabId) => {
     document.querySelectorAll('.sidebar-menu button').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.querySelector(`button[onclick="window.switchTab('${tabId}')"]`);
     if (activeBtn) activeBtn.classList.add('active');
-    
+
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     const tab = document.getElementById(tabId);
     if (tab) tab.classList.add('active');
+
+    if (tabId === 'yorumlar' && !window._reviewsLoaded) {
+        window._reviewsLoaded = true;
+        loadReviews();
+    }
 };
 
 window.showSectionModal = () => {
@@ -858,6 +867,366 @@ window.removeQuizChoice = (btn) => {
     }
     btn.closest('.quiz-secenek-item').remove();
 };
+
+// ═══════════════════════════════════════════════════
+// BÖLÜM 2 — KURS STÜDYOSU (Temel Bilgiler, Medya, Yorumlar)
+// ═══════════════════════════════════════════════════
+
+let _dirtyTab = null;
+
+async function loadCourseForEdit() {
+    try {
+        const res = await ApiService.get(`/courses/${courseId}/for-edit`);
+        const course = res.data;
+        window.__courseData = course;
+        window.__courseDurum = course.durum;
+
+        const nameEl = document.getElementById('studioCourseName');
+        if (nameEl) nameEl.textContent = course.baslik || 'Kurs';
+
+        updateStatusUI(course.durum, course.kayitli_ogrenci_sayisi);
+
+        _setVal('tb_baslik', course.baslik);
+        _setVal('tb_alt_baslik', course.alt_baslik);
+        _setVal('tb_seviye', course.seviye);
+        _setVal('tb_dil', course.dil);
+        _setVal('tb_gereksinimler', course.gereksinimler);
+        _setVal('tb_kazanimlar', course.kazanimlar);
+        _setVal('mp_fiyat', course.fiyat);
+
+        if (window._quillEditor) {
+            window._quillEditor.clipboard.dangerouslyPasteHTML(course.aciklama || '');
+        }
+
+        if (course.kapak_fotografi) {
+            const previewEl = document.getElementById('thumbnailPreview');
+            const placeholder = document.getElementById('thumbnailPlaceholder');
+            if (previewEl) { previewEl.src = course.kapak_fotografi; previewEl.style.display = 'block'; }
+            if (placeholder) placeholder.style.display = 'none';
+        }
+
+        const priceWarn = document.getElementById('priceWarning');
+        if (priceWarn && course.durum === 'yayinda') {
+            ApiService.count ? null : null; // no-op
+            priceWarn.style.display = course.kayitli_ogrenci_sayisi > 0 ? 'block' : 'none';
+        }
+    } catch (err) {
+        showToast('Kurs bilgileri yüklenemedi: ' + err.message, 'error');
+    }
+}
+
+function _setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+}
+
+function updateStatusUI(durum, ogrenciSayisi) {
+    const badge = document.getElementById('studioStatusBadge');
+    const toggleBtn = document.getElementById('btnToggleStatus');
+    const deleteBtn = document.getElementById('btnDeleteCourse');
+    const ogrenciBadge = document.getElementById('ogrenciSayisiBadge');
+
+    const labelMap = { taslak: 'Taslak', onay_bekliyor: 'Onay Bekliyor', onaylandi: 'Onaylandı', yayinda: 'Yayında', arsiv: 'Arşiv' };
+
+    if (badge) {
+        badge.className = `status-badge status-${durum}`;
+        badge.textContent = labelMap[durum] || durum;
+    }
+
+    if (toggleBtn) {
+        if (durum === 'yayinda') {
+            toggleBtn.innerHTML = '<i class="fas fa-pause-circle"></i> Yayından Kaldır';
+            toggleBtn.classList.add('unpublish');
+            toggleBtn.disabled = false;
+        } else if (durum === 'onay_bekliyor') {
+            toggleBtn.innerHTML = '<i class="fas fa-clock"></i> Onay Bekliyor';
+            toggleBtn.disabled = true;
+            toggleBtn.classList.remove('unpublish');
+        } else {
+            toggleBtn.innerHTML = '<i class="fas fa-rocket"></i> Onaya Gönder';
+            toggleBtn.classList.remove('unpublish');
+            toggleBtn.disabled = false;
+        }
+    }
+
+    if (ogrenciBadge) {
+        if (ogrenciSayisi > 0) {
+            ogrenciBadge.textContent = `${ogrenciSayisi} öğrenci`;
+            ogrenciBadge.style.display = 'inline-block';
+        } else {
+            ogrenciBadge.style.display = 'none';
+        }
+    }
+
+    if (deleteBtn) {
+        deleteBtn.disabled = ogrenciSayisi > 0;
+        deleteBtn.title = ogrenciSayisi > 0 ? `${ogrenciSayisi} kayıtlı öğrenci olduğu için silinemez` : 'Kursu sil';
+    }
+}
+
+async function loadCategoriesForEdit() {
+    const select = document.getElementById('tb_kategori_id');
+    if (!select) return;
+    try {
+        const res = await ApiService.get('/categories');
+        (res.data || []).forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.ad;
+            select.appendChild(opt);
+        });
+        if (window.__courseData?.kategori_id) {
+            select.value = window.__courseData.kategori_id;
+        }
+    } catch (err) {
+        console.error('[EDIT] Kategoriler yüklenemedi:', err.message);
+    }
+}
+
+function initQuillEditor() {
+    const container = document.getElementById('quillEditorContainer');
+    if (!container || !window.Quill) return;
+
+    window._quillEditor = new Quill('#quillEditorContainer', {
+        theme: 'snow',
+        placeholder: 'Kursunuz hakkında detaylı bilgi verin...',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['link'],
+                ['clean']
+            ]
+        }
+    });
+
+    window._quillEditor.on('text-change', () => _markDirty('temel_bilgiler'));
+
+    if (window.__courseData?.aciklama) {
+        window._quillEditor.clipboard.dangerouslyPasteHTML(window.__courseData.aciklama);
+    }
+}
+
+function setupSettingsListeners() {
+    const dirtyFields = ['tb_baslik', 'tb_alt_baslik', 'tb_kategori_id', 'tb_seviye', 'tb_dil', 'tb_gereksinimler', 'tb_kazanimlar'];
+    dirtyFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => _markDirty('temel_bilgiler'));
+    });
+
+    const fiyatEl = document.getElementById('mp_fiyat');
+    if (fiyatEl) fiyatEl.addEventListener('input', () => _markDirty('medya_fiyat'));
+
+    const thumbInput = document.getElementById('thumbnailInput');
+    if (thumbInput) {
+        thumbInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const previewEl = document.getElementById('thumbnailPreview');
+                const placeholder = document.getElementById('thumbnailPlaceholder');
+                if (previewEl) { previewEl.src = ev.target.result; previewEl.style.display = 'block'; }
+                if (placeholder) placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+            _markDirty('medya_fiyat');
+        });
+    }
+}
+
+function _markDirty(tab) {
+    _dirtyTab = tab;
+    const bar = document.getElementById('saveBar');
+    if (bar) bar.classList.add('visible');
+}
+
+function _clearDirty() {
+    _dirtyTab = null;
+    const bar = document.getElementById('saveBar');
+    if (bar) bar.classList.remove('visible');
+}
+
+window.saveCurrentTabChanges = async () => {
+    if (_dirtyTab === 'temel_bilgiler') await window.handleSaveBasicInfo();
+    else if (_dirtyTab === 'medya_fiyat') await window.handleSaveMediaPricing();
+};
+
+window.discardCurrentTabChanges = () => {
+    _clearDirty();
+    if (!window.__courseData) return;
+    _setVal('tb_baslik', window.__courseData.baslik);
+    _setVal('tb_alt_baslik', window.__courseData.alt_baslik);
+    _setVal('tb_gereksinimler', window.__courseData.gereksinimler);
+    _setVal('tb_kazanimlar', window.__courseData.kazanimlar);
+    _setVal('mp_fiyat', window.__courseData.fiyat);
+    if (window._quillEditor) {
+        window._quillEditor.clipboard.dangerouslyPasteHTML(window.__courseData.aciklama || '');
+    }
+};
+
+window.handleSaveBasicInfo = async () => {
+    const baslik = document.getElementById('tb_baslik')?.value.trim();
+    if (!baslik) { showToast('Kurs başlığı zorunludur.', 'error'); return; }
+
+    const aciklama = window._quillEditor
+        ? window._quillEditor.root.innerHTML
+        : (document.getElementById('tb_aciklama')?.value || '');
+
+    const payload = {
+        baslik,
+        alt_baslik: document.getElementById('tb_alt_baslik')?.value.trim() || '',
+        aciklama,
+        kategori_id: document.getElementById('tb_kategori_id')?.value,
+        seviye: document.getElementById('tb_seviye')?.value,
+        dil: document.getElementById('tb_dil')?.value,
+        gereksinimler: document.getElementById('tb_gereksinimler')?.value.trim() || '',
+        kazanimlar: document.getElementById('tb_kazanimlar')?.value.trim() || ''
+    };
+
+    try {
+        const res = await ApiService.put(`/courses/${courseId}/settings`, payload);
+        if (res.criticalFieldWarning) {
+            showToast('Kaydedildi. Yayındaki kursun kategori/fiyatı değiştirilemedi.', 'warning');
+        } else {
+            showToast('Temel bilgiler kaydedildi.', 'success');
+        }
+        Object.assign(window.__courseData, payload);
+        document.getElementById('studioCourseName').textContent = baslik;
+        _clearDirty();
+    } catch (err) {
+        showToast('Kaydetme hatası: ' + err.message, 'error');
+    }
+};
+
+window.handleSaveMediaPricing = async () => {
+    const fileInput = document.getElementById('thumbnailInput');
+    const fiyat = document.getElementById('mp_fiyat')?.value;
+    const token = localStorage.getItem('edunex_token');
+
+    let saved = false;
+
+    // Thumbnail yükleme
+    if (fileInput?.files[0]) {
+        const formData = new FormData();
+        formData.append('thumbnail', fileInput.files[0]);
+        try {
+            const response = await fetch(`/api/courses/${courseId}/thumbnail`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Thumbnail yüklenemedi');
+            if (data.data?.kapak_fotografi && window.__courseData) {
+                window.__courseData.kapak_fotografi = data.data.kapak_fotografi;
+            }
+            saved = true;
+        } catch (err) {
+            showToast('Kapak fotoğrafı hatası: ' + err.message, 'error');
+            return;
+        }
+    }
+
+    // Fiyat güncelleme
+    if (fiyat !== undefined && fiyat !== '') {
+        try {
+            const res = await ApiService.put(`/courses/${courseId}/settings`, { fiyat: parseFloat(fiyat) });
+            if (res.criticalFieldWarning) {
+                showToast('Kapak kaydedildi. Yayındaki kursun fiyatı değiştirilemedi.', 'warning');
+            } else {
+                saved = true;
+            }
+            if (window.__courseData) window.__courseData.fiyat = fiyat;
+        } catch (err) {
+            showToast('Fiyat kaydetme hatası: ' + err.message, 'error');
+            return;
+        }
+    }
+
+    if (saved) showToast('Medya ve fiyat kaydedildi.', 'success');
+    _clearDirty();
+};
+
+window.handleToggleStatus = async () => {
+    const durum = window.__courseDurum;
+    const msg = durum === 'yayinda'
+        ? 'Kursu yayından kaldırmak istediğinize emin misiniz?'
+        : 'Kursu onaya göndermek istediğinize emin misiniz? (En az 1 bölüm + 1 ders gerekli)';
+    if (!confirm(msg)) return;
+
+    try {
+        const res = await ApiService.post(`/courses/${courseId}/toggle-status`, {});
+        showToast(res.message, 'success');
+        window.__courseDurum = res.data.durum;
+        updateStatusUI(res.data.durum, window.__courseData?.kayitli_ogrenci_sayisi || 0);
+    } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+    }
+};
+
+window.handleDeleteCourse = async () => {
+    if (!confirm('Bu kursu KALICI olarak silmek istediğinize emin misiniz?')) return;
+    if (!confirm('Son onay: Tüm bölümler, dersler ve veriler silinecektir. Geri alınamaz!')) return;
+
+    try {
+        await ApiService.delete(`/courses/${courseId}`);
+        showToast('Kurs silindi. Yönlendiriliyor...', 'success');
+        setTimeout(() => { window.location.href = '/instructor/dashboard.html'; }, 1500);
+    } catch (err) {
+        showToast('Silme hatası: ' + err.message, 'error');
+    }
+};
+
+async function loadReviews() {
+    const container = document.getElementById('yorumlarListesi');
+    if (!container) return;
+    container.innerHTML = '<p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Yorumlar yükleniyor...</p>';
+
+    try {
+        const res = await ApiService.get(`/courses/${courseId}/instructor-reviews`);
+        const reviews = res.data || [];
+
+        if (reviews.length === 0) {
+            container.innerHTML = '<div class="empty-section"><i class="fas fa-comments" style="font-size:2rem; display:block; margin-bottom:8px;"></i><p>Henüz yorum yapılmamış.</p></div>';
+            return;
+        }
+
+        const avgPuan = reviews.reduce((s, r) => s + r.puan, 0) / reviews.length;
+        const statsHtml = `<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:20px; display:flex; gap:24px; align-items:center;">
+            <div style="text-align:center;">
+                <div style="font-size:2.5rem; font-weight:800; color:#f59e0b;">${avgPuan.toFixed(1)}</div>
+                <div style="color:#94a3b8; font-size:0.8rem;">Ortalama Puan</div>
+            </div>
+            <div>
+                <div style="font-size:1rem; font-weight:600; color:#1e293b;">${reviews.length} yorum</div>
+                <div style="color:#64748b; font-size:0.85rem; margin-top:2px;">${'★'.repeat(Math.round(avgPuan))}${'☆'.repeat(5 - Math.round(avgPuan))}</div>
+            </div>
+        </div>`;
+
+        const cardsHtml = reviews.map(r => `
+            <div class="review-card">
+                <div class="review-card-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:36px; height:36px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-weight:700; color:#475569; font-size:0.95rem; flex-shrink:0;">
+                            ${escapeHtml((r.Yazar?.ad || 'Ö').charAt(0).toUpperCase())}
+                        </div>
+                        <div>
+                            <div style="font-weight:600; font-size:0.9rem; color:#1e293b;">${escapeHtml(r.Yazar ? `${r.Yazar.ad} ${r.Yazar.soyad}` : 'Öğrenci')}</div>
+                            <div style="font-size:0.75rem; color:#94a3b8;">${new Date(r.olusturulma_tarihi).toLocaleDateString('tr-TR')}</div>
+                        </div>
+                    </div>
+                    <div class="review-stars">${'★'.repeat(r.puan)}${'☆'.repeat(5 - r.puan)} <span style="color:#94a3b8; font-size:0.82rem;">(${r.puan}/5)</span></div>
+                </div>
+                ${r.yorum ? `<p style="margin:0; font-size:0.88rem; color:#475569; line-height:1.6;">${escapeHtml(r.yorum)}</p>` : '<p style="margin:0; font-size:0.82rem; color:#94a3b8; font-style:italic;">Yorum yazılmamış.</p>'}
+            </div>
+        `).join('');
+
+        container.innerHTML = statsHtml + cardsHtml;
+    } catch (err) {
+        container.innerHTML = `<div class="empty-section"><p>Yorumlar yüklenemedi: ${err.message}</p></div>`;
+    }
+}
 
 window.saveQuiz = async () => {
     if (!_quizLessonId) return;

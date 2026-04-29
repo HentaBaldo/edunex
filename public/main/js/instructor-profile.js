@@ -107,11 +107,12 @@
             const fiyat    = k.fiyat > 0 ? `${parseFloat(k.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
             const puan     = k.istatistikler?.ortalama_puan || 0;
             const yorum    = k.istatistikler?.toplam_yorum  || 0;
+            const kapak    = k.kapak_fotografi || null;
 
             return `
             <a href="/main/course-detail.html?id=${_esc(k.id)}" class="course-card">
                 <div class="kurs-kart-kapak">
-                    <i class="fas fa-laptop-code"></i>
+                    ${kapak ? `<img src="${_esc(kapak)}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
                     <span class="kurs-kategori-rozet">${kategori}</span>
                 </div>
                 <div class="kurs-kart-govde">

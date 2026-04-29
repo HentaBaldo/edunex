@@ -3,6 +3,8 @@
  * Version: 2.0 (Production Ready)
  */
 
+let _createQuill = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
@@ -11,9 +13,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    if (window.Quill) {
+        _createQuill = new Quill('#createQuillContainer', {
+            theme: 'snow',
+            placeholder: 'Kursunuz hakkında detaylı bilgi verin...',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    ['link'],
+                    ['clean']
+                ]
+            }
+        });
+    }
+
     await loadCategories();
     initCreateCourseForm();
+    initThumbnailPreview();
 });
+
+function initThumbnailPreview() {
+    const input = document.getElementById('thumbnailInput');
+    if (!input) return;
+    input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const previewEl = document.getElementById('thumbnailPreview');
+            const placeholder = document.getElementById('thumbnailPlaceholder');
+            if (previewEl) { previewEl.src = ev.target.result; previewEl.style.display = 'block'; }
+            if (placeholder) placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    });
+}
 
 /**
  * Kategorileri yükle
@@ -61,7 +96,9 @@ function initCreateCourseForm() {
             // Form verilerini topla
             const baslik = document.getElementById('baslik')?.value?.trim();
             const alt_baslik = document.getElementById('alt_baslik')?.value?.trim();
-            const aciklama = document.getElementById('aciklama')?.value?.trim();
+            const aciklama = _createQuill
+                ? _createQuill.root.innerHTML.replace(/<p><br><\/p>/g, '').trim()
+                : (document.getElementById('aciklama')?.value?.trim() || '');
             const kategori_id = document.getElementById('kategori_id')?.value;
             const fiyat = parseFloat(document.getElementById('fiyat')?.value) || 0;
             const dil = document.getElementById('dil')?.value || 'Turkce';
@@ -70,7 +107,8 @@ function initCreateCourseForm() {
             const kazanimlar = document.getElementById('kazanimlar')?.value?.trim();
 
             // Validasyon
-            if (!baslik || !aciklama || !kategori_id) {
+            const aciklamaText = _createQuill ? _createQuill.getText().trim() : aciklama;
+            if (!baslik || !aciklamaText || !kategori_id) {
                 throw new Error('Başlık, açıklama ve kategori zorunlu alanlar.');
             }
 
@@ -78,7 +116,7 @@ function initCreateCourseForm() {
                 throw new Error('Başlık en az 5 karakter olmalıdır.');
             }
 
-            if (aciklama.length < 20) {
+            if (aciklamaText.length < 20) {
                 throw new Error('Açıklama en az 20 karakter olmalıdır.');
             }
 
@@ -108,13 +146,30 @@ function initCreateCourseForm() {
             const result = await ApiService.post('/courses', payload);
 
             if (result.status === 'success' || result.success) {
+                const courseId = result.data?.id;
+                const thumbnailFile = document.getElementById('thumbnailInput')?.files?.[0];
+
+                if (courseId && thumbnailFile) {
+                    if (messageDiv) messageDiv.textContent = 'Kapak fotoğrafı yükleniyor...';
+                    try {
+                        const formData = new FormData();
+                        formData.append('thumbnail', thumbnailFile);
+                        const token = localStorage.getItem('edunex_token');
+                        await fetch(`/api/courses/${courseId}/thumbnail`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: formData
+                        });
+                    } catch (thumbErr) {
+                        console.warn('[CREATE COURSE] Thumbnail yüklenemedi:', thumbErr.message);
+                    }
+                }
+
                 if (messageDiv) {
                     messageDiv.textContent = result.message || "✓ Kurs başarıyla oluşturuldu!";
                     messageDiv.className = "message-box success active";
                 }
-                
-                console.log('[CREATE COURSE] Başarılı. Panoya yönlendiriliyor...');
-                
+
                 setTimeout(() => {
                     window.location.href = '/instructor/dashboard.html';
                 }, 1500);

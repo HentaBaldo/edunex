@@ -1,4 +1,4 @@
-const { CourseEnrollment, Course, Profile } = require('../models');
+const { CourseEnrollment, Course, Profile, Certificate } = require('../models');
 const { UniqueConstraintError, ValidationError, Op } = require('sequelize');
 
 /**
@@ -262,10 +262,90 @@ exports.unenrollCourse = async (req, res, next) => {
     }
 };
 
+/**
+ * Öğrenci paneli için kapsamlı dashboard verisi
+ * @route GET /api/enrollments/dashboard
+ */
+exports.getStudentDashboardData = async (req, res, next) => {
+    try {
+        const ogrenci_id = req.user.id;
+
+        const enrollments = await CourseEnrollment.findAll({
+            where: { ogrenci_id },
+            include: [
+                {
+                    model: Course,
+                    attributes: ['id', 'baslik', 'kapak_fotografi', 'seviye', 'egitmen_id', 'durum', 'silindi_mi'],
+                    where: {
+                        silindi_mi: false,
+                        [Op.not]: { durum: 'taslak', admin_tarafindan_iade_edildi: true }
+                    },
+                    include: [
+                        {
+                            model: Profile,
+                            as: 'Egitmen',
+                            attributes: ['ad', 'soyad']
+                        }
+                    ],
+                    required: true
+                }
+            ],
+            order: [['kayit_tarihi', 'DESC']],
+            subQuery: false
+        });
+
+        const enrollmentIds = enrollments.map(e => e.id);
+        const certCount = enrollmentIds.length > 0
+            ? await Certificate.count({ where: { kayit_id: enrollmentIds } })
+            : 0;
+
+        const completed = enrollments.filter(e => e.ilerleme_yuzdesi >= 100).length;
+
+        const lastCourse = enrollments.length > 0 ? enrollments[0] : null;
+
+        const courses = enrollments.map(e => ({
+            enrollment_id: e.id,
+            kurs_id: e.Course.id,
+            baslik: e.Course.baslik,
+            kapak_fotografi: e.Course.kapak_fotografi,
+            seviye: e.Course.seviye,
+            egitmen: e.Course.Egitmen
+                ? `${e.Course.Egitmen.ad || ''} ${e.Course.Egitmen.soyad || ''}`.trim()
+                : 'Bilinmeyen Eğitmen',
+            ilerleme_yuzdesi: e.ilerleme_yuzdesi || 0
+        }));
+
+        return res.status(200).json({
+            status: 'success',
+            data: {
+                istatistikler: {
+                    toplam_kayit: enrollments.length,
+                    tamamlanan: completed,
+                    sertifika: certCount
+                },
+                son_kurs: lastCourse ? {
+                    enrollment_id: lastCourse.id,
+                    kurs_id: lastCourse.Course.id,
+                    baslik: lastCourse.Course.baslik,
+                    kapak_fotografi: lastCourse.Course.kapak_fotografi,
+                    egitmen: lastCourse.Course.Egitmen
+                        ? `${lastCourse.Course.Egitmen.ad || ''} ${lastCourse.Course.Egitmen.soyad || ''}`.trim()
+                        : 'Bilinmeyen Eğitmen',
+                    ilerleme_yuzdesi: lastCourse.ilerleme_yuzdesi || 0
+                } : null,
+                kurslar: courses
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     enrollCourse: exports.enrollCourse,
     getMyEnrollments: exports.getMyEnrollments,
     getEnrollmentDetail: exports.getEnrollmentDetail,
     updateProgress: exports.updateProgress,
-    unenrollCourse: exports.unenrollCourse
+    unenrollCourse: exports.unenrollCourse,
+    getStudentDashboardData: exports.getStudentDashboardData
 };

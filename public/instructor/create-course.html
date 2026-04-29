@@ -9,7 +9,9 @@
     <link rel="stylesheet" href="/assets/css/global.css">
     <link rel="stylesheet" href="/instructor/css/instructor-common.css">
     <link rel="stylesheet" href="/instructor/css/instructor-forms.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-edit.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 </head>
 <body>
     <header class="navbar">
@@ -47,8 +49,9 @@
                     <input type="text" id="alt_baslik" class="form-control" placeholder="Kurs icerigini ozetleyen carpici bir cumle yazin">
                 </div>
                 <div class="form-group full-width">
-                    <label for="aciklama" class="form-label">Kurs Açıklaması <span aria-hidden="true">*</span></label>
-                    <textarea id="aciklama" class="form-control" rows="5" placeholder="Kursunuz hakkında detaylı bilgi verin..." required></textarea>
+                    <label class="form-label">Kurs Açıklaması <span aria-hidden="true">*</span></label>
+                    <div id="createQuillContainer" style="background:#fff; min-height:160px; border-radius:0 0 8px 8px;"></div>
+                    <textarea id="aciklama" style="display:none;"></textarea>
                 </div>
 
                 <div class="form-grid">
@@ -99,6 +102,21 @@
                     <textarea id="kazanimlar" class="form-control" rows="3" placeholder="Kurs tamamlandiginda elde edilecek becerileri listeleyin."></textarea>
                 </div>
 
+                <div class="form-section-header" style="margin-top: 30px;">
+                    <h2 class="form-section-title">Kapak Fotoğrafı</h2>
+                </div>
+
+                <div class="form-group full-width">
+                    <div class="thumbnail-preview-wrap">
+                        <img id="thumbnailPreview" class="thumbnail-preview" style="display:none;" alt="Kurs kapağı">
+                        <div id="thumbnailPlaceholder" class="thumbnail-placeholder" onclick="document.getElementById('thumbnailInput').click()">
+                            <i class="fas fa-image"></i> Fotoğraf yüklemek için tıklayın
+                        </div>
+                        <input type="file" id="thumbnailInput" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;">
+                    </div>
+                    <p style="font-size:0.8rem; color:#94a3b8; margin-top:8px;">Önerilen boyut: 1280×720 piksel · JPG / PNG / WEBP · (İsteğe bağlı, sonradan da ekleyebilirsiniz)</p>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn-primary-lg-alt">
                         <i class="fas fa-save" aria-hidden="true"></i> Kursu Taslak Olarak Kaydet
@@ -110,6 +128,7 @@
         </section>
     </main>
 
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <script src="/assets/js/api.js"></script>
     <script type="module" src="/instructor/js/create-course.js"></script>
     
