@@ -10,11 +10,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       ogrenci_id: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
       },
       kurs_id: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
       },
       siparis_kalemi_id: {
         type: DataTypes.UUID,

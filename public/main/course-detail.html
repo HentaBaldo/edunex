@@ -9,14 +9,7 @@
     <link rel="stylesheet" href="/main/css/main.css"> <link rel="stylesheet" href="/main/css/course-detail.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <header class="navbar">
-        <div class="container navbar-content">
-            <a href="/" class="logo">EduNex</a>
-            <nav class="nav-actions">
-                <a href="/auth/index.html" class="btn-auth-blue">Giriş Yap</a>
-            </nav>
-        </div>
-    </header>
+    <div id="navbar-placeholder"></div>
 
     <main class="container">
         <div class="detail-layout">
@@ -25,10 +18,17 @@
                 <header class="course-header">
                     <h1 id="courseTitle">Yükleniyor...</h1>
                     <p id="courseSubTitle" class="course-subtitle"></p>
-                    <div class="course-meta-info">
+                    <div id="courseDescription" class="course-description"></div>
+                    <div class="course-header-meta">
                         <span id="courseInstructor" class="instructor-badge"></span>
+                        <span id="headerRating" class="header-rating"></span>
                     </div>
                 </header>
+
+                <section class="instructor-section" id="instructorSection" style="display:none;">
+                    <h3 class="section-heading">Eğitmen Hakkında</h3>
+                    <div id="instructorCard"></div>
+                </section>
 
                 <div id="progressCard" style="display:none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
                     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
@@ -102,7 +102,22 @@
         </div>
     </main>
 
+    <!-- Önizleme Video Modalı -->
+    <div id="previewModal" class="preview-modal" style="display:none;" role="dialog" aria-modal="true">
+        <div class="preview-modal-overlay" onclick="closePreviewModal()"></div>
+        <div class="preview-modal-box">
+            <div class="preview-modal-header">
+                <span id="previewModalTitle" class="preview-modal-title"></span>
+                <button class="preview-modal-close" onclick="closePreviewModal()" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="previewPlayerContainer" class="preview-player-wrap"></div>
+        </div>
+    </div>
+
     <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
     <script src="/main/js/course-detail.js"></script>
 </body>
 </html>

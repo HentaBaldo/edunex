@@ -8,6 +8,8 @@ let currentCourseId = null;
 let currentUserToken = null;
 let isEnrolledStudent = false;
 let currentUserId = null;
+let bunnyLibraryId = null;
+let previewLessonsMap = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Navbar'daki giriş durumunu kontrol et
@@ -40,8 +42,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Arayüz (UI) Güncellemeleri
         document.getElementById('courseTitle').innerText = course.baslik;
         document.getElementById('courseSubTitle').innerText = course.alt_baslik || '';
-        document.getElementById('courseInstructor').innerHTML = `<i class="fas fa-chalkboard-teacher"></i> Eğitmen: ${course.Egitmen.ad} ${course.Egitmen.soyad}`;
+        document.getElementById('courseInstructor').innerHTML = `<i class="fas fa-chalkboard-teacher"></i> Eğitmen: ${escapeHtml(course.Egitmen?.ad)} ${escapeHtml(course.Egitmen?.soyad)}`;
         document.getElementById('coursePrice').innerText = course.fiyat > 0 ? `${course.fiyat} ₺` : 'Ücretsiz';
+
+        // Açıklama (HTML destekli — eğitmen kontrolündeki içerik)
+        const descEl = document.getElementById('courseDescription');
+        if (descEl && course.aciklama) descEl.innerHTML = course.aciklama;
+
+        // Puan özeti (header — tek aggregate sorgudan geliyor)
+        const headerRatingEl = document.getElementById('headerRating');
+        if (headerRatingEl && course.istatistikler?.toplam_yorum > 0) {
+            const { ortalama_puan, toplam_yorum } = course.istatistikler;
+            headerRatingEl.innerHTML = `
+                <span>${renderStars(ortalama_puan)}</span>
+                <strong class="hr-score">${ortalama_puan}</strong>
+                <span class="hr-count">(${toplam_yorum} değerlendirme)</span>`;
+        }
+
+        // BunnyCDN library ID
+        bunnyLibraryId = course.bunny_library_id || null;
+
+        // Eğitmen Kartı
+        renderInstructorCard(course.Egitmen, course.InstructorDetail);
 
         // Fiyata göre buton gösterimi: ücretli -> Sepete Ekle, ücretsiz -> Direkt Kayıt
         const isPaid = Number(course.fiyat) > 0;
@@ -143,13 +165,14 @@ function applyEnrolledMode(courseId, enrollment) {
 }
 
 /**
- * Müfredatı render et — kayıtlı öğrenciler için tıklanabilir, değilse kilitli preview.
+ * Müfredatı render et — kayıtlı öğrenciler için tıklanabilir, değilse önizleme/kilitli.
  */
 function renderCurriculum(sections) {
     const curriculumDiv = document.getElementById('curriculumList');
     if (!curriculumDiv) return;
 
     curriculumDiv.dataset.sections = JSON.stringify(sections);
+    previewLessonsMap = {};
 
     if (!sections || sections.length === 0) {
         curriculumDiv.innerHTML = '<p class="info-message">Bu kurs için henüz müfredat eklenmemiş.</p>';
@@ -159,29 +182,48 @@ function renderCurriculum(sections) {
     curriculumDiv.innerHTML = sections.map(section => {
         const lessons = (section.Lessons || []).map(lesson => {
             const icon = iconForLessonType(lesson.icerik_tipi);
-            const duration = lesson.sure_saniye ? Math.floor(lesson.sure_saniye / 60) + ' dk' : '';
+            const duration = lesson.sure_saniye ? formatDuration(lesson.sure_saniye) : '';
+            const isPreviewOnly = !isEnrolledStudent && lesson.onizleme_mi;
             const canOpen = isEnrolledStudent || lesson.onizleme_mi;
 
-            const rightIcon = canOpen
-                ? (isEnrolledStudent
-                    ? '<i class="fas fa-play" style="color:#10b981;" title="Derse Git"></i>'
-                    : '<i class="fas fa-eye" style="color:var(--primary-color);" title="Önizleme"></i>')
-                : '<i class="fas fa-lock" style="color:#94a3b8;" title="Kilitli"></i>';
+            if (isPreviewOnly) previewLessonsMap[lesson.id] = lesson;
 
-            const rowStyle = canOpen ? 'cursor:pointer;' : 'cursor:default; opacity:0.85;';
-            const dataAttrs = canOpen
-                ? `data-clickable="1" data-lesson-id="${escapeAttr(lesson.id)}"`
+            const desc = lesson.aciklama
+                ? `<span class="lesson-desc">${escapeHtml(lesson.aciklama.length > 80 ? lesson.aciklama.substring(0, 80) + '…' : lesson.aciklama)}</span>`
+                : '';
+            const badge = lesson.icerik_tipi
+                ? `<span class="content-badge badge-${escapeAttr(lesson.icerik_tipi)}">${escapeHtml(contentTypeLabel(lesson.icerik_tipi))}</span>`
                 : '';
 
+            let rightAction;
+            if (isEnrolledStudent && canOpen) {
+                rightAction = '<i class="fas fa-play enrolled-icon" title="Derse Git"></i>';
+            } else if (isPreviewOnly) {
+                rightAction = '<button class="preview-btn" tabindex="-1"><i class="fas fa-eye"></i> Önizleme</button>';
+            } else {
+                rightAction = '<i class="fas fa-lock lock-icon" title="Kilitli"></i>';
+            }
+
+            const rowClass = `lesson-row${isEnrolledStudent && canOpen ? ' lesson-clickable' : isPreviewOnly ? ' lesson-preview-open' : ''}`;
+            const dataAttrs = isEnrolledStudent && canOpen
+                ? `data-clickable="1" data-lesson-id="${escapeAttr(lesson.id)}"`
+                : isPreviewOnly
+                    ? `data-preview="1" data-lesson-id="${escapeAttr(lesson.id)}"`
+                    : '';
+
             return `
-                <div class="lesson-row" ${dataAttrs} style="${rowStyle}">
+                <div class="${rowClass}" ${dataAttrs}>
                     <div class="lesson-left">
                         <i class="fas ${icon} lesson-icon"></i>
-                        <span class="lesson-name">${escapeHtml(lesson.baslik || '')}</span>
+                        <div class="lesson-info">
+                            <span class="lesson-name">${escapeHtml(lesson.baslik || '')}</span>
+                            ${desc}
+                        </div>
                     </div>
                     <div class="lesson-right">
+                        ${badge}
                         <span class="lesson-time">${duration}</span>
-                        <span class="lesson-lock">${rightIcon}</span>
+                        ${rightAction}
                     </div>
                 </div>`;
         }).join('');
@@ -195,13 +237,16 @@ function renderCurriculum(sections) {
             </div>`;
     }).join('');
 
-    // Tıklanabilir satırlara listener ekle
+    // Kayıtlı öğrenci: öğrenim ekranına git
     curriculumDiv.querySelectorAll('[data-clickable="1"]').forEach(row => {
         row.addEventListener('click', () => {
-            const lessonId = row.dataset.lessonId;
-            if (!lessonId) return;
-            window.location.href = `/student/learning-room.html?id=${currentCourseId}&lesson_id=${lessonId}`;
+            window.location.href = `/student/learning-room.html?id=${currentCourseId}&lesson_id=${row.dataset.lessonId}`;
         });
+    });
+
+    // Önizleme: modal aç
+    curriculumDiv.querySelectorAll('[data-preview="1"]').forEach(row => {
+        row.addEventListener('click', () => openPreviewModal(row.dataset.lessonId));
     });
 }
 
@@ -214,6 +259,180 @@ function iconForLessonType(tip) {
     }
 }
 
+function contentTypeLabel(tip) {
+    const labels = { video: 'Video', metin: 'Metin', quiz: 'Quiz', belge: 'Belge' };
+    return labels[(tip || '').toLowerCase()] || tip;
+}
+
+function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${m} dk`;
+}
+
+/**
+ * Eğitmen kartını render edip instructor-section'ı görünür yapar.
+ */
+function renderInstructorCard(egitmen, detail) {
+    if (!egitmen) return;
+    const section = document.getElementById('instructorSection');
+    const card = document.getElementById('instructorCard');
+    if (!section || !card) return;
+
+    const avatarInner = egitmen.profil_fotografi
+        ? `<img src="${escapeAttr(egitmen.profil_fotografi)}" alt="${escapeAttr(egitmen.ad)}">`
+        : '<i class="fas fa-user"></i>';
+
+    const unvanHtml = detail?.unvan
+        ? `<p class="instructor-title-text">${escapeHtml(detail.unvan)}</p>`
+        : '';
+    const bioRaw = detail?.biyografi || '';
+    const bioHtml = bioRaw
+        ? `<p class="instructor-bio">${escapeHtml(bioRaw.length > 220 ? bioRaw.substring(0, 220) + '…' : bioRaw)}</p>`
+        : '';
+
+    card.innerHTML = `
+        <div class="instructor-card-inner" role="link" tabindex="0"
+             onclick="window.location.href='/main/instructor/detail.html?id=${escapeAttr(egitmen.id)}'"
+             onkeydown="if(event.key==='Enter') window.location.href='/main/instructor/detail.html?id=${escapeAttr(egitmen.id)}'">
+            <div class="instructor-avatar">${avatarInner}</div>
+            <div class="instructor-card-info">
+                <h4 class="instructor-name">${escapeHtml(egitmen.ad)} ${escapeHtml(egitmen.soyad)}</h4>
+                ${unvanHtml}
+                ${bioHtml}
+                <span class="instructor-link-hint"><i class="fas fa-external-link-alt"></i> Tüm kursları ve biyografiyi gör</span>
+            </div>
+        </div>`;
+
+    section.style.display = 'block';
+}
+
+/**
+ * Önizleme modalını açar.
+ * learning.js ile aynı kaynak-tipi hiyerarşisi kullanılır:
+ *   kaynak1 (video_saglayici_id) UUID ise → Bunny, değilse → document
+ *   kaynak2 (kaynak_url)         YouTube/Vimeo URL ise → ilgili player
+ * Bunny iframe'i yalnızca gerçek UUID için çağrılır; YouTube/document durumunda hiç çağrılmaz.
+ */
+function openPreviewModal(lessonId) {
+    const lesson = previewLessonsMap[lessonId];
+    if (!lesson) return;
+
+    document.getElementById('previewModalTitle').textContent = lesson.baslik;
+    const player = document.getElementById('previewPlayerContainer');
+
+    const kaynak1 = lesson.video_saglayici_id || null;
+    const kaynak2 = lesson.kaynak_url || null;
+
+    let mainMedia = 'none';
+    if (kaynak1 && isBunnyUUID(kaynak1)) {
+        mainMedia = 'bunny';
+    } else if (kaynak2 && isYoutubeUrl(kaynak2)) {
+        mainMedia = 'youtube';
+    } else if (kaynak2 && isVimeoUrl(kaynak2)) {
+        mainMedia = 'vimeo';
+    } else if (kaynak1 && !isBunnyUUID(kaynak1)) {
+        mainMedia = 'document';
+    }
+
+    let html = `<div style="width:100%;display:flex;flex-direction:column;background:#000;overflow-y:auto;">`;
+
+    if (mainMedia === 'bunny') {
+        html += `
+            <div style="position:relative;flex-grow:1;min-height:300px;display:flex;">
+                <iframe
+                    src="https://iframe.mediadelivery.net/embed/${escapeHtml(bunnyLibraryId)}/${escapeHtml(kaynak1)}?autoplay=true&responsive=true"
+                    allowfullscreen
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;">
+                </iframe>
+            </div>`;
+
+    } else if (mainMedia === 'youtube') {
+        const ytId = extractYoutubeId(kaynak2);
+        html += `
+            <div style="padding:10px 15px;background:#0f172a;text-align:right;flex-shrink:0;border-bottom:1px solid #1e293b;">
+                <a href="https://www.youtube.com/watch?v=${encodeURIComponent(ytId)}" target="_blank" rel="noopener noreferrer"
+                   style="background:#ef4444;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:0.85rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    <i class="fab fa-youtube"></i> Oynatıcı Hata Verirse Doğrudan Aç
+                </a>
+            </div>
+            <div style="position:relative;flex-grow:1;min-height:300px;display:flex;">
+                <iframe
+                    src="https://www.youtube.com/embed/${escapeHtml(ytId)}"
+                    title="YouTube video player"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allowfullscreen
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;">
+                </iframe>
+            </div>`;
+
+    } else if (mainMedia === 'vimeo') {
+        const vimeoId = extractVimeoId(kaynak2);
+        html += `
+            <div style="position:relative;flex-grow:1;min-height:300px;display:flex;">
+                <iframe src="https://player.vimeo.com/video/${escapeHtml(vimeoId)}" allowfullscreen
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;">
+                </iframe>
+            </div>`;
+
+    } else if (mainMedia === 'document') {
+        const ext = extractExtension(kaynak1);
+        if (ext === 'pdf') {
+            html += `<iframe src="${escapeHtml(kaynak1)}#toolbar=1"
+                        style="width:100%;height:60vh;border:0;background:#fff;flex-shrink:0;"></iframe>`;
+        } else if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+            html += `
+                <div style="display:flex;justify-content:center;align-items:center;min-height:300px;background:#000;padding:20px;">
+                    <img src="${escapeHtml(kaynak1)}" style="max-width:100%;max-height:70vh;object-fit:contain;">
+                </div>`;
+        } else {
+            const fileName = decodeURIComponent(kaynak1.split('/').pop().split('?')[0]) || 'belge';
+            html += `
+                <div style="display:flex;justify-content:center;align-items:center;min-height:300px;background:#1e293b;flex-direction:column;gap:16px;padding:40px;text-align:center;">
+                    <i class="fas fa-file-alt" style="font-size:3.5rem;color:#3b82f6;"></i>
+                    <p style="font-size:1rem;color:#cbd5e1;margin:0;">${escapeHtml(fileName)}</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin:0;">Bu belge türü tarayıcıda önizlenemiyor.</p>
+                    <a href="${escapeHtml(kaynak1)}" target="_blank" rel="noopener noreferrer"
+                       style="background:#3b82f6;padding:10px 24px;border-radius:6px;color:white;text-decoration:none;font-weight:600;">
+                        <i class="fas fa-download"></i> Dosyayı İndir
+                    </a>
+                </div>`;
+        }
+
+    } else {
+        html += `
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:250px;gap:12px;color:#94a3b8;padding:40px;text-align:center;">
+                <i class="fas fa-video-slash" style="font-size:2.8rem;"></i>
+                <p style="margin:0;">Bu ders için önizleme içeriği mevcut değil.</p>
+            </div>`;
+    }
+
+    html += `</div>`;
+    player.innerHTML = html;
+
+    const modal = document.getElementById('previewModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Önizleme modalını kapatır ve videoyu durdurur.
+ */
+function closePreviewModal() {
+    const modal = document.getElementById('previewModal');
+    modal.style.display = 'none';
+    document.getElementById('previewPlayerContainer').innerHTML = '';
+    document.body.style.overflow = '';
+}
+
+// ESC tuşuyla modal kapatma
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePreviewModal();
+});
+
 function escapeHtml(text) {
     if (text === null || text === undefined) return '';
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -222,6 +441,31 @@ function escapeHtml(text) {
 
 function escapeAttr(text) {
     return String(text).replace(/"/g, '&quot;');
+}
+
+// --- Medya Tipi Yardımcıları (learning.js ile aynı mantık) ---
+function isBunnyUUID(str) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+function isYoutubeUrl(url) {
+    return url.includes('youtube.com') || url.includes('youtu.be');
+}
+function isVimeoUrl(url) {
+    return url.includes('vimeo.com');
+}
+function extractYoutubeId(url) {
+    if (url.includes('youtu.be/')) return url.split('youtu.be/')[1]?.split('?')[0] || '';
+    return new URLSearchParams(url.split('?')[1]).get('v') || url.split('v=')[1]?.split('&')[0] || '';
+}
+function extractVimeoId(url) {
+    return url.split('/').pop()?.split('?')[0] || '';
+}
+function extractExtension(url) {
+    if (!url) return '';
+    const clean = String(url).split('?')[0].split('#')[0];
+    const idx = clean.lastIndexOf('.');
+    if (idx === -1 || idx < clean.lastIndexOf('/')) return '';
+    return clean.slice(idx + 1).toLowerCase();
 }
 
 /**

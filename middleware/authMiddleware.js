@@ -5,6 +5,11 @@
 
 const jwt = require('jsonwebtoken');
 
+if (!process.env.JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET .env dosyasında tanımlı değil. Sunucu güvenli şekilde başlatılamaz.');
+    process.exit(1);
+}
+
 /**
  * HTTP Authorization header uzerinden gelen JWT'yi dogrular.
  * Token gecerli ise icindeki veriyi req.user nesnesine ekler.
@@ -24,7 +29,7 @@ exports.verifyToken = (req, res, next) => {
 
     try {
         // Token dogrulamasi (SECRET_KEY .env dosyasindan okunur)
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
         // Decoded veriyi (id, rol vb.) sonraki islemlerde kullanmak uzere req nesnesine ata
         req.user = decoded; 

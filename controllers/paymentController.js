@@ -278,19 +278,23 @@ exports.callback = async (req, res) => {
                     await enrollment.update({ siparis_kalemi_id: oi.id }, { transaction: t });
                 }
 
-                // Egitmen hakedisi
+                // Egitmen hakedisi (findOrCreate: çift callback'te tekrar oluşturma)
                 const brut = Number(oi.odenen_fiyat);
                 const kesinti = Number((brut * PLATFORM_KOMISYON_ORANI / 100).toFixed(2));
                 const net = Number((brut - kesinti).toFixed(2));
-                await InstructorEarning.create({
-                    egitmen_id: oi.Course?.egitmen_id || null,
-                    siparis_kalemi_id: oi.id,
-                    brut_tutar: brut.toFixed(2),
-                    komisyon_orani: PLATFORM_KOMISYON_ORANI,
-                    platform_kesintisi: kesinti.toFixed(2),
-                    net_tutar: net.toFixed(2),
-                    para_birimi: 'TRY',
-                }, { transaction: t });
+                await InstructorEarning.findOrCreate({
+                    where: { siparis_kalemi_id: oi.id },
+                    defaults: {
+                        egitmen_id: oi.Course?.egitmen_id || null,
+                        siparis_kalemi_id: oi.id,
+                        brut_tutar: brut.toFixed(2),
+                        komisyon_orani: PLATFORM_KOMISYON_ORANI,
+                        platform_kesintisi: kesinti.toFixed(2),
+                        net_tutar: net.toFixed(2),
+                        para_birimi: 'TRY',
+                    },
+                    transaction: t,
+                });
             }
 
             // Sepeti bosalt

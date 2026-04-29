@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       kurs_id: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
       },
       baslik: {
         type: DataTypes.STRING(255),

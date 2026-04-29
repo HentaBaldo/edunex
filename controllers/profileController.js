@@ -5,7 +5,9 @@ const {
     StudentDetail,
     InstructorDetail,
     StudentInterest,
-    Category
+    Category,
+    Course,
+    CourseEnrollment
 } = require('../models');
 const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
 
@@ -228,8 +230,27 @@ exports.deleteAccount = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Avatarı yan etki olarak temizle (sessizce)
-        const profile = await Profile.findByPk(userId, { attributes: ['profil_fotografi'] });
+        const profile = await Profile.findByPk(userId, { attributes: ['rol', 'profil_fotografi'] });
+
+        // Yayında kursu olan ve aktif öğrencisi bulunan eğitmen hesabı silinemez
+        if (profile?.rol === 'egitmen') {
+            const activeCourses = await Course.findAll({
+                where: { egitmen_id: userId, durum: 'yayinda' },
+                attributes: ['id'],
+            });
+            if (activeCourses.length > 0) {
+                const courseIds = activeCourses.map(c => c.id);
+                const enrollmentCount = await CourseEnrollment.count({
+                    where: { kurs_id: courseIds },
+                });
+                if (enrollmentCount > 0) {
+                    return res.status(403).json({
+                        success: false,
+                        message: `Hesabınız silinemiyor: ${enrollmentCount} aktif öğrencisi bulunan yayında kursunuz var. Lütfen önce kurslarınızı arşivleyin veya öğrencilerle ilgili işlemleri tamamlayın.`,
+                    });
+                }
+            }
+        }
         if (profile?.profil_fotografi) {
             await cleanupOldAvatar(profile.profil_fotografi);
         }

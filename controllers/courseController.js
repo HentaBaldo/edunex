@@ -9,7 +9,7 @@ const {
     InstructorDetail,
     Review
 } = require('../models');
-const { Op } = require('sequelize');
+const { fn, col, Op } = require('sequelize');
 const { recalculateCourseProgress } = require('../services/progressService');
 
 /**
@@ -112,7 +112,7 @@ exports.getInstructorCourses = async (req, res, next) => {
  */
 exports.createCourse = async (req, res, next) => {
     try {
-        const { baslik, aciklama, kategori_id, fiyat, dil, seviye, gereksinimler, kazanimlar } = req.body;
+        const { baslik, alt_baslik, aciklama, kategori_id, fiyat, dil, seviye, gereksinimler, kazanimlar } = req.body;
         const egitmen_id = req.user.id;
 
         // Validasyon
@@ -124,6 +124,7 @@ exports.createCourse = async (req, res, next) => {
 
         const course = await Course.create({
             baslik,
+            alt_baslik: alt_baslik || '',
             aciklama,
             kategori_id,
             egitmen_id,
@@ -177,16 +178,15 @@ exports.getCourseDetails = async (req, res, next) => {
                         {
                             model: Lesson,
                             as: 'Lessons',
-                            attributes: ['id', 'baslik', 'icerik_tipi', 'sure_saniye', 'onizleme_mi', 'sira_numarasi'],
+                            attributes: [
+                                'id', 'baslik', 'icerik_tipi', 'sure_saniye',
+                                'onizleme_mi', 'sira_numarasi',
+                                'video_saglayici_id', 'kaynak_url'
+                            ],
                             where: { gizli_mi: false },
                             required: false
                         }
                     ]
-                },
-                {
-                    // 4. YORUMLARI BURAYA, ANA DİZİYE EKLİYORUZ (DOĞRU YER ✅)
-                    model: Review,
-                    attributes: ['puan']
                 }
             ],
             order: [
@@ -210,9 +210,44 @@ exports.getCourseDetails = async (req, res, next) => {
             throw error;
         }
 
+        // Yorum istatistikleri tek aggregate sorguda hesaplanir (tum puan satirlari yerine).
+        const ratingStats = await Review.findOne({
+            where: { kurs_id: id },
+            attributes: [
+                [fn('AVG', col('puan')), 'ortalama_puan'],
+                [fn('COUNT', col('puan')), 'toplam_yorum']
+            ],
+            raw: true
+        });
+
+        const ortalama_puan = ratingStats?.ortalama_puan
+            ? parseFloat(parseFloat(ratingStats.ortalama_puan).toFixed(1))
+            : null;
+        const toplam_yorum = parseInt(ratingStats?.toplam_yorum, 10) || 0;
+
+        // Yalnizca onizleme_mi=true olan derslerin video kaynaklari disa acilir.
+        const courseJson = course.toJSON();
+        if (Array.isArray(courseJson.Sections)) {
+            courseJson.Sections = courseJson.Sections.map(section => ({
+                ...section,
+                Lessons: (section.Lessons || []).map(lesson => {
+                    if (lesson.onizleme_mi === true) return lesson;
+                    return {
+                        ...lesson,
+                        video_saglayici_id: null,
+                        kaynak_url: null
+                    };
+                })
+            }));
+        }
+
+        courseJson.istatistikler = { ortalama_puan, toplam_yorum };
+        courseJson.bunny_library_id = process.env.BUNNY_LIBRARY_ID || null;
+
+
         return res.status(200).json({
             success: true,
-            data: course
+            data: courseJson
         });
 
     } catch (error) {
@@ -979,9 +1014,9 @@ exports.updateLesson = async (req, res, next) => {
             video_saglayici_id, 
             sure_saniye, 
             onizleme_mi, 
-            sira_numarasi, 
-            icelik_tipi,
-            kaynak_url 
+            sira_numarasi,
+            icerik_tipi,
+            kaynak_url
         } = req.body;
         const userId = req.user.id;
 
@@ -1016,7 +1051,7 @@ exports.updateLesson = async (req, res, next) => {
         if (sure_saniye !== undefined) updateData.sure_saniye = sure_saniye;
         if (onizleme_mi !== undefined) updateData.onizleme_mi = onizleme_mi;
         if (sira_numarasi !== undefined) updateData.sira_numarasi = sira_numarasi;
-        if (icerik_tipi !== undefined) updateData.icerik_tipi = icelik_tipi;
+        if (icerik_tipi !== undefined) updateData.icerik_tipi = icerik_tipi;
         if (kaynak_url !== undefined) updateData.kaynak_url = kaynak_url;
 
         await lesson.update(updateData);
@@ -1120,6 +1155,60 @@ exports.deleteLesson = async (req, res, next) => {
     }
 };
 
+
+
+exports.getPublicCourses = async (req, res) => {
+    try {
+        const tumKurslar = await Course.findAll({
+            where: { durum: 'yayinda' },
+            include: [{ model: Review, attributes: ['puan'] }]
+        });
+
+        if (!tumKurslar || tumKurslar.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: { enPopuler: [], enCokBegenilen: [], tumKurslar: [] }
+            });
+        }
+
+        const kurslarIsilenmis = tumKurslar.map(kurs => {
+            const kursData = kurs.toJSON();
+            const yorumlar = kursData.Reviews || [];
+            
+            // BURASI ÖNEMLİ: Puan hesaplamasını ekledik
+            let hesaplananPuan = 0;
+            if (yorumlar.length > 0) {
+                const toplamPuan = yorumlar.reduce((toplam, r) => toplam + r.puan, 0);
+                hesaplananPuan = (toplamPuan / yorumlar.length).toFixed(1);
+            }
+
+            return {
+                id: kursData.id,
+                baslik: kursData.baslik,
+                alt_baslik: kursData.alt_baslik,
+                aciklama: kursData.aciklama,
+                fiyat: kursData.fiyat,
+                kapak_resmi: kursData.kapak_resmi || '/images/default-course.jpg',
+                ogrenciSayisi: kursData.ogrenciSayisi || 0, // Modelde yoksa 0 döner
+                ortalamaPuan: parseFloat(hesaplananPuan)
+            };
+        });
+
+        // Verileri kategorize edip gönderiyoruz
+        const enPopuler = [...kurslarIsilenmis].sort((a, b) => b.ogrenciSayisi - a.ogrenciSayisi).slice(0, 4);
+        const enCokBegenilen = [...kurslarIsilenmis].sort((a, b) => b.ortalamaPuan - a.ortalamaPuan).slice(0, 4);
+
+        res.status(200).json({
+            success: true,
+            data: { enPopuler, enCokBegenilen, tumKurslar: kurslarIsilenmis }
+        });
+
+    } catch (error) {
+        console.error("Public kurslar hatası:", error.message);
+        res.status(500).json({ success: false, message: 'Kurslar yüklenirken bir hata oluştu.' });
+    }
+};
+
 // === MODULE EXPORTS ===
 // ✅ Tüm fonksiyonları export et
 module.exports = {
@@ -1138,5 +1227,6 @@ module.exports = {
     updateCourseSection: exports.updateCourseSection,
     updateLesson: exports.updateLesson,
     deleteCourseSection: exports.deleteCourseSection,
-    deleteLesson: exports.deleteLesson
+    deleteLesson: exports.deleteLesson,
+    getPublicCourses:exports.getPublicCourses
 };

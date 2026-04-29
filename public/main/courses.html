@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Tüm Kurslar</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/main/css/courses.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="navbar-placeholder"></div>
+
+    <main class="container">
+
+        <section class="search-section">
+            <div class="search-header">
+                <h1>Tüm Eğitimleri Keşfedin</h1>
+                <p>Kariyerinize yön verecek en iyi kursları filtreleyin.</p>
+            </div>
+            <div class="search-box-large">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Kurs adı, eğitmen veya kategori arayın...">
+            </div>
+        </section>
+
+        <div class="courses-layout">
+
+            <!-- Sol: Filtre Paneli -->
+            <aside class="filter-sidebar">
+                <div class="filter-panel">
+                    <div class="filter-panel-header">
+                        <h3><i class="fas fa-sliders-h"></i> Filtreler</h3>
+                        <button class="btn-clear-all" id="clearAllFilters">Temizle</button>
+                    </div>
+
+                    <div class="filter-group">
+                        <h4>Ücret</h4>
+                        <label class="filter-radio"><input type="radio" name="price" value="all" checked> Tümü</label>
+                        <label class="filter-radio"><input type="radio" name="price" value="free"> Ücretsiz</label>
+                        <label class="filter-radio"><input type="radio" name="price" value="paid"> Ücretli</label>
+                    </div>
+
+                    <div class="filter-group">
+                        <h4>Minimum Puan</h4>
+                        <label class="filter-radio"><input type="radio" name="rating" value="0" checked> Tümü</label>
+                        <label class="filter-radio"><input type="radio" name="rating" value="4.5"> <i class="fas fa-star"></i> 4.5 ve üzeri</label>
+                        <label class="filter-radio"><input type="radio" name="rating" value="4"> <i class="fas fa-star"></i> 4.0 ve üzeri</label>
+                        <label class="filter-radio"><input type="radio" name="rating" value="3"> <i class="fas fa-star"></i> 3.0 ve üzeri</label>
+                    </div>
+
+                    <div class="filter-group">
+                        <h4>Kategoriler</h4>
+                        <div id="categoryFilters" class="category-list">
+                            <div class="skeleton-filter-item"></div>
+                            <div class="skeleton-filter-item"></div>
+                            <div class="skeleton-filter-item"></div>
+                            <div class="skeleton-filter-item"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Sağ: Kurslar -->
+            <section class="courses-main">
+
+                <div class="courses-toolbar">
+                    <p class="results-count" id="resultsCount">&nbsp;</p>
+                    <select id="sortSelect" class="sort-select">
+                        <option value="newest">En Yeni</option>
+                        <option value="rating">En Yüksek Puan</option>
+                        <option value="price_asc">Fiyat: Düşükten Yükseğe</option>
+                        <option value="price_desc">Fiyat: Yüksekten Düşüğe</option>
+                    </select>
+                </div>
+
+                <div id="skeletonGrid" class="course-grid"></div>
+
+                <div id="errorState" class="status-box hidden">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p id="errorMessage">Bir hata oluştu.</p>
+                </div>
+
+                <div id="courseGrid" class="course-grid hidden"></div>
+
+                <div id="emptyState" class="empty-state hidden">
+                    <div class="empty-state-icon"><i class="fas fa-search-minus"></i></div>
+                    <h3>Kurs Bulunamadı</h3>
+                    <p>Seçtiğiniz kriterlere uygun bir kurs bulunamadı.</p>
+                    <button class="btn-clear-filters" id="emptyStateClear">
+                        <i class="fas fa-times"></i> Filtreleri Temizle
+                    </button>
+                </div>
+
+            </section>
+        </div>
+
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/main/js/courses.js"></script>
+</body>
+</html>

@@ -103,6 +103,7 @@ Review.belongsTo(Course, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate:
 
 StudentDetail.hasMany(Review, { foreignKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Review.belongsTo(StudentDetail, { foreignKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Review.belongsTo(Profile, { as: 'Yazar', foreignKey: 'ogrenci_id', constraints: false });
 
 InstructorDetail.hasMany(InstructorEarning, { foreignKey: 'egitmen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 InstructorEarning.belongsTo(InstructorDetail, { foreignKey: 'egitmen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });

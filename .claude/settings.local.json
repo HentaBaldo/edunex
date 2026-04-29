@@ -18,6 +18,12 @@
       "Bash(node -c routes/adminRoutes.js)",
       "Bash(node -c public/admin/js/orders.js)",
       "Bash(node -c routes/courseRoutes.js)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./node_modules/*)",
+      "Read(./uploads/*)",
+      "Read(./package-lock.json)"
     ]
   }
 }
