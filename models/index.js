@@ -22,6 +22,11 @@ const CartItem = require('./CartItem')(sequelize, DataTypes);
 const PaymentTransaction = require('./PaymentTransaction')(sequelize, DataTypes);
 const LiveSession = require('./LiveSession')(sequelize, DataTypes);
 const LiveSessionAttendance = require('./LiveSessionAttendance')(sequelize, DataTypes);
+const Quiz = require('./Quiz')(sequelize, DataTypes);
+const QuizQuestion = require('./QuizQuestion')(sequelize, DataTypes);
+const QuizChoice = require('./QuizChoice')(sequelize, DataTypes);
+const QuizAttempt = require('./QuizAttempt')(sequelize, DataTypes);
+const QuizAnswer = require('./QuizAnswer')(sequelize, DataTypes);
 
 // --- PROFİL İLİŞKİLERİ ---
 Profile.hasOne(StudentDetail, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -131,6 +136,29 @@ CartItem.belongsTo(Course, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdat
 Order.hasMany(PaymentTransaction, { foreignKey: 'siparis_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 PaymentTransaction.belongsTo(Order, { foreignKey: 'siparis_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+// --- QUİZ İLİŞKİLERİ ---
+// Lesson (icerik_tipi='quiz') <-> Quiz (1-to-1)
+Lesson.hasOne(Quiz, { as: 'Quiz', foreignKey: 'ders_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Quiz.belongsTo(Lesson, { foreignKey: 'ders_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// Quiz -> QuizQuestion (1-to-many)
+Quiz.hasMany(QuizQuestion, { as: 'Questions', foreignKey: 'quiz_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+QuizQuestion.belongsTo(Quiz, { foreignKey: 'quiz_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// QuizQuestion -> QuizChoice (1-to-many)
+QuizQuestion.hasMany(QuizChoice, { as: 'Choices', foreignKey: 'soru_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+QuizChoice.belongsTo(QuizQuestion, { foreignKey: 'soru_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// Quiz -> QuizAttempt (1-to-many, per student)
+Quiz.hasMany(QuizAttempt, { as: 'Attempts', foreignKey: 'quiz_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+QuizAttempt.belongsTo(Quiz, { foreignKey: 'quiz_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Profile.hasMany(QuizAttempt, { foreignKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+QuizAttempt.belongsTo(Profile, { foreignKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// QuizAttempt -> QuizAnswer (1-to-many)
+QuizAttempt.hasMany(QuizAnswer, { as: 'Answers', foreignKey: 'deneme_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+QuizAnswer.belongsTo(QuizAttempt, { foreignKey: 'deneme_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 // --- CANLI OTURUM İLİŞKİLERİ ---
 Course.hasMany(LiveSession, { as: 'LiveSessions', foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 LiveSession.belongsTo(Course, { foreignKey: 'kurs_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -169,4 +197,9 @@ module.exports = {
   PaymentTransaction,
   LiveSession,
   LiveSessionAttendance,
+  Quiz,
+  QuizQuestion,
+  QuizChoice,
+  QuizAttempt,
+  QuizAnswer,
 };

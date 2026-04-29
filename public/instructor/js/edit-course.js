@@ -186,18 +186,34 @@ function renderLessons(lessons) {
                </span>`
             : '';
 
-        const actionBtn = isHidden
-            ? `<button type="button" class="btn-primary-sm btn-restore-lesson" data-lesson-id="${lesson.id}" style="background:#10b981; padding:4px 10px;" title="Dersi geri yükle">
+        const isQuiz = lesson.icerik_tipi === 'quiz';
+
+        let actionBtn;
+        if (isHidden) {
+            actionBtn = `<button type="button" class="btn-primary-sm btn-restore-lesson" data-lesson-id="${lesson.id}" style="background:#10b981; padding:4px 10px;" title="Dersi geri yükle">
                   <i class="fas fa-undo"></i>
-               </button>`
-            : `<button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil/gizle">
+               </button>`;
+        } else if (isQuiz) {
+            actionBtn = `
+               <button type="button" class="btn-primary-sm" style="background:#8b5cf6; padding:4px 10px; font-size:0.78rem;" onclick="window.openQuizModal('${lesson.id}')" title="Quiz sorularını düzenle">
+                  <i class="fas fa-edit"></i> Quiz Düzenle
+               </button>
+               <button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil/gizle">
                   <i class="fas fa-times"></i>
                </button>`;
+        } else {
+            actionBtn = `<button type="button" class="btn-delete-sm btn-delete-lesson" data-lesson-id="${lesson.id}" title="Dersi sil/gizle">
+                  <i class="fas fa-times"></i>
+               </button>`;
+        }
+
+        const iconClass = isQuiz ? 'fa-clipboard-list' : lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt';
+        const iconColor = isQuiz ? 'color:#8b5cf6;' : '';
 
         return `
             <div class="lesson-item" id="lesson-${lesson.id}" style="${hiddenStyle}">
                 <div class="lesson-info">
-                    <i class="fas ${lesson.icerik_tipi === 'video' ? 'fa-play-circle' : 'fa-file-alt'}"></i>
+                    <i class="fas ${iconClass}" style="${iconColor}"></i>
                     <span>${escapeHtml(lesson.baslik)}</span>
                     ${hiddenBadge}
                     ${sourceInfo}
@@ -733,5 +749,169 @@ window.handleLogout = () => {
     } else {
         localStorage.clear();
         window.location.href = '/auth/index.html';
+    }
+};
+
+// ═══════════════════════════════════════════════════
+// QUİZ MODAL — Eğitmen quiz soru/cevap düzenleme
+// ═══════════════════════════════════════════════════
+
+let _quizLessonId = null; // Modal açıkken hangi dersin quiz'i
+
+window.openQuizModal = async (lessonId) => {
+    _quizLessonId = lessonId;
+    const modal = document.getElementById('quizModal');
+    if (!modal) return;
+
+    // Formu sıfırla
+    document.getElementById('quiz_gecme_puani').value = 70;
+    document.getElementById('quiz_sure_dakika').value = '';
+    document.getElementById('quizSorularContainer').innerHTML = '<p style="color:#64748b; font-size:0.9rem;">Yükleniyor...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const res = await ApiService.get(`/quiz/lesson/${lessonId}`);
+        const quiz = res.data;
+
+        if (quiz) {
+            document.getElementById('quiz_gecme_puani').value = quiz.gecme_puani ?? 70;
+            document.getElementById('quiz_sure_dakika').value = quiz.sure_dakika ?? '';
+            // Soruları doldur
+            document.getElementById('quizSorularContainer').innerHTML = '';
+            (quiz.Questions || []).forEach(q => _appendQuestion(q));
+        } else {
+            document.getElementById('quizSorularContainer').innerHTML = '';
+        }
+    } catch (err) {
+        document.getElementById('quizSorularContainer').innerHTML = '';
+        showToast('Quiz yüklenemedi: ' + err.message, 'error');
+    }
+};
+
+window.closeQuizModal = () => {
+    const modal = document.getElementById('quizModal');
+    if (modal) modal.style.display = 'none';
+    _quizLessonId = null;
+};
+
+// Yeni boş soru ekle
+window.addQuizQuestion = () => _appendQuestion(null);
+
+function _appendQuestion(existingQ) {
+    const container = document.getElementById('quizSorularContainer');
+    const idx = container.children.length;
+    const div = document.createElement('div');
+    div.className = 'quiz-soru-item';
+    div.dataset.idx = idx;
+    div.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:14px;';
+
+    const seceneklerHtml = (existingQ?.Choices || [{ secenek_metni: '', dogru_mu: false }, { secenek_metni: '', dogru_mu: false }])
+        .map((c, ci) => _choiceHtml(idx, ci, c))
+        .join('');
+
+    div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <strong style="font-size:0.9rem; color:#1e293b;">Soru ${idx + 1}</strong>
+            <button type="button" onclick="window.removeQuizQuestion(this)" style="background:#fee2e2; border:none; color:#991b1b; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-trash"></i> Kaldır</button>
+        </div>
+        <textarea class="form-control quiz-soru-metni" rows="2" placeholder="Soru metnini yazın..." style="margin-bottom:10px; resize:vertical;">${escapeHtml(existingQ?.soru_metni || '')}</textarea>
+        <div class="quiz-secenekler-list" style="display:flex; flex-direction:column; gap:8px;">
+            ${seceneklerHtml}
+        </div>
+        <button type="button" onclick="window.addQuizChoice(this)" style="margin-top:10px; background:#ede9fe; border:1px dashed #8b5cf6; color:#6d28d9; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.82rem; width:100%;"><i class="fas fa-plus"></i> Seçenek Ekle</button>
+    `;
+    container.appendChild(div);
+}
+
+function _choiceHtml(qIdx, cIdx, choice) {
+    const checked = choice.dogru_mu ? 'checked' : '';
+    return `
+        <div class="quiz-secenek-item" style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="dogru_cevap_${qIdx}" value="${cIdx}" ${checked} style="accent-color:#8b5cf6;" title="Doğru cevap">
+            <input type="text" class="form-control quiz-secenek-metni" placeholder="Seçenek metni..." value="${escapeHtml(choice.secenek_metni || '')}" style="flex:1;">
+            <button type="button" onclick="window.removeQuizChoice(this)" style="background:#fee2e2; border:none; color:#991b1b; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.75rem;" title="Bu seçeneği kaldır"><i class="fas fa-times"></i></button>
+        </div>
+    `;
+}
+
+window.removeQuizQuestion = (btn) => {
+    btn.closest('.quiz-soru-item').remove();
+    // Soru başlıklarını güncelle
+    document.querySelectorAll('#quizSorularContainer .quiz-soru-item').forEach((el, i) => {
+        el.querySelector('strong').textContent = `Soru ${i + 1}`;
+    });
+};
+
+window.addQuizChoice = (btn) => {
+    const soruItem = btn.closest('.quiz-soru-item');
+    const qIdx = parseInt(soruItem.dataset.idx);
+    const list = soruItem.querySelector('.quiz-secenekler-list');
+    const cIdx = list.children.length;
+    list.insertAdjacentHTML('beforeend', _choiceHtml(qIdx, cIdx, { secenek_metni: '', dogru_mu: false }));
+};
+
+window.removeQuizChoice = (btn) => {
+    const list = btn.closest('.quiz-secenekler-list');
+    if (list.children.length <= 2) {
+        showToast('En az 2 seçenek olmalı.', 'error');
+        return;
+    }
+    btn.closest('.quiz-secenek-item').remove();
+};
+
+window.saveQuiz = async () => {
+    if (!_quizLessonId) return;
+
+    const gecme_puani = parseInt(document.getElementById('quiz_gecme_puani').value) || 70;
+    const sure_dakika = parseInt(document.getElementById('quiz_sure_dakika').value) || null;
+
+    const soruItems = document.querySelectorAll('#quizSorularContainer .quiz-soru-item');
+    if (soruItems.length === 0) {
+        showToast('En az 1 soru eklemelisiniz.', 'error');
+        return;
+    }
+
+    const sorular = [];
+    let hata = null;
+
+    soruItems.forEach((soruEl, si) => {
+        if (hata) return;
+        const soru_metni = soruEl.querySelector('.quiz-soru-metni').value.trim();
+        if (!soru_metni) { hata = `Soru ${si + 1}: soru metni boş olamaz.`; return; }
+
+        const secenekEls = soruEl.querySelectorAll('.quiz-secenek-item');
+        if (secenekEls.length < 2) { hata = `Soru ${si + 1}: en az 2 seçenek gerekli.`; return; }
+
+        const secenekler = [];
+        let dogru_sayisi = 0;
+        const dogru_radio = soruEl.querySelector(`input[type="radio"][name^="dogru_cevap_"]:checked`);
+
+        secenekEls.forEach((cEl, ci) => {
+            const secenek_metni = cEl.querySelector('.quiz-secenek-metni').value.trim();
+            if (!secenek_metni) { hata = `Soru ${si + 1}, Seçenek ${ci + 1}: boş olamaz.`; return; }
+            const dogru_mu = dogru_radio ? parseInt(dogru_radio.value) === ci : false;
+            if (dogru_mu) dogru_sayisi++;
+            secenekler.push({ secenek_metni, dogru_mu });
+        });
+
+        if (dogru_sayisi !== 1) { hata = `Soru ${si + 1}: tam olarak 1 doğru cevap işaretlenmeli.`; return; }
+        sorular.push({ soru_metni, soru_tipi: 'coktan_secmeli', secenekler });
+    });
+
+    if (hata) { showToast(hata, 'error'); return; }
+
+    const saveBtn = document.getElementById('quizSaveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
+
+    try {
+        await ApiService.post(`/quiz/lesson/${_quizLessonId}`, { gecme_puani, sure_dakika, sorular });
+        showToast('Quiz başarıyla kaydedildi.', 'success');
+        window.closeQuizModal();
+    } catch (err) {
+        showToast('Kayıt hatası: ' + err.message, 'error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Kaydet';
     }
 };

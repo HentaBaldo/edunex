@@ -226,6 +226,42 @@
         </div>
     </div>
 
+    <!-- Quiz Düzenleme Modalı -->
+    <div id="quizModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="max-width:680px; max-height:90vh; overflow-y:auto;">
+            <h3 class="modal-title"><i class="fas fa-clipboard-list" style="color:#8b5cf6;"></i> Quiz Düzenle</h3>
+
+            <div class="modal-form">
+                <div class="form-grid" style="margin-bottom:16px;">
+                    <div class="form-group">
+                        <label class="form-label">Geçme Puanı (%)</label>
+                        <input type="number" id="quiz_gecme_puani" class="form-control" min="0" max="100" value="70">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Süre Limiti (Dakika, opsiyonel)</label>
+                        <input type="number" id="quiz_sure_dakika" class="form-control" min="1" placeholder="Süresiz bırakmak için boş">
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <strong style="font-size:0.95rem; color:#1e293b;">Sorular</strong>
+                    <button type="button" onclick="window.addQuizQuestion()" class="btn-primary-lg-alt" style="padding:7px 14px; font-size:0.82rem; background:#8b5cf6; border-color:#8b5cf6;">
+                        <i class="fas fa-plus"></i> Soru Ekle
+                    </button>
+                </div>
+
+                <div id="quizSorularContainer"></div>
+
+                <div class="modal-actions" style="margin-top:18px;">
+                    <button type="button" id="quizSaveBtn" onclick="window.saveQuiz()" class="btn-primary-lg-alt">
+                        <i class="fas fa-save"></i> Kaydet
+                    </button>
+                    <button type="button" onclick="window.closeQuizModal()" class="btn-logout-alt">İptal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="/assets/js/api.js"></script>
