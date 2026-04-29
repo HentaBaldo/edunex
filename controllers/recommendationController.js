@@ -272,6 +272,50 @@ async function _enCokBegenilenGetir(sinir = 8, minYorum = 5) {
 }
 
 /**
+ * MODÜL 6 (İÇ): En popüler eğitmenler — toplam öğrenci sayısına göre
+ */
+async function _populerEgitmenleriGetir(sinir = 6) {
+    const sonuclar = await sequelize.query(
+        `SELECT
+            p.id,
+            p.ad,
+            p.soyad,
+            p.profil_fotografi,
+            COALESCE(ed.unvan, '') AS unvan,
+            COUNT(DISTINCT kk.ogrenci_id)               AS toplam_ogrenci,
+            COUNT(DISTINCT k.id)                         AS toplam_kurs,
+            ROUND(AVG(y.puan), 1)                        AS ortalama_puan,
+            COUNT(DISTINCT CONCAT(y.kurs_id, y.ogrenci_id)) AS toplam_yorum
+         FROM profiller p
+         INNER JOIN kurslar k
+             ON k.egitmen_id = p.id AND k.durum = 'yayinda' AND k.silindi_mi = 0
+         LEFT JOIN kurs_kayitlari kk ON kk.kurs_id = k.id
+         LEFT JOIN yorumlar y        ON y.kurs_id  = k.id
+         LEFT JOIN egitmen_detaylari ed ON ed.kullanici_id = p.id
+         WHERE p.rol = 'egitmen'
+         GROUP BY p.id, p.ad, p.soyad, p.profil_fotografi, ed.unvan
+         HAVING COUNT(DISTINCT k.id) >= 1
+         ORDER BY COUNT(DISTINCT kk.ogrenci_id) DESC, ROUND(AVG(y.puan), 1) DESC
+         LIMIT :sinir`,
+        { replacements: { sinir }, type: QueryTypes.SELECT }
+    );
+
+    return (sonuclar || []).map(e => ({
+        id:               e.id,
+        ad:               e.ad,
+        soyad:            e.soyad,
+        profil_fotografi: e.profil_fotografi || null,
+        unvan:            e.unvan || '',
+        istatistikler: {
+            toplam_ogrenci: parseInt(e.toplam_ogrenci || 0),
+            toplam_kurs:    parseInt(e.toplam_kurs    || 0),
+            ortalama_puan:  e.ortalama_puan ? parseFloat(e.ortalama_puan).toFixed(1) : null,
+            toplam_yorum:   parseInt(e.toplam_yorum   || 0)
+        }
+    }));
+}
+
+/**
  * Seed kurs yoksa: platformun en çok kayıtlı kursunu seed olarak kullan
  */
 async function _enPopulerTohumKursuBul() {
@@ -440,19 +484,21 @@ exports.getRecommendations = async (req, res, next) => {
             tohumKategoriId = await _enPopulerTohumKategorisiniBul();
         }
 
-        // Tüm 5 modül paralel çalışır — N+1 sorgu riski sıfır
+        // Tüm modüller paralel çalışır — N+1 sorgu riski sıfır
         const [
             enPopulerKurslar,
             populerKategoriler,
             birlikteAlinanKurslar,
             kategoriBazliCarpraz,
-            enCokBegenilen
+            enCokBegenilen,
+            populerEgitmenler
         ] = await Promise.all([
-            _enPopulerKurslariGetir(8),
-            _populerKategorileriGetir(6),
-            tohumKursId     ? _birlikteAlinanKurslariGetir(tohumKursId, 8)     : Promise.resolve([]),
-            tohumKategoriId ? _kategoriCarprazGetir(tohumKategoriId, 5)        : Promise.resolve([]),
-            _enCokBegenilenGetir(8, 5)
+            _enPopulerKurslariGetir(9),
+            _populerKategorileriGetir(9),
+            tohumKursId     ? _birlikteAlinanKurslariGetir(tohumKursId, 9)     : Promise.resolve([]),
+            tohumKategoriId ? _kategoriCarprazGetir(tohumKategoriId, 9)        : Promise.resolve([]),
+            _enCokBegenilenGetir(9, 3),
+            _populerEgitmenleriGetir(9)
         ]);
 
         return res.status(200).json({
@@ -467,7 +513,8 @@ exports.getRecommendations = async (req, res, next) => {
                 populerKategoriler,
                 birlikteAlinanKurslar,
                 kategoriBazliCarpraz,
-                enCokBegenilen
+                enCokBegenilen,
+                populerEgitmenler
             }
         });
     } catch (hata) {
@@ -567,4 +614,25 @@ exports.getTopRatedCourses = async (_req, res, next) => {
         const veri = await _enCokBegenilenGetir(10, 1);
         return res.status(200).json({ status: 'basarili', mesaj: 'En yüksek puanlı kurslar getirildi.', veri });
     } catch (hata) { next(hata); }
+};
+
+// ============================================================
+// MODÜL 6 — PUBLIC ROUTE HANDLER: En Popüler Eğitmenler
+// @route GET /api/recommendations/populer-egitmenler?sinir=6
+// @access Public
+// ============================================================
+exports.getPopulerEgitmenler = async (req, res, next) => {
+    try {
+        const sinir = Math.min(parseInt(req.query.sinir) || 6, 12);
+        const veri  = await _populerEgitmenleriGetir(sinir);
+
+        return res.status(200).json({
+            status: 'basarili',
+            mesaj:  `En popüler ${veri.length} eğitmen getirildi.`,
+            veri
+        });
+    } catch (hata) {
+        console.error('[POPULER_EGITMENLER] Hata:', hata.message);
+        next(hata);
+    }
 };

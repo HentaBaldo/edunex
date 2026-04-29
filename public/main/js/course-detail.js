@@ -293,8 +293,8 @@ function renderInstructorCard(egitmen, detail) {
 
     card.innerHTML = `
         <div class="instructor-card-inner" role="link" tabindex="0"
-             onclick="window.location.href='/main/instructor/detail.html?id=${escapeAttr(egitmen.id)}'"
-             onkeydown="if(event.key==='Enter') window.location.href='/main/instructor/detail.html?id=${escapeAttr(egitmen.id)}'">
+             onclick="window.location.href='/main/instructor-profile.html?id=${escapeAttr(egitmen.id)}'"
+             onkeydown="if(event.key==='Enter') window.location.href='/main/instructor-profile.html?id=${escapeAttr(egitmen.id)}'">
             <div class="instructor-avatar">${avatarInner}</div>
             <div class="instructor-card-info">
                 <h4 class="instructor-name">${escapeHtml(egitmen.ad)} ${escapeHtml(egitmen.soyad)}</h4>

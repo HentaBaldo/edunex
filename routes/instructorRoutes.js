@@ -11,6 +11,8 @@ router.get('/test', (req, res) => {
     });
 });
 
+router.get('/:instructorId/profile', instructorController.getPublicProfile);
+
 router.post('/upload', verifyToken, isInstructor, upload.single('video'), instructorController.createLessonWithVideo);
 router.post('/lessons/upload', verifyToken, isInstructor, upload.single('video'), instructorController.createLessonWithVideo);
 

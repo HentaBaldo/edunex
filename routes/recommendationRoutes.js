@@ -32,6 +32,10 @@ router.get('/kategori-carpraz', ctrl.getKategoriCarpraz);
 // GET /api/recommendations/en-cok-begenilen?sinir=8&min_yorum=5
 router.get('/en-cok-begenilen', ctrl.getEnCokBegenilen);
 
+// ── Modül 6: En Popüler Eğitmenler ─────────────────────────
+// GET /api/recommendations/populer-egitmenler?sinir=6
+router.get('/populer-egitmenler', ctrl.getPopulerEgitmenler);
+
 // ── Geriye dönük uyumluluk ──────────────────────────────────
 router.get('/personalized', verifyToken, ctrl.getPersonalizedRecommendations);
 router.get('/trending',                  ctrl.getTrendingCourses);

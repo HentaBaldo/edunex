@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eğitmen Profili - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/main/css/instructor-profile.css">
+    <link rel="stylesheet" href="/assets/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+
+    <!-- Hero -->
+    <section class="instructor-hero" id="heroSection">
+        <div class="container">
+            <div class="hero-inner">
+                <div class="hero-avatar" id="heroAvatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="hero-info">
+                    <h1 id="heroName">Yükleniyor...</h1>
+                    <p class="hero-title" id="heroTitle"></p>
+                    <div class="hero-stats" id="heroStats"></div>
+                    <div class="hero-social" id="heroSocial"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="profile-layout">
+
+            <!-- Sol: Bio + Kurslar -->
+            <div class="profile-main">
+
+                <!-- Biyografi -->
+                <div class="bio-card" id="bioCard" style="display:none;">
+                    <h2 class="section-title"><i class="fas fa-user-circle"></i> Eğitmen Hakkında</h2>
+                    <div class="bio-text bio-collapsed" id="bioText"></div>
+                    <button class="btn-bio-toggle" id="bioToggle" style="display:none;" onclick="biyografiyiToggle()">
+                        Devamını Gör <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+
+                <!-- Kurslar -->
+                <div>
+                    <h2 class="section-title"><i class="fas fa-play-circle"></i> Yayındaki Kurslar</h2>
+                    <div id="coursesGrid" class="courses-grid">
+                        <p class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Kurslar yükleniyor...</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sağ: Sidebar -->
+            <aside class="profile-sidebar">
+
+                <!-- İstatistik Kartı -->
+                <div class="stats-card">
+                    <h3 class="section-title" style="margin-bottom:16px;"><i class="fas fa-chart-bar"></i> İstatistikler</h3>
+                    <div class="stat-row">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div>
+                            <div class="stat-value" id="statStudents">—</div>
+                            <div class="stat-label">Toplam Öğrenci</div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-icon"><i class="fas fa-play-circle"></i></div>
+                        <div>
+                            <div class="stat-value" id="statCourses">—</div>
+                            <div class="stat-label">Yayındaki Kurs</div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-icon"><i class="fas fa-star"></i></div>
+                        <div>
+                            <div class="stat-value" id="statRating">—</div>
+                            <div class="stat-label">Ortalama Puan</div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-icon"><i class="fas fa-comment"></i></div>
+                        <div>
+                            <div class="stat-value" id="statReviews">—</div>
+                            <div class="stat-label">Değerlendirme</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Puan Dağılımı -->
+                <div class="rating-card" id="ratingCard" style="display:none;">
+                    <h3 class="section-title" style="margin-bottom:16px;"><i class="fas fa-star"></i> Puan Dağılımı</h3>
+                    <div class="rating-big">
+                        <div class="rating-big-number" id="ratingBigNum">0.0</div>
+                        <div class="rating-big-stars" id="ratingBigStars"></div>
+                        <div class="rating-big-count" id="ratingBigCount"></div>
+                    </div>
+                    <div id="ratingBars"></div>
+                </div>
+
+            </aside>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/assets/js/loadFooter.js"></script>
+    <script src="/main/js/instructor-profile.js"></script>
+</body>
+</html>
