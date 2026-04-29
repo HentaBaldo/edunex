@@ -290,11 +290,13 @@
         const puan     = kurs.istatistikler?.ortalama_puan || 0;
         const yorum    = kurs.istatistikler?.toplam_yorum  || 0;
 
+        const kapak = kurs.kapak_fotografi || null;
+
         return `
             <a href="/main/course-detail.html?id=${kurs.id}" class="course-card">
                 <div class="kurs-kart-ic">
                     <div class="kurs-kart-kapak">
-                        <i class="fas fa-laptop-code"></i>
+                        ${kapak ? `<img src="${kapak}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
                         <span class="kurs-kategori-rozet">${kategori}</span>
                     </div>
                     <div class="kurs-kart-govde">

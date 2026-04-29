@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      kapak_fotografi: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
       gereksinimler: {
         type: DataTypes.TEXT,
         allowNull: true,

@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduNex - Kurs Yönetimi</title>
-    
+    <title>EduNex - Kurs Stüdyosu</title>
+
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
     <link rel="stylesheet" href="/instructor/css/instructor.css">
     <link rel="stylesheet" href="/instructor/css/instructor-forms.css">
     <link rel="stylesheet" href="/instructor/css/instructor-edit.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 </head>
 <body>
     <header class="navbar">
@@ -20,44 +21,160 @@
                 <a href="/instructor/dashboard.html" class="nav-link">
                     <i class="fas fa-arrow-left"></i> Panoya Dön
                 </a>
-                <button type="button" onclick="handleLogout()" class="btn-logout-alt">Çıkış Yap</button>
+                <button type="button" onclick="window.handleLogout()" class="btn-logout-alt">Çıkış Yap</button>
             </nav>
         </div>
     </header>
 
+    <!-- Studio Durum Çubuğu -->
+    <div class="studio-header">
+        <div class="container">
+            <div class="studio-bar">
+                <div class="studio-bar-left">
+                    <h2 id="studioCourseName">Yükleniyor...</h2>
+                    <span id="studioStatusBadge" class="status-badge status-taslak">Taslak</span>
+                </div>
+                <div class="studio-bar-right">
+                    <span id="ogrenciSayisiBadge" class="ogrenci-badge" style="display:none;"></span>
+                    <button id="btnToggleStatus" type="button" class="btn-publish" onclick="window.handleToggleStatus()">
+                        <i class="fas fa-rocket"></i> Onaya Gönder
+                    </button>
+                    <button id="btnDeleteCourse" type="button" class="btn-danger-sm" onclick="window.handleDeleteCourse()">
+                        <i class="fas fa-trash"></i> Kursu Sil
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <main class="container dashboard-container">
         <div class="edit-course-layout">
-            
+
             <!-- Sidebar Menu -->
             <aside class="sidebar-aside">
                 <nav class="sidebar-menu">
-                    <button type="button" class="active" onclick="window.switchTab('mufredat')">
-                        <i class="fas fa-list-ul"></i> Müfredat Yönetimi
+                    <button type="button" class="active" onclick="window.switchTab('temel_bilgiler')">
+                        <i class="fas fa-info-circle"></i> Temel Bilgiler
+                    </button>
+                    <button type="button" onclick="window.switchTab('medya_fiyat')">
+                        <i class="fas fa-image"></i> Medya & Fiyat
+                    </button>
+                    <button type="button" onclick="window.switchTab('mufredat')">
+                        <i class="fas fa-list-ul"></i> Müfredat
+                    </button>
+                    <button type="button" onclick="window.switchTab('yorumlar')">
+                        <i class="fas fa-star"></i> Yorumlar
                     </button>
                     <button type="button" onclick="window.switchTab('canli_dersler')">
                         <i class="fas fa-video"></i> Canlı Dersler
-                    </button>
-                    <button type="button" onclick="window.switchTab('ayarlar')">
-                        <i class="fas fa-cog"></i> Kurs Ayarları
                     </button>
                 </nav>
             </aside>
 
             <!-- Content Area -->
             <section class="content-area">
-                
-                <!-- Müfredat Tab -->
-                <article id="mufredat" class="tab-content active form-card">
+
+                <!-- Sekme 1: Temel Bilgiler -->
+                <article id="temel_bilgiler" class="tab-content active form-card">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="form-section-title"><i class="fas fa-info-circle"></i> Temel Bilgiler</h2>
+                            <p class="subtitle">Kursunuzun başlık, açıklama ve kategori bilgilerini düzenleyin.</p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kurs Başlığı *</label>
+                        <input type="text" id="tb_baslik" class="form-control" placeholder="Kurs başlığını girin">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alt Başlık</label>
+                        <input type="text" id="tb_alt_baslik" class="form-control" placeholder="Kısa bir tanıtım cümlesi">
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Kategori *</label>
+                            <select id="tb_kategori_id" class="form-control">
+                                <option value="">Kategori seçin...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Seviye</label>
+                            <select id="tb_seviye" class="form-control">
+                                <option value="Baslangic">Başlangıç</option>
+                                <option value="Orta">Orta Seviye</option>
+                                <option value="Ileri Seviye">İleri Seviye</option>
+                                <option value="Tum Seviyeler">Tüm Seviyeler</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dil</label>
+                        <select id="tb_dil" class="form-control" style="max-width:200px;">
+                            <option value="Turkce">Türkçe</option>
+                            <option value="Ingilizce">İngilizce</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kurs Açıklaması *</label>
+                        <div id="quillEditorContainer" style="background:#fff; border-radius:0 0 8px 8px; min-height:180px;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Gereksinimler</label>
+                        <textarea id="tb_gereksinimler" class="form-control" rows="3" placeholder="Öğrenciler ne bilmeli? (Her satıra bir tane)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Öğrenci Kazanımları</label>
+                        <textarea id="tb_kazanimlar" class="form-control" rows="3" placeholder="Kurs sonunda öğrenci ne yapabilecek?"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary-lg-alt" onclick="window.handleSaveBasicInfo()">
+                            <i class="fas fa-save"></i> Kaydet
+                        </button>
+                    </div>
+                </article>
+
+                <!-- Sekme 2: Medya & Fiyatlandırma -->
+                <article id="medya_fiyat" class="tab-content form-card">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="form-section-title"><i class="fas fa-image"></i> Medya & Fiyatlandırma</h2>
+                            <p class="subtitle">Kurs kapak fotoğrafı ve fiyatını yönetin.</p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kapak Fotoğrafı</label>
+                        <div class="thumbnail-preview-wrap">
+                            <img id="thumbnailPreview" class="thumbnail-preview" style="display:none;" alt="Kurs kapağı">
+                            <div id="thumbnailPlaceholder" class="thumbnail-placeholder" onclick="document.getElementById('thumbnailInput').click()">
+                                <i class="fas fa-image"></i> Fotoğraf yüklemek için tıklayın
+                            </div>
+                            <input type="file" id="thumbnailInput" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;">
+                        </div>
+                        <p style="font-size:0.8rem; color:#94a3b8; margin-top:8px;">Önerilen boyut: 1280×720 piksel · JPG / PNG / WEBP</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fiyat (TL)</label>
+                        <input type="number" id="mp_fiyat" class="form-control" min="0" step="0.01" placeholder="0 = Ücretsiz" style="max-width:200px;">
+                        <p id="priceWarning" style="display:none; font-size:0.82rem; color:#b45309; margin-top:6px; background:#fef3c7; padding:8px 12px; border-radius:6px;">
+                            <i class="fas fa-exclamation-triangle"></i> Bu kurs yayında ve kayıtlı öğrencisi var. Fiyat değiştirilemez.
+                        </p>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary-lg-alt" onclick="window.handleSaveMediaPricing()">
+                            <i class="fas fa-save"></i> Kaydet
+                        </button>
+                    </div>
+                </article>
+
+                <!-- Sekme 3: Müfredat Yönetimi -->
+                <article id="mufredat" class="tab-content form-card">
                     <div class="tab-header">
                         <div>
                             <h2 class="form-section-title">Kurs Müfredatı</h2>
                             <p class="subtitle">Kursunuzu bölümlere ayırın ve içerik ekleyin.</p>
                         </div>
-                        <button type="button" onclick="window.sendCourseForApproval()" class="btn-primary-lg-alt btn-send-approval">
-                            <i class="fas fa-paper-plane"></i> Onaya Gönder
-                        </button>
                     </div>
-                    
+
                     <div class="add-section-btn-wrapper">
                         <button type="button" class="btn-primary-lg-alt" onclick="window.showSectionModal()">
                             <i class="fas fa-folder-plus"></i> Yeni Bölüm Ekle
@@ -69,7 +186,20 @@
                     </div>
                 </article>
 
-                <!-- Canlı Dersler Tab -->
+                <!-- Sekme 4: Yorumlar -->
+                <article id="yorumlar" class="tab-content form-card">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="form-section-title"><i class="fas fa-star"></i> Öğrenci Yorumları</h2>
+                            <p class="subtitle">Bu kursa yapılan değerlendirmeleri görüntüleyin.</p>
+                        </div>
+                    </div>
+                    <div id="yorumlarListesi">
+                        <p class="loading-text">Sekmeye geçince yorumlar yüklenir.</p>
+                    </div>
+                </article>
+
+                <!-- Sekme 5: Canlı Dersler -->
                 <article id="canli_dersler" class="tab-content form-card">
                     <div class="tab-header">
                         <div>
@@ -86,15 +216,20 @@
                     </div>
                 </article>
 
-                <!-- Ayarlar Tab -->
-                <article id="ayarlar" class="tab-content form-card">
-                    <h2 class="form-section-title">Kurs Ayarları</h2>
-                    <p class="subtitle">Fiyatlandırma, yayın durumu ve diğer temel ayarlar yakında buraya eklenecek.</p>
-                </article>
-
             </section>
         </div>
     </main>
+
+    <!-- Kaydedilmemiş Değişiklikler Barı -->
+    <div id="saveBar" class="save-bar">
+        <p><i class="fas fa-circle-info"></i> Kaydedilmemiş değişiklikler var.</p>
+        <div class="save-bar-actions">
+            <button type="button" class="btn-logout-alt" onclick="window.discardCurrentTabChanges()">Geri Al</button>
+            <button type="button" class="btn-primary-lg-alt" onclick="window.saveCurrentTabChanges()">
+                <i class="fas fa-save"></i> Kaydet
+            </button>
+        </div>
+    </div>
 
     <!-- Bölüm Ekleme Modalı -->
     <div id="bolumEkleModal" class="modal-overlay">
@@ -105,12 +240,10 @@
                     <label for="bolum_baslik" class="form-label">Bölüm Başlığı</label>
                     <input type="text" id="bolum_baslik" class="form-control" placeholder="Orn: Modul 1: Temel Kavramlar" required>
                 </div>
-                
                 <div class="form-group">
                     <label for="bolum_aciklama" class="form-label">Bölüm Açıklaması (İsteğe Bağlı)</label>
                     <textarea id="bolum_aciklama" class="form-control" rows="3" placeholder="Öğrenciler bu bölümde ne öğrenecek?"></textarea>
                 </div>
-
                 <div class="modal-actions">
                     <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
                     <button type="button" onclick="window.closeSectionModal()" class="btn-logout-alt">İptal</button>
@@ -119,63 +252,53 @@
         </div>
     </div>
 
-        <!-- Ders Ekleme Modalı -->
-        <div id="dersEkleModal" class="modal-overlay">
-            <div class="modal-box">
-                <h3 class="modal-title">Yeni Ders Ekle</h3>
-                <form id="dersEkleForm" class="modal-form">
-                    <input type="hidden" id="secili_bolum_id">
-                    
+    <!-- Ders Ekleme Modalı -->
+    <div id="dersEkleModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="modal-title">Yeni Ders Ekle</h3>
+            <form id="dersEkleForm" class="modal-form">
+                <input type="hidden" id="secili_bolum_id">
+                <div class="form-group">
+                    <label for="ders_baslik" class="form-label">Ders Başlığı</label>
+                    <input type="text" id="ders_baslik" class="form-control" required placeholder="Orn: Değişkenler ve Veri Tipleri">
+                </div>
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="ders_baslik" class="form-label">Ders Başlığı</label>
-                        <input type="text" id="ders_baslik" class="form-control" required placeholder="Orn: Değişkenler ve Veri Tipleri">
+                        <label for="icerik_tipi" class="form-label">İçerik Tipi</label>
+                        <select id="icerik_tipi" class="form-control">
+                            <option value="video">Video</option>
+                            <option value="metin">Belge / Döküman</option>
+                            <option value="quiz">Test / Quiz</option>
+                        </select>
                     </div>
-    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="icerik_tipi" class="form-label">İçerik Tipi</label>
-                            <select id="icerik_tipi" class="form-control">
-                                <option value="video">Video</option>
-                                <option value="metin">Belge / Döküman</option>
-                                <option value="quiz">Test / Quiz</option>
-                            </select>
-                        </div>
-                        
-                        <!-- TAHMİNİ SÜRE ALANI (Sadece Belge ve Quiz için) -->
-                        <div class="form-group" id="tahminiSureContainer" style="display: none;">
-                            <label for="tahmini_sure" class="form-label">Tahmini Süre (Dakika)</label>
-                            <input type="number" id="tahmini_sure" class="form-control" value="0" min="0">
-                        </div>
+                    <div class="form-group" id="tahminiSureContainer" style="display: none;">
+                        <label for="tahmini_sure" class="form-label">Tahmini Süre (Dakika)</label>
+                        <input type="number" id="tahmini_sure" class="form-control" value="0" min="0">
                     </div>
-    
-                    <!-- DOSYA YÜKLEME ALANI (Hepsi için ortak) -->
-                    <div class="form-group" id="dosyaInputContainer">
-                        <label for="ders_dosyasi" id="ders_dosyasi_label" class="form-label">Ders Dosyası (Video)</label>
-                        <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/webm">
-                    </div>
-    
-                    <!-- AÇIKLAMA ALANI (Hepsi için ortak) -->
-                    <div class="form-group" id="aciklamaContainer">
-                        <label for="ders_aciklama" class="form-label">Ders Açıklaması / İçerik Görünümü</label>
-                        <textarea id="ders_aciklama" class="form-control" rows="4" placeholder="Ders notlarını, soruları veya içeriği buraya yazın (Zorunlu değil)..."></textarea>
-                    </div>
-    
-                    <div class="form-group">
-                        <label for="kaynak_url" class="form-label">Dış Kaynak Linki (Opsiyonel)</label>
-                        <input type="url" id="kaynak_url" class="form-control" placeholder="Örn: Harici bir websitesi, Github linki vs.">
-                    </div>
-                    <div class="form-group form-group-checkbox">
-                        <input type="checkbox" id="onizleme_mi">
-                        <label for="onizleme_mi">Bu dersi "Ücretsiz Önizleme"ye aç</label>
-                    </div>
-    
-                    <div class="modal-actions">
-                        <button type="submit" class="btn-primary-lg-alt" id="dersSubmitBtn">Kaydet</button>
-                        <button type="button" onclick="window.closeLessonModal()" class="btn-logout-alt">İptal</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="form-group" id="dosyaInputContainer">
+                    <label for="ders_dosyasi" id="ders_dosyasi_label" class="form-label">Ders Dosyası (Video)</label>
+                    <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/webm">
+                </div>
+                <div class="form-group" id="aciklamaContainer">
+                    <label for="ders_aciklama" class="form-label">Ders Açıklaması / İçerik Görünümü</label>
+                    <textarea id="ders_aciklama" class="form-control" rows="4" placeholder="Ders notlarını, soruları veya içeriği buraya yazın..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="kaynak_url" class="form-label">Dış Kaynak Linki (Opsiyonel)</label>
+                    <input type="url" id="kaynak_url" class="form-control" placeholder="Örn: Harici websitesi, Github linki vs.">
+                </div>
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" id="onizleme_mi">
+                    <label for="onizleme_mi">Bu dersi "Ücretsiz Önizleme"ye aç</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary-lg-alt" id="dersSubmitBtn">Kaydet</button>
+                    <button type="button" onclick="window.closeLessonModal()" class="btn-logout-alt">İptal</button>
+                </div>
+            </form>
         </div>
+    </div>
 
     <!-- Canlı Oturum Modal -->
     <div id="canliOturumModal" class="modal-overlay">
@@ -183,17 +306,14 @@
             <h3 class="modal-title" id="canliOturumModalTitle">Yeni Canlı Oturum</h3>
             <form id="canliOturumForm" class="modal-form">
                 <input type="hidden" id="canli_oturum_id">
-
                 <div class="form-group">
                     <label for="cs_baslik" class="form-label">Oturum Başlığı</label>
                     <input type="text" id="cs_baslik" class="form-control" required placeholder="Orn: Hafta 3 Canlı Soru-Cevap">
                 </div>
-
                 <div class="form-group">
                     <label for="cs_aciklama" class="form-label">Açıklama (Opsiyonel)</label>
                     <textarea id="cs_aciklama" class="form-control" rows="3" placeholder="Oturumun içeriği / gündemi"></textarea>
                 </div>
-
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="cs_tarih" class="form-label">Başlangıç Tarihi ve Saati</label>
@@ -204,7 +324,6 @@
                         <input type="number" id="cs_sure" class="form-control" min="15" max="480" value="60" required>
                     </div>
                 </div>
-
                 <div class="modal-actions">
                     <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
                     <button type="button" onclick="window.closeLiveSessionModal()" class="btn-logout-alt">İptal</button>
@@ -230,7 +349,6 @@
     <div id="quizModal" class="modal-overlay" style="display:none;">
         <div class="modal-box" style="max-width:680px; max-height:90vh; overflow-y:auto;">
             <h3 class="modal-title"><i class="fas fa-clipboard-list" style="color:#8b5cf6;"></i> Quiz Düzenle</h3>
-
             <div class="modal-form">
                 <div class="form-grid" style="margin-bottom:16px;">
                     <div class="form-group">
@@ -242,16 +360,13 @@
                         <input type="number" id="quiz_sure_dakika" class="form-control" min="1" placeholder="Süresiz bırakmak için boş">
                     </div>
                 </div>
-
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                     <strong style="font-size:0.95rem; color:#1e293b;">Sorular</strong>
                     <button type="button" onclick="window.addQuizQuestion()" class="btn-primary-lg-alt" style="padding:7px 14px; font-size:0.82rem; background:#8b5cf6; border-color:#8b5cf6;">
                         <i class="fas fa-plus"></i> Soru Ekle
                     </button>
                 </div>
-
                 <div id="quizSorularContainer"></div>
-
                 <div class="modal-actions" style="margin-top:18px;">
                     <button type="button" id="quizSaveBtn" onclick="window.saveQuiz()" class="btn-primary-lg-alt">
                         <i class="fas fa-save"></i> Kaydet
@@ -264,6 +379,7 @@
 
     <div id="toastContainer" class="toast-container"></div>
 
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <script src="/assets/js/api.js"></script>
     <script type="module" src="/instructor/js/edit-course.js"></script>
     <script type="module" src="/instructor/js/live-sessions.js"></script>

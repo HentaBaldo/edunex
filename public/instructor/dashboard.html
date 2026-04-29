@@ -4,74 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EduNex - Eğitmen Panosu</title>
-    
     <link rel="stylesheet" href="/assets/css/variables.css">
     <link rel="stylesheet" href="/assets/css/global.css">
     <link rel="stylesheet" href="/main/css/main.css">
     <link rel="stylesheet" href="/instructor/css/instructor.css">
     <link rel="stylesheet" href="/instructor/css/instructor-dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
     <header class="navbar">
         <div class="container navbar-content">
-            
             <div class="nav-left">
                 <a href="/" class="logo">EduNex</a>
-                
                 <div class="nav-item mega-menu-trigger">
-                    <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size: 0.7rem; margin-left: 5px;"></i></span>
-                    
+                    <span class="nav-text-link">Kategoriler <i class="fas fa-chevron-down" style="font-size:0.7rem;margin-left:5px;"></i></span>
                     <div class="mega-menu" id="megaMenu">
                         <div class="menu-col">
                             <h4>Kategoriler</h4>
-                            <div id="parentList" class="menu-list">
-                                <p style="padding: 10px 20px; color: #64748b;">Yükleniyor...</p>
-                            </div>
+                            <div id="parentList" class="menu-list"><p style="padding:10px 20px;color:#64748b;">Yükleniyor...</p></div>
                         </div>
-                        <div class="menu-col" id="childCol" style="display: none;">
+                        <div class="menu-col" id="childCol" style="display:none;">
                             <h4>Alt Kategoriler</h4>
                             <div id="childList" class="menu-list"></div>
                         </div>
-                        <div class="menu-col" id="grandChildCol" style="display: none;">
+                        <div class="menu-col" id="grandChildCol" style="display:none;">
                             <h4>Popüler Konular</h4>
                             <div id="grandChildList" class="menu-list"></div>
                         </div>
                     </div>
                 </div>
             </div>
-
             <div class="nav-middle">
                 <div class="search-container">
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="Geleceğinizi şekillendirecek kursu arayın...">
                 </div>
             </div>
-
             <div class="nav-right">
-                <a href="/instructor/dashboard.html" class="nav-text-link" style="color: var(--primary-color); font-weight: bold;">Eğitmen Paneli</a>
+                <a href="/instructor/dashboard.html" class="nav-text-link" style="color:var(--primary-color);font-weight:bold;">Eğitmen Paneli</a>
                 <div id="authNavContainer"></div>
             </div>
-
         </div>
     </header>
 
     <main class="dashboard-container">
-        
+
         <header class="page-header">
             <div class="header-text">
                 <h1>Eğitmen Panosu</h1>
-                <p class="subtitle">Kurslarınızı, içeriklerinizi ve öğrenci istatistiklerinizi buradan yönetebilirsiniz.</p>
+                <p class="subtitle">Performansınızı, kazançlarınızı ve öğrenci etkileşimlerinizi takip edin.</p>
             </div>
-            
             <div class="header-actions">
-                <a href="/instructor/create-course.html" class="btn-primary-lg-alt" aria-label="Yeni Kurs Oluştur">
+                <a href="/instructor/create-course.html" class="btn-primary-lg-alt">
                     <i class="fas fa-plus"></i> Yeni Kurs Oluştur
                 </a>
             </div>
         </header>
 
+        <!-- KPI Kartları -->
+        <section class="kpi-grid" id="kpiGrid">
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+        </section>
+
+        <!-- Grafikler -->
+        <section class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h3><i class="fas fa-chart-line"></i> Son 6 Aylık Gelir Trendi</h3>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="earningsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h3><i class="fas fa-chart-pie"></i> Kurs Kayıt Dağılımı</h3>
+                </div>
+                <div class="chart-wrapper chart-wrapper--doughnut">
+                    <canvas id="enrollmentChart"></canvas>
+                </div>
+                <div id="doughnutLegend" class="doughnut-legend"></div>
+            </div>
+        </section>
+
+        <!-- Alt Grid: Tablo + Yorumlar -->
+        <section class="bottom-grid">
+            <div class="table-card">
+                <div class="table-card-header">
+                    <h3><i class="fas fa-table"></i> Kurs Performansları</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="perf-table" id="perfTable">
+                        <thead>
+                            <tr>
+                                <th>Kurs Adı</th>
+                                <th>Durum</th>
+                                <th>Kazanç</th>
+                                <th>Öğrenci</th>
+                                <th>Puan</th>
+                                <th>Tamamlama</th>
+                            </tr>
+                        </thead>
+                        <tbody id="perfTableBody">
+                            <tr><td colspan="6" class="table-loading"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="reviews-card">
+                <div class="reviews-card-header">
+                    <h3><i class="fas fa-comments"></i> Son Yorumlar</h3>
+                </div>
+                <div id="recentReviews" class="reviews-list">
+                    <div class="review-skeleton"></div>
+                    <div class="review-skeleton"></div>
+                    <div class="review-skeleton"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Kurs Yönetimi -->
         <section class="courses-section" aria-labelledby="courses-title">
             <div class="section-header-alt">
                 <h2 id="courses-title" class="section-title">
@@ -79,7 +137,6 @@
                 </h2>
                 <div class="section-line"></div>
             </div>
-
             <div id="courseList" class="course-management-grid">
                 <div class="loading-state">
                     <div class="spinner"></div>
@@ -87,6 +144,7 @@
                 </div>
             </div>
         </section>
+
     </main>
 
     <div id="toastContainer" class="toast-container"></div>

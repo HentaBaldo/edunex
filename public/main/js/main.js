@@ -13,20 +13,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================================
 
 function heroAyarla() {
+    const heroOut = document.getElementById('heroLoggedOut');
+    const heroIn  = document.getElementById('heroLoggedIn');
+    if (!heroOut || !heroIn) return;
+
     const jeton        = localStorage.getItem('edunex_token');
     const kullanicJson = localStorage.getItem('edunex_user');
 
     if (!jeton || !kullanicJson) {
-        document.getElementById('heroLoggedOut').style.display = 'block';
-        document.getElementById('heroLoggedIn').style.display  = 'none';
+        heroOut.style.display = 'block';
+        heroIn.style.display  = 'none';
         return;
     }
 
     let kullanici;
     try { kullanici = JSON.parse(kullanicJson); } catch { return; }
 
-    document.getElementById('heroLoggedOut').style.display = 'none';
-    document.getElementById('heroLoggedIn').style.display  = 'block';
+    heroOut.style.display = 'none';
+    heroIn.style.display  = 'block';
 
     const adEl = document.getElementById('hosgeldinAd');
     if (adEl) adEl.textContent = kullanici.ad || 'Öğrenci';
@@ -277,11 +281,13 @@ function kursKartiOlustur(kurs) {
     const puan       = kurs.istatistikler?.ortalama_puan || kurs.dataValues?.ortalama_puan || 0;
     const yorum      = kurs.istatistikler?.toplam_yorum  || kurs.dataValues?.toplam_yorum  || 0;
 
+    const kapak = kurs.kapak_fotografi || null;
+
     return `
         <a href="/main/course-detail.html?id=${guvenliMetin(kursId)}" class="course-card">
             <div class="kurs-kart-ic">
                 <div class="kurs-kart-kapak">
-                    <i class="fas fa-laptop-code"></i>
+                    ${kapak ? `<img src="${guvenliMetin(kapak)}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
                     <span class="kurs-kategori-rozet">${guvenliMetin(kategoriAd)}</span>
                 </div>
                 <div class="kurs-kart-govde">

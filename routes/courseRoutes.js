@@ -31,6 +31,12 @@ router.post('/', verifyToken, isInstructor, courseCreateLimiter, courseControlle
 // COURSE DETAIL & UPDATE/DELETE
 // ============================================
 
+router.get('/:id/for-edit', verifyToken, isInstructor, courseController.getInstructorCourseForEdit);
+router.get('/:id/instructor-reviews', verifyToken, isInstructor, courseController.getInstructorCourseReviews);
+router.put('/:id/settings', verifyToken, isInstructor, courseController.updateCourseSettings);
+router.post('/:id/thumbnail', verifyToken, isInstructor, upload.single('thumbnail'), courseController.uploadCourseThumbnail);
+router.post('/:id/toggle-status', verifyToken, isInstructor, courseController.toggleCourseStatus);
+
 router.get('/:id', courseController.getCourseDetails);
 router.put('/:id', verifyToken, isInstructor, courseController.updateCourse);
 router.put('/:id/status', verifyToken, isInstructor, courseController.updateCourseStatus);

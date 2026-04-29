@@ -23,6 +23,12 @@ router.post('/', verifyToken, courseEnrollmentController.enrollCourse);
 router.get('/my-courses', verifyToken, courseEnrollmentController.getMyEnrollments);
 
 /**
+ * GET /api/enrollments/dashboard
+ * Öğrenci paneli için kapsamlı dashboard verisi
+ */
+router.get('/dashboard', verifyToken, courseEnrollmentController.getStudentDashboardData);
+
+/**
  * GET /api/enrollments/:courseId
  * Belirli kursun kayıt detayını getir
  */

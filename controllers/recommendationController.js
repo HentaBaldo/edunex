@@ -497,7 +497,7 @@ exports.getRecommendations = async (req, res, next) => {
             _populerKategorileriGetir(9),
             tohumKursId     ? _birlikteAlinanKurslariGetir(tohumKursId, 9)     : Promise.resolve([]),
             tohumKategoriId ? _kategoriCarprazGetir(tohumKategoriId, 9)        : Promise.resolve([]),
-            _enCokBegenilenGetir(9, 3),
+            _enCokBegenilenGetir(9, 1),
             _populerEgitmenleriGetir(9)
         ]);
 

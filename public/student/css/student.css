@@ -1,202 +1,542 @@
 /* ==========================================================================
-   EduNex Student Dashboard - Professional Stylesheet
+   EduNex — Öğrenme Merkezi (Learning Hub) Stylesheet v3.0
    ========================================================================== */
 
-/* Layout */
+/* ── Layout ── */
 .dashboard-container {
     margin-top: 40px;
-    margin-bottom: 60px;
+    margin-bottom: 80px;
 }
 
-/* Page Header */
-.page-header {
+/* ══════════════════════════════════════════
+   HERO — Karşılama + İstatistikler
+══════════════════════════════════════════ */
+.lh-hero {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+    border-radius: 16px;
+    padding: 40px 48px;
+    color: #fff;
+    margin-bottom: 36px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 25px;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 35px;
+    flex-wrap: wrap;
+    gap: 24px;
 }
 
-.page-header h1 {
+.lh-hero-text h1 {
     font-size: 2rem;
+    font-weight: 800;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+}
+
+.lh-hero-text p {
+    font-size: 1.05rem;
+    opacity: 0.88;
+    margin: 0;
+}
+
+.lh-stats-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.lh-stat-card {
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 130px;
+}
+
+.lh-stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.lh-stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+}
+
+.lh-stat-label {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.75);
+    margin-top: 4px;
+    white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════
+   DEVAM ET (RESUME) KARTI
+══════════════════════════════════════════ */
+.lh-resume-section {
+    margin-bottom: 40px;
+}
+
+.lh-section-title {
+    font-size: 1.3rem;
     font-weight: 700;
     color: var(--text-color);
+    margin: 0 0 18px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.subtitle {
-    color: var(--text-muted);
-    font-size: 1rem;
-    margin-top: 5px;
-}
-
-.section-title {
-    font-size: 1.4rem;
-    margin-bottom: 25px;
-}
-
-/* Course Grid */
-.student-course-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 30px;
-}
-
-/* Student Course Card */
-.student-course-card {
+.lh-resume-card {
+    display: flex;
+    gap: 0;
     background: var(--white);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 20px rgba(37,99,235,0.1);
+}
+
+.lh-resume-thumb {
+    width: 280px;
+    min-height: 220px;
+    background: linear-gradient(135deg, #1e40af, #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: rgba(255,255,255,0.6);
+    flex-shrink: 0;
+}
+
+.lh-resume-info {
+    padding: 32px 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.lh-resume-badge {
+    display: inline-block;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    width: fit-content;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.lh-resume-info h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.lh-resume-instructor {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lh-resume-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lh-resume-bar-bg {
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.lh-resume-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+    border-radius: 5px;
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+.lh-resume-percent {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.lh-btn-resume {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    width: fit-content;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    margin-top: 4px;
+}
+
+.lh-btn-resume:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(37,99,235,0.4);
+    color: #fff;
+}
+
+/* ══════════════════════════════════════════
+   KURSLARIM BÖLÜMÜ
+══════════════════════════════════════════ */
+.lh-courses-section {
+    margin-bottom: 40px;
+}
+
+.lh-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.lh-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.lh-action-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1.5px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.lh-action-link:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: #eff6ff;
+}
+
+.lh-cart-badge {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    display: none;
+}
+
+/* ── Kurs Grid ── */
+.lh-course-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+@media (max-width: 1024px) {
+    .lh-course-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .lh-course-grid { grid-template-columns: 1fr; }
+    .lh-hero { flex-direction: column; padding: 28px 24px; }
+    .lh-resume-card { flex-direction: column; }
+    .lh-resume-thumb { width: 100%; min-height: 160px; }
+}
+
+/* ── Kurs Kartı ── */
+.lh-course-card {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
 }
 
-.student-course-card:hover {
+.lh-course-card:hover {
     transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
 }
 
-.course-img-placeholder {
-    height: 150px;
+.lh-card-thumb {
+    height: 160px;
     background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3.5rem;
-    border-bottom: 1px solid var(--border-color);
+    font-size: 2.5rem;
+    color: #818cf8;
+    flex-shrink: 0;
 }
 
-.card-body {
-    padding: 20px;
+.lh-card-thumb--placeholder {
+    background: linear-gradient(135deg, #dbeafe, #c7d2fe);
+    color: #6366f1;
+}
+
+.lh-card-body {
+    padding: 18px 20px;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    flex: 1;
+    gap: 8px;
 }
 
-.course-title {
-    font-size: 1.1rem;
-    margin-bottom: 8px;
+.lh-card-title {
+    font-size: 1rem;
+    font-weight: 700;
     color: var(--text-color);
-    line-height: 1.3;
+    line-height: 1.35;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.instructor-name {
-    font-size: 0.85rem;
+.lh-card-instructor {
+    font-size: 0.82rem;
     color: var(--text-muted);
-    margin-bottom: 20px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-/* Progress Bar Structure */
-.progress-wrapper {
-    margin-bottom: 20px;
+.lh-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: auto;
+    padding-top: 8px;
 }
 
-.progress-bar-bg {
-    width: 100%;
-    height: 8px;
-    background-color: #f1f5f9;
+.lh-bar-bg {
+    height: 7px;
+    background: #f1f5f9;
     border-radius: 4px;
     overflow: hidden;
-    margin-bottom: 6px;
 }
 
-.progress-bar-fill {
+.lh-bar-fill {
     height: 100%;
-    background-color: var(--primary-color);
-    transition: width 0.4s ease;
-}
-
-.progress-text {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-/* Buttons */
-.btn-continue {
-    margin-top: auto;
-    display: block;
-    text-align: center;
-    padding: 12px;
-    background-color: var(--primary-color);
-    color: white;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: background-color 0.2s ease;
-}
-
-.btn-continue:hover {
-    background-color: #004494; /* Darker primary */
-}
-
-.btn-outline {
-    display: inline-block;
-    padding: 12px 24px;
-    border: 2px solid var(--primary-color);
-    color: var(--primary-color);
-    background: transparent;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    margin-top: 15px;
-    transition: all 0.2s ease;
-}
-
-.btn-outline:hover {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-/* Empty & Error States */
-.empty-message-container {
-    grid-column: 1 / -1;
-    background: var(--white);
-    padding: 60px 20px;
-    text-align: center;
-    border: 1px dashed var(--border-color);
-    border-radius: 12px;
-}
-
-.empty-message {
-    color: var(--text-muted);
-    font-size: 1.1rem;
-    margin-bottom: 15px;
-}
-
-/* Navbar Hizalamaları */
-.navbar-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.user-navigation {
-    display: flex;
-    align-items: center;
-}
-
-/* Çıkış Yap Butonu */
-.btn-logout-alt {
-    background: none;
-    border: 1px solid #dc3545;
-    color: #dc3545;
-    padding: 6px 14px;
     border-radius: 4px;
+    width: 0%;
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+}
+
+.lh-progress-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.lh-card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.lh-btn-continue {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: background 0.2s;
+}
+
+.lh-btn-continue:hover {
+    background: #004494;
+    color: #fff;
+}
+
+.lh-btn-unenroll {
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.lh-btn-unenroll:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* ══════════════════════════════════════════
+   BOŞ DURUM / HATA / YÜKLEME
+══════════════════════════════════════════ */
+.lh-empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 72px 24px;
+    border: 2px dashed var(--border-color);
+    border-radius: 16px;
+    background: var(--bg-light);
+}
+
+.lh-empty-icon {
+    width: 80px;
+    height: 80px;
+    background: #eff6ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #2563eb;
+    margin: 0 auto 20px;
+}
+
+.lh-empty-state h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 8px 0;
+}
+
+.lh-empty-state p {
+    color: var(--text-muted);
+    margin: 0 0 24px 0;
+}
+
+.lh-btn-explore {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 10px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,86,179,0.25);
+}
+
+.lh-btn-explore:hover {
+    background: #004494;
+    transform: translateY(-2px);
+    color: #fff;
+}
+
+.lh-error-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px 24px;
+    border: 2px solid #fecaca;
+    border-radius: 12px;
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.lh-error-state i {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.lh-btn-retry {
+    background: #2563eb;
+    color: white;
+    padding: 9px 20px;
+    border: none;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease;
+    margin-top: 12px;
+    transition: background 0.2s;
 }
 
-.btn-logout-alt:hover {
-    background: #dc3545;
-    color: white;
+.lh-btn-retry:hover { background: #1d4ed8; }
+
+.lh-loading {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    gap: 14px;
 }
 
-/* Ana Aksiyon Butonu (Yeni Kursları Keşfet) */
+.lh-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: lh-spin 0.8s linear infinite;
+}
+
+@keyframes lh-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Eski sınıflar (geriye uyumluluk için korundu) ── */
 .btn-primary-lg-alt {
     display: inline-block;
     padding: 12px 24px;
@@ -205,66 +545,11 @@
     text-decoration: none !important;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    border: none;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
 }
 
 .btn-primary-lg-alt:hover {
     background-color: #004494;
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     color: #ffffff;
-}
-
-.btn-primary-lg-alt:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Unenroll Butonu */
-.btn-unenroll {
-    background: transparent;
-    border: 1px solid #e2e8f0;
-    color: #64748b;
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.btn-unenroll:hover {
-    background: #fee2e2;
-    color: #ef4444;
-    border-color: #ef4444;
-}
-
-/* Hata Mesajı */
-.error-message-container {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
-    border: 2px solid #fecaca;
-    border-radius: 8px;
-    background: #fef2f2;
-}
-
-/* Retry Butonu */
-.btn-retry {
-    background: #3b82f6;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-top: 10px;
-}
-
-.btn-retry:hover {
-    background: #2563eb;
 }

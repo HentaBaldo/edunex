@@ -4,6 +4,8 @@ const instructorController = require('../controllers/instructorController');
 const { verifyToken, isInstructor } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware'); // Merkezi multer yapılandırması
 
+router.get('/dashboard/stats', verifyToken, isInstructor, instructorController.getInstructorDashboardStats);
+
 router.get('/test', (req, res) => {
     return res.status(200).json({
         success: true,
