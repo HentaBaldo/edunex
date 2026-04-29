@@ -396,10 +396,19 @@ function loadLessonContent(lesson) {
          extraButtons += `<button onclick="window.open('${escapeHtml(kaynak2)}', '_blank')" style="background: #8b5cf6; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"><i class="fas fa-external-link-alt"></i> Ek Kaynağa Git</button>`;
     }
 
-    if (extraButtons || lesson.aciklama || tip === 'quiz') {
+    if (tip === 'quiz') {
+        // Quiz dersi: video player alanı kaldırılır, yerini quiz widget alır
+        htmlContent += `
+            <div id="quizWidgetArea" style="flex:1; overflow-y:auto; padding:24px; background:#0f172a; color:#e2e8f0;">
+                <div style="text-align:center; padding:40px 0;">
+                    <i class="fas fa-spinner fa-spin fa-2x" style="color:#8b5cf6;"></i>
+                    <p style="margin-top:12px; color:#94a3b8;">Quiz yükleniyor...</p>
+                </div>
+            </div>
+        `;
+    } else if (extraButtons || lesson.aciklama) {
         htmlContent += `
             <div style="padding: 20px; background: #1e293b; border-top: 1px solid #334155; flex-shrink: 0;">
-                ${tip === 'quiz' ? `<div style="color: #f59e0b; margin-bottom: 15px; font-weight: bold;"><i class="fas fa-clipboard-list"></i> Bu bir Quiz bölümüdür.</div>` : ''}
                 ${extraButtons ? `<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">${extraButtons}</div>` : ''}
                 ${lesson.aciklama ? `<div style="color: #cbd5e1; line-height: 1.6; font-size: 0.95rem; white-space: pre-wrap;">${escapeHtml(lesson.aciklama)}</div>` : ''}
             </div>
@@ -408,6 +417,12 @@ function loadLessonContent(lesson) {
 
     htmlContent += `</div>`;
     videoPlayer.innerHTML = htmlContent;
+
+    if (tip === 'quiz') {
+        // Quiz widget'ı async yükle (lesson.id = quiz dersi)
+        loadQuizWidget(lesson.id);
+        return; // tracking quiz derslerinde ayrıca yapılır (submit sonrası)
+    }
 
     // iframe DOM'a eklendi ama Bunny'nin iç player'ı henüz hazır değil.
     // 300ms bekleyerek player.js'in iframe ile握手yapmasına izin veriyoruz.
@@ -760,4 +775,128 @@ function trackBunnyVideo(lesson) {
             });
         } catch(e) {}
     });
+}
+
+// ═══════════════════════════════════════════════════
+// QUİZ WIDGET — Öğrenci quiz çözme arayüzü
+// ═══════════════════════════════════════════════════
+
+let _activeQuizData = null;
+
+async function loadQuizWidget(lessonId) {
+    const area = document.getElementById('quizWidgetArea');
+    if (!area) return;
+
+    area.innerHTML = `<div style="padding:60px 0; text-align:center;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#8b5cf6;"></i></div>`;
+
+    try {
+        const res = await ApiService.get(`/quiz/by-lesson/${lessonId}`);
+        const quizId = res?.data?.id;
+        if (!quizId) { area.innerHTML = _quizNoQuizHtml(); return; }
+        await _fetchAndRenderQuiz(area, quizId, lessonId);
+    } catch (err) {
+        if (err.statusCode === 403) {
+            area.innerHTML = _quizLockedHtml();
+        } else if (err.statusCode === 404) {
+            area.innerHTML = _quizNoQuizHtml();
+        } else {
+            area.innerHTML = `<div style="padding:40px;text-align:center;color:#f87171;">Quiz yüklenemedi: ${escapeHtml(err.message)}</div>`;
+        }
+    }
+}
+
+async function _fetchAndRenderQuiz(area, quizId, lessonId) {
+    const res = await ApiService.get(`/quiz/${quizId}/take`);
+    _activeQuizData = res.data;
+    const { quiz, questions, best_attempt } = _activeQuizData;
+
+    const passedBanner = best_attempt?.gecti_mi
+        ? `<div style="padding:10px 24px;background:#064e3b;color:#6ee7b7;font-size:0.88rem;border-bottom:1px solid #065f46;"><i class="fas fa-check-circle"></i> Bu quizi geçtiniz (${best_attempt.puan}%). Tekrar çözebilirsiniz.</div>`
+        : '';
+
+    const formHtml = questions.map((q, qi) => `
+        <div style="background:#1e293b;border-radius:10px;padding:18px;margin-bottom:14px;">
+            <p style="margin:0 0 12px;font-weight:600;color:#f1f5f9;">${qi + 1}. ${escapeHtml(q.soru_metni)}</p>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                ${(q.Choices || []).map(c => `
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px;cursor:pointer;">
+                        <input type="radio" name="q_${q.id}" value="${c.id}" style="accent-color:#8b5cf6;">
+                        <span style="color:#e2e8f0;font-size:0.93rem;">${escapeHtml(c.secenek_metni)}</span>
+                    </label>`).join('')}
+            </div>
+        </div>`).join('');
+
+    area.innerHTML = `
+        <div style="background:#1e293b;padding:16px 24px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <h3 style="margin:0;font-size:1.05rem;color:#f1f5f9;"><i class="fas fa-clipboard-list" style="color:#8b5cf6;margin-right:8px;"></i>${escapeHtml(quiz.ders_baslik || 'Quiz')}</h3>
+                <small style="color:#94a3b8;">Geçme puanı: <strong style="color:#a78bfa;">${quiz.gecme_puani}%</strong>${quiz.sure_dakika ? ' | Süre: ' + quiz.sure_dakika + ' dk' : ''}</small>
+            </div>
+            ${best_attempt ? `<div style="text-align:right;font-size:0.85rem;color:#94a3b8;">En iyi: <strong style="color:${best_attempt.gecti_mi ? '#34d399' : '#f87171'};">${best_attempt.puan}%</strong></div>` : ''}
+        </div>
+        ${passedBanner}
+        <div style="padding:20px 24px;">
+            <input type="hidden" id="activeQuizId" value="${quiz.id}">
+            <input type="hidden" id="activeQuizLessonId" value="${lessonId}">
+            ${formHtml}
+            <button type="button" onclick="window.submitQuizWidget()" style="width:100%;padding:14px;background:#8b5cf6;color:white;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">
+                <i class="fas fa-paper-plane"></i> Quizi Gönder
+            </button>
+        </div>`;
+}
+
+window.submitQuizWidget = async () => {
+    const quizId = document.getElementById('activeQuizId')?.value;
+    const lessonId = document.getElementById('activeQuizLessonId')?.value;
+    if (!quizId || !_activeQuizData) return;
+
+    const cevaplar = _activeQuizData.questions.map(q => {
+        const sel = document.querySelector(`input[name="q_${q.id}"]:checked`);
+        return { soru_id: q.id, secilen_secenek_id: sel ? sel.value : null };
+    });
+
+    const btn = document.querySelector('#quizWidgetArea button[type="button"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gönderiliyor...'; }
+
+    try {
+        const res = await ApiService.post(`/quiz/${quizId}/submit`, { cevaplar });
+        const d = res.data;
+        const gecti = d.gecti_mi;
+        const area = document.getElementById('quizWidgetArea');
+        area.innerHTML = `
+            <div style="padding:50px 24px;text-align:center;color:#e2e8f0;">
+                <div style="font-size:3rem;margin-bottom:14px;">${gecti ? '🎉' : '😕'}</div>
+                <h2 style="font-size:1.7rem;margin:0 0 8px;color:${gecti ? '#34d399' : '#f87171'};">${gecti ? 'Geçtiniz!' : 'Kaldınız'}</h2>
+                <p style="color:#94a3b8;margin-bottom:24px;">
+                    ${d.dogru_sayisi} / ${d.toplam_soru} doğru — <strong style="color:${gecti ? '#34d399' : '#f87171'};">${d.puan}%</strong>
+                    <br><small>Geçme puanı: ${d.gecme_puani}%</small>
+                </p>
+                ${gecti
+                    ? `<p style="color:#6ee7b7;background:#064e3b;padding:10px 20px;border-radius:8px;display:inline-block;font-size:0.9rem;">✅ Bu bölüm tamamlandı!</p>`
+                    : `<button onclick="loadQuizWidget('${lessonId}')" style="padding:12px 28px;background:#8b5cf6;color:white;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fas fa-redo"></i> Tekrar Dene</button>`}
+                <br><br>
+                <button onclick="loadQuizWidget('${lessonId}')" style="padding:7px 18px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;font-size:0.82rem;cursor:pointer;">
+                    <i class="fas fa-redo"></i> ${gecti ? 'Tekrar Çöz' : 'Tekrar Dene'}
+                </button>
+            </div>`;
+    } catch (err) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Quizi Gönder'; }
+        alert('Hata: ' + err.message);
+    }
+};
+
+function _quizLockedHtml() {
+    return `<div style="padding:60px 24px;text-align:center;color:#94a3b8;">
+        <i class="fas fa-lock" style="font-size:3rem;color:#475569;margin-bottom:16px;display:block;"></i>
+        <h3 style="color:#e2e8f0;margin:0 0 10px;">Quiz Kilitli</h3>
+        <p style="max-width:360px;margin:0 auto;line-height:1.6;">Bu bölümdeki diğer dersleri tamamladıktan sonra quiz açılır.</p>
+    </div>`;
+}
+
+function _quizNoQuizHtml() {
+    return `<div style="padding:60px 24px;text-align:center;color:#94a3b8;">
+        <i class="fas fa-clipboard-list" style="font-size:3rem;color:#475569;margin-bottom:16px;display:block;"></i>
+        <h3 style="color:#e2e8f0;margin:0 0 10px;">Quiz Henüz Eklenmedi</h3>
+        <p>Eğitmen bu derse henüz soru eklememiş.</p>
+    </div>`;
 }
