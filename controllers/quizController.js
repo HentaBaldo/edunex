@@ -271,7 +271,7 @@ exports.getQuizForStudent = async (req, res, next) => {
         const bestAttempt = await QuizAttempt.findOne({
             where: { quiz_id: quizId, ogrenci_id: ogrenciId },
             order: [['puan', 'DESC']],
-            attributes: ['id', 'puan', 'dogru_sayisi', 'toplam_soru', 'gecti_mi', 'createdAt']
+            attributes: ['id', 'puan', 'dogru_sayisi', 'toplam_soru', 'gecti_mi']
         });
 
         return res.status(200).json({
