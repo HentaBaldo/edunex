@@ -1,0 +1,452 @@
+/* public/main/css/instructor-profile.css */
+
+/* ─── Hero ────────────────────────────────────────────────── */
+.instructor-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0056b3 100%);
+    color: #fff;
+    padding: 60px 0 50px;
+}
+
+.hero-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+}
+
+.hero-avatar {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.1);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    color: rgba(255,255,255,0.6);
+}
+
+.hero-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.hero-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.hero-info h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0 0 6px;
+    color: #fff;
+}
+
+.hero-title {
+    font-size: 1.05rem;
+    color: rgba(255,255,255,0.75);
+    margin: 0 0 16px;
+}
+
+.hero-stats {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.hero-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.92rem;
+    color: rgba(255,255,255,0.85);
+}
+
+.hero-stat i {
+    color: #60a5fa;
+    font-size: 0.95rem;
+}
+
+.hero-social {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.hero-social a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+}
+
+.hero-social a:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+/* ─── Main Layout ─────────────────────────────────────────── */
+.profile-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 36px;
+    padding: 40px 0 80px;
+    align-items: start;
+}
+
+/* ─── Section Headings ────────────────────────────────────── */
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-title i {
+    color: var(--primary-color);
+    margin-right: 8px;
+}
+
+/* ─── Bio Card ────────────────────────────────────────────── */
+.bio-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 28px;
+}
+
+.bio-text {
+    color: #334155;
+    line-height: 1.75;
+    font-size: 0.97rem;
+    white-space: pre-wrap;
+}
+
+.bio-collapsed {
+    max-height: 140px;
+    overflow: hidden;
+    position: relative;
+}
+
+.bio-collapsed::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: linear-gradient(to bottom, transparent, #fff);
+}
+
+.btn-bio-toggle {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 8px 0 0;
+    display: block;
+}
+
+/* ─── Courses Grid ────────────────────────────────────────── */
+.courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 22px;
+}
+
+.course-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0,86,179,0.12);
+}
+
+.kurs-kart-kapak {
+    background: linear-gradient(135deg, #1e3a5f, #0056b3);
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-size: 2.5rem;
+    color: rgba(255,255,255,0.35);
+}
+
+.kurs-kategori-rozet {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+}
+
+.kurs-kart-govde {
+    padding: 16px 18px;
+}
+
+.kurs-kart-baslik {
+    font-size: 0.97rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 6px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.kurs-kart-alt-baslik {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin: 0 0 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+}
+
+.kurs-yildiz-satiri {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    font-size: 0.82rem;
+}
+
+.yildiz-puan {
+    font-weight: 700;
+    color: #b45309;
+}
+
+.yildizlar { color: #fbbf24; }
+
+.yorum-sayisi { color: #94a3b8; }
+
+.kurs-kart-alt {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.kurs-fiyat {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.kurs-incele {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* ─── Sidebar Stats Card ──────────────────────────────────── */
+.stats-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.stat-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #f0f7ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 1px;
+}
+
+/* ─── Rating Bar ──────────────────────────────────────────── */
+.rating-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 24px;
+}
+
+.rating-big {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.rating-big-number {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+}
+
+.rating-big-stars {
+    color: #fbbf24;
+    font-size: 1.1rem;
+    margin: 6px 0 4px;
+}
+
+.rating-big-count {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.rating-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+}
+
+.rating-bar-label {
+    color: #64748b;
+    width: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.rating-bar-track {
+    flex: 1;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.rating-bar-fill {
+    height: 100%;
+    background: #fbbf24;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.rating-bar-pct {
+    color: #94a3b8;
+    width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* ─── Empty / Loading ─────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #64748b;
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    color: #cbd5e1;
+    display: block;
+    margin-bottom: 14px;
+}
+
+.loading-placeholder {
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+}
+
+/* ─── Skeleton ────────────────────────────────────────────── */
+@keyframes shimmer {
+    0%   { background-position: -700px 0; }
+    100% { background-position: 700px 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 700px 100%;
+    animation: shimmer 1.4s infinite linear;
+    border-radius: 6px;
+}
+
+/* ─── Responsive ──────────────────────────────────────────── */
+@media (max-width: 960px) {
+    .profile-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-inner {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .hero-stats {
+        justify-content: center;
+    }
+
+    .hero-social {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 600px) {
+    .hero-info h1 { font-size: 1.5rem; }
+    .courses-grid { grid-template-columns: 1fr; }
+}

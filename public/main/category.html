@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kategori - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/main/css/category.css">
+    <link rel="stylesheet" href="/assets/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+
+    <!-- Hero -->
+    <section class="category-hero">
+        <div class="container">
+            <nav class="hero-breadcrumb">
+                <a href="/main/index.html"><i class="fas fa-home"></i> Ana Sayfa</a>
+                <i class="fas fa-chevron-right"></i>
+                <a href="/main/courses.html">Kurslar</a>
+                <i class="fas fa-chevron-right"></i>
+                <span id="heroCategoryName">Yükleniyor...</span>
+            </nav>
+            <h1 id="heroTitle">Yükleniyor...</h1>
+            <div class="hero-meta" id="heroMeta"></div>
+        </div>
+    </section>
+
+    <main class="container">
+
+        <!-- Alt Kategoriler -->
+        <section class="subcategory-section" id="subcategorySection" style="display:none;">
+            <h2>Alt Kategoriler</h2>
+            <div class="subcategory-pills" id="subcategoryPills"></div>
+        </section>
+
+        <!-- Kurslar -->
+        <div class="cat-toolbar">
+            <h2><i class="fas fa-play-circle" style="color:var(--primary-color);margin-right:8px;"></i>Yayındaki Kurslar</h2>
+            <div class="cat-toolbar-right">
+                <span class="results-count" id="resultsCount"></span>
+                <select id="sortSelect" class="sort-select">
+                    <option value="newest">En Yeni</option>
+                    <option value="rating">En Yüksek Puan</option>
+                    <option value="price_asc">Fiyat: Düşükten Yükseğe</option>
+                    <option value="price_desc">Fiyat: Yüksekten Düşüğe</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="skeletonGrid" class="course-grid"></div>
+
+        <div id="errorState" class="status-box hidden">
+            <i class="fas fa-exclamation-circle"></i>
+            <p id="errorMessage">Bir hata oluştu.</p>
+        </div>
+
+        <div id="courseGrid" class="course-grid hidden"></div>
+
+        <div id="emptyState" class="empty-state hidden">
+            <div class="empty-state-icon"><i class="fas fa-box-open"></i></div>
+            <h3>Kurs Bulunamadı</h3>
+            <p>Bu kategoriye ait yayında kurs bulunmuyor.</p>
+        </div>
+
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/assets/js/loadFooter.js"></script>
+    <script src="/main/js/category.js"></script>
+</body>
+</html>

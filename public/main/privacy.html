@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gizlilik Politikası - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/assets/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .privacy-hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0056b3 100%);
+            color: #fff;
+            padding: 64px 0;
+            text-align: center;
+        }
+        .privacy-hero .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #93c5fd;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-bottom: 18px;
+        }
+        .privacy-hero h1 {
+            font-size: clamp(1.7rem, 4vw, 2.6rem);
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        .privacy-hero .meta {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .privacy-hero .meta span { color: #60a5fa; font-weight: 600; }
+
+        /* ─── Layout ─── */
+        .privacy-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 48px;
+            padding: 56px 0 80px;
+            align-items: start;
+        }
+
+        /* ─── Sidebar TOC ─── */
+        .toc-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px 20px;
+            position: sticky;
+            top: 90px;
+        }
+        .toc-card h3 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+        .toc-card ul { list-style: none; }
+        .toc-card ul li { margin-bottom: 2px; }
+        .toc-card ul li a {
+            display: block;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .toc-card ul li a:hover,
+        .toc-card ul li a.active {
+            background: #eff6ff;
+            color: #0056b3;
+            font-weight: 600;
+        }
+
+        /* ─── Content ─── */
+        .privacy-content {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 48px 44px;
+        }
+
+        .privacy-section {
+            margin-bottom: 52px;
+            scroll-margin-top: 100px;
+        }
+        .privacy-section:last-child { margin-bottom: 0; }
+
+        .section-num {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #0056b3;
+            margin-bottom: 10px;
+        }
+        .section-num i { font-size: 0.9rem; }
+
+        .privacy-section h2 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #eff6ff;
+        }
+
+        .privacy-section p {
+            color: #475569;
+            line-height: 1.8;
+            margin-bottom: 14px;
+            font-size: 0.95rem;
+        }
+        .privacy-section p:last-child { margin-bottom: 0; }
+
+        .privacy-section ul {
+            list-style: none;
+            margin: 14px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .privacy-section ul li {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            color: #475569;
+            font-size: 0.95rem;
+            line-height: 1.65;
+        }
+        .privacy-section ul li::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #0056b3;
+            flex-shrink: 0;
+            margin-top: 8px;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #0056b3;
+            border-radius: 0 8px 8px 0;
+            padding: 16px 18px;
+            margin: 18px 0;
+            font-size: 0.9rem;
+            color: #1e3a5f;
+            line-height: 1.65;
+        }
+        .info-box strong { color: #0056b3; }
+
+        .warn-box {
+            background: #fff7ed;
+            border-left: 4px solid #f59e0b;
+            border-radius: 0 8px 8px 0;
+            padding: 16px 18px;
+            margin: 18px 0;
+            font-size: 0.9rem;
+            color: #78350f;
+            line-height: 1.65;
+        }
+
+        .contact-ref {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 18px 20px;
+            font-size: 0.9rem;
+            color: #475569;
+            margin-top: 16px;
+        }
+        .contact-ref a { color: #0056b3; font-weight: 600; text-decoration: none; }
+        .contact-ref a:hover { text-decoration: underline; }
+
+        /* Divider */
+        .privacy-divider {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 48px 0;
+        }
+
+        @media (max-width: 860px) {
+            .privacy-layout { grid-template-columns: 1fr; }
+            .toc-card { position: static; }
+            .privacy-content { padding: 28px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+
+    <!-- Hero -->
+    <section class="privacy-hero">
+        <div class="container">
+            <div class="hero-eyebrow"><i class="fas fa-shield-alt"></i> Yasal Belgeler</div>
+            <h1>Gizlilik Politikası</h1>
+            <p class="meta">Son güncellenme: <span>1 Ocak 2026</span> &nbsp;·&nbsp; Versiyon 2.1</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="privacy-layout">
+
+            <!-- İçerik Tablosu -->
+            <aside>
+                <div class="toc-card">
+                    <h3>İçindekiler</h3>
+                    <ul id="tocList">
+                        <li><a href="#s1">1. Genel Bilgi</a></li>
+                        <li><a href="#s2">2. Toplanan Veriler</a></li>
+                        <li><a href="#s3">3. Verilerin Kullanımı</a></li>
+                        <li><a href="#s4">4. Verilerin Paylaşımı</a></li>
+                        <li><a href="#s5">5. Çerezler</a></li>
+                        <li><a href="#s6">6. Veri Güvenliği</a></li>
+                        <li><a href="#s7">7. Haklarınız (KVKK)</a></li>
+                        <li><a href="#s8">8. Veri Saklama Süreleri</a></li>
+                        <li><a href="#s9">9. Çocukların Gizliliği</a></li>
+                        <li><a href="#s10">10. Politika Değişiklikleri</a></li>
+                        <li><a href="#s11">11. İletişim</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- İçerik -->
+            <main class="privacy-content">
+
+                <div class="info-box">
+                    <strong>Önemli Not:</strong> Bu Gizlilik Politikası, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ve Avrupa Genel Veri Koruma Tüzüğü (GDPR) kapsamındaki yükümlülüklerimizi açıklamak amacıyla hazırlanmıştır. EduNex platformunu kullanarak bu politikayı kabul etmiş sayılırsınız.
+                </div>
+
+                <!-- 1 -->
+                <div class="privacy-section" id="s1">
+                    <div class="section-num"><i class="fas fa-info-circle"></i> Bölüm 01</div>
+                    <h2>Genel Bilgi ve Kapsam</h2>
+                    <p>EduNex Eğitim Teknolojileri A.Ş. ("EduNex", "biz", "şirket") olarak; <strong>edunex.com.tr</strong> alan adı altında sunduğumuz çevrimiçi eğitim platformu, mobil uygulamalar ve ilgili hizmetler aracılığıyla edindiğimiz kişisel verileri nasıl işlediğimizi bu politika kapsamında açıkça ortaya koymaktayız.</p>
+                    <p>Bu politika; platform üzerinden hesap oluşturan öğrencileri, kurs içeriği yükleyen eğitmenleri ve sitemizi ziyaret eden tüm kullanıcıları kapsamaktadır.</p>
+                    <p>Veri sorumlusu sıfatıyla EduNex; Maslak Mah. Büyükdere Cad. No:255, Sarıyer / İstanbul adresinde kayıtlı olup, <a href="mailto:kvkk@edunex.com.tr" style="color:#0056b3;">kvkk@edunex.com.tr</a> üzerinden iletişime geçilebilir.</p>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 2 -->
+                <div class="privacy-section" id="s2">
+                    <div class="section-num"><i class="fas fa-database"></i> Bölüm 02</div>
+                    <h2>Topladığımız Kişisel Veriler</h2>
+                    <p>Hizmetlerimizi sağlamak ve iyileştirmek amacıyla aşağıdaki veri kategorilerini işlemekteyiz:</p>
+                    <p><strong>a) Doğrudan Sağladığınız Veriler</strong></p>
+                    <ul>
+                        <li>Ad, soyad, e-posta adresi ve şifre (kayıt sırasında)</li>
+                        <li>Profil fotoğrafı, biyografi ve sosyal medya bağlantıları (isteğe bağlı)</li>
+                        <li>Ödeme bilgileri (kart numarası <strong>saklanmaz</strong>; ödeme altyapısı iyzico tarafından SSL ile işlenir)</li>
+                        <li>Eğitmenlere özgü: unvan, deneyim yılı, banka hesap bilgileri (ödeme için)</li>
+                    </ul>
+                    <p><strong>b) Otomatik Toplanan Veriler</strong></p>
+                    <ul>
+                        <li>IP adresi, tarayıcı türü ve dil tercihi</li>
+                        <li>Cihaz bilgileri (işletim sistemi, ekran çözünürlüğü)</li>
+                        <li>Çerezler ve yerel depolama verileri</li>
+                        <li>Platform üzerindeki davranışsal veriler (tıklama, sayfa görüntüleme, video izleme süresi)</li>
+                        <li>Kurs tamamlama yüzdesi ve sınav sonuçları</li>
+                    </ul>
+                    <div class="info-box">
+                        <strong>Hassas Veri:</strong> EduNex; din, ırk, siyasi görüş, sağlık durumu gibi özel nitelikli kişisel verileri işlememekte ve talep etmemektedir.
+                    </div>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 3 -->
+                <div class="privacy-section" id="s3">
+                    <div class="section-num"><i class="fas fa-cogs"></i> Bölüm 03</div>
+                    <h2>Verilerin Kullanım Amaçları</h2>
+                    <p>Toplanan veriler yalnızca aşağıdaki meşru amaçlar doğrultusunda kullanılmaktadır:</p>
+                    <ul>
+                        <li>Platforma erişim ve kimlik doğrulama hizmetlerinin sağlanması</li>
+                        <li>Satın alınan kurs ve aboneliklerin işlenmesi, fatura düzenlenmesi</li>
+                        <li>Kurs ilerlemenizin kaydedilmesi ve sertifika oluşturulması</li>
+                        <li>Kişiselleştirilmiş kurs önerilerinin sunulması (öneri algoritması)</li>
+                        <li>Eğitmen gelirlerinin hesaplanması ve transferinin yapılması</li>
+                        <li>Teknik destek ve müşteri hizmetleri sağlanması</li>
+                        <li>Platform güvenliğinin sağlanması ve dolandırıcılık tespiti</li>
+                        <li>Yasal yükümlülüklerin yerine getirilmesi (vergi, muhasebe vb.)</li>
+                        <li>Hizmet kalitesinin ölçülmesi ve iyileştirilmesi</li>
+                    </ul>
+                    <div class="warn-box">
+                        Kişisel verileriniz; reklam amaçlı üçüncü taraf veri havuzlarına, açık artırma sistemlerine veya izniniz olmaksızın herhangi bir pazarlama ağına satılmamakta ya da kiralanmamaktadır.
+                    </div>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 4 -->
+                <div class="privacy-section" id="s4">
+                    <div class="section-num"><i class="fas fa-share-alt"></i> Bölüm 04</div>
+                    <h2>Verilerin Paylaşımı ve Aktarımı</h2>
+                    <p>Kişisel verileriniz; yalnızca hizmetin sunulabilmesi için zorunlu olan ve gizlilik taahhütleri bulunan üçüncü taraflarla, aşağıdaki koşullarda paylaşılmaktadır:</p>
+                    <ul>
+                        <li><strong>Ödeme İşlemcisi (iyzico):</strong> Kredi/banka kartı işlemleri PCI-DSS uyumlu iyzico altyapısı üzerinden gerçekleştirilir. EduNex kart bilgisi saklamaz.</li>
+                        <li><strong>Video Altyapısı (BunnyCDN):</strong> Kurs videoları ve yüklü medya dosyaları, içerik dağıtım ağı üzerinde güvenli biçimde barındırılır.</li>
+                        <li><strong>Canlı Ders (Jitsi Meet):</strong> Canlı derslere katılım sırasında görüntü ve ses verileri anlık olarak işlenir; kayıt yapılmaz.</li>
+                        <li><strong>E-posta Servisi:</strong> İşlemsel e-postalar (onay, parola sıfırlama, fatura) güvenli bir SMTP sağlayıcısı aracılığıyla iletilir.</li>
+                        <li><strong>Yasal Zorunluluk:</strong> Mahkeme kararı, savcılık talebi veya yürürlükteki mevzuat gerektirdiğinde yetkili mercilerle paylaşım yapılabilir.</li>
+                    </ul>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 5 -->
+                <div class="privacy-section" id="s5">
+                    <div class="section-num"><i class="fas fa-cookie-bite"></i> Bölüm 05</div>
+                    <h2>Çerez (Cookie) Politikası</h2>
+                    <p>EduNex, platformun işlevselliğini sağlamak ve kullanıcı deneyimini iyileştirmek amacıyla çerezler kullanmaktadır.</p>
+                    <ul>
+                        <li><strong>Zorunlu Çerezler:</strong> Oturum yönetimi ve güvenlik için gereklidir; devre dışı bırakılamaz.</li>
+                        <li><strong>İşlevsel Çerezler:</strong> Dil tercihi, tema ayarı gibi kullanıcı tercihlerini hatırlar.</li>
+                        <li><strong>Analitik Çerezler:</strong> Hangi sayfaların daha fazla ziyaret edildiğini ölçmemize yardımcı olur (anonim verilerle).</li>
+                        <li><strong>Pazarlama Çerezleri:</strong> Yalnızca açık onayınız durumunda etkinleştirilir; ilgi alanlarınıza göre içerik sunulur.</li>
+                    </ul>
+                    <p>Tarayıcı ayarlarınızdan çerezleri yönetebilir veya silebilirsiniz. Zorunlu çerezlerin devre dışı bırakılması platformun çalışmasını olumsuz etkileyebilir.</p>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 6 -->
+                <div class="privacy-section" id="s6">
+                    <div class="section-num"><i class="fas fa-lock"></i> Bölüm 06</div>
+                    <h2>Veri Güvenliği</h2>
+                    <p>Kişisel verilerinizin güvenliğini sağlamak için endüstri standardı teknik ve idari tedbirler uygulanmaktadır:</p>
+                    <ul>
+                        <li>Tüm veri iletimi <strong>TLS 1.3</strong> şifreleme protokolüyle korunmaktadır (HTTPS).</li>
+                        <li>Şifreler, <strong>bcrypt</strong> algoritmasıyla tek yönlü olarak hashlenerek saklanmaktadır; düz metin olarak tutulmamaktadır.</li>
+                        <li>Yetkilendirme işlemleri <strong>JWT</strong> (JSON Web Token) tabanlı, süresi sınırlı token sistemi ile yönetilmektedir.</li>
+                        <li>Veritabanı erişimi yalnızca yetkili sunucu uygulamalarına açıktır; doğrudan internet erişimi yoktur.</li>
+                        <li>Düzenli güvenlik taramaları ve güvenlik açığı değerlendirmeleri yapılmaktadır.</li>
+                        <li>Erişim logları saklanmakta ve şüpheli etkinlikler izlenmektedir.</li>
+                    </ul>
+                    <div class="warn-box">
+                        İnternet üzerinden hiçbir veri iletimi %100 güvenli değildir. Hesabınızın güvenliği için güçlü bir parola kullanmanızı ve parolanızı kimseyle paylaşmamanızı tavsiye ederiz.
+                    </div>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 7 -->
+                <div class="privacy-section" id="s7">
+                    <div class="section-num"><i class="fas fa-user-shield"></i> Bölüm 07</div>
+                    <h2>KVKK Kapsamındaki Haklarınız</h2>
+                    <p>6698 sayılı Kişisel Verilerin Korunması Kanunu'nun 11. maddesi uyarınca aşağıdaki haklara sahipsiniz:</p>
+                    <ul>
+                        <li><strong>Bilgi edinme hakkı:</strong> Kişisel verilerinizin işlenip işlenmediğini öğrenme</li>
+                        <li><strong>Erişim hakkı:</strong> Verileriniz işleniyorsa, buna ilişkin bilgi talep etme</li>
+                        <li><strong>Düzeltme hakkı:</strong> Yanlış veya eksik verilerinizin düzeltilmesini isteme</li>
+                        <li><strong>Silme hakkı:</strong> İşleme şartları ortadan kalktığında verilerinizin silinmesini talep etme</li>
+                        <li><strong>İşleme kısıtlama:</strong> Belirli koşullarda veri işlemenin kısıtlanmasını isteme</li>
+                        <li><strong>Veri taşınabilirliği:</strong> Verilerinizi yapılandırılmış formatta alma (GDPR)</li>
+                        <li><strong>İtiraz hakkı:</strong> Meşru menfaat veya kamu yararına dayalı işlemelere itiraz etme</li>
+                        <li><strong>Otomatik karar almaya itiraz:</strong> Tamamen otomatik sistemlere dayalı kararları sorgulama</li>
+                    </ul>
+                    <div class="contact-ref">
+                        Bu haklarınızı kullanmak için <a href="mailto:kvkk@edunex.com.tr">kvkk@edunex.com.tr</a> adresine yazılı başvurabilirsiniz. Talepler, kimlik doğrulamasının ardından <strong>30 gün</strong> içinde yanıtlanır.
+                    </div>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 8 -->
+                <div class="privacy-section" id="s8">
+                    <div class="section-num"><i class="fas fa-calendar-alt"></i> Bölüm 08</div>
+                    <h2>Veri Saklama Süreleri</h2>
+                    <p>Kişisel verileriniz, işleme amacının gerektirdiği süre boyunca saklanır:</p>
+                    <ul>
+                        <li><strong>Hesap bilgileri:</strong> Hesabın aktif olduğu süre + hesap silinmesinden itibaren 2 yıl</li>
+                        <li><strong>Ödeme kayıtları:</strong> 10 yıl (Türk Ticaret Kanunu ve Vergi Usul Kanunu gereği)</li>
+                        <li><strong>Oturum logları:</strong> 6 ay</li>
+                        <li><strong>Destek talepleri:</strong> Talebin kapatılmasından itibaren 3 yıl</li>
+                        <li><strong>Çerezler:</strong> Çerez türüne göre 1 gün ila 1 yıl arasında değişmektedir</li>
+                    </ul>
+                    <p>Saklama süresi dolan veriler otomatik olarak ya da periyodik temizleme süreçleri aracılığıyla güvenli biçimde imha edilir.</p>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 9 -->
+                <div class="privacy-section" id="s9">
+                    <div class="section-num"><i class="fas fa-child"></i> Bölüm 09</div>
+                    <h2>Çocukların Gizliliği</h2>
+                    <p>EduNex, 13 yaşın altındaki bireylere yönelik hizmet sunmamakta ve bu kişilerden bilerek kişisel veri toplamamaktadır. Platformumuzun yalnızca 13 yaş ve üzeri kullanıcılar tarafından kullanılması amaçlanmıştır.</p>
+                    <p>13-18 yaş arasındaki kullanıcıların platformu kullanabilmesi için ebeveyn veya yasal vasi onayı gerekmektedir. Bu durumun farkına varırsak ilgili hesabı derhal kapatır ve verileri sileriz.</p>
+                    <div class="contact-ref">
+                        13 yaş altı bir kullanıcıya ait hesap tespit ederseniz lütfen <a href="mailto:destek@edunex.com.tr">destek@edunex.com.tr</a> adresine bildirin.
+                    </div>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 10 -->
+                <div class="privacy-section" id="s10">
+                    <div class="section-num"><i class="fas fa-file-alt"></i> Bölüm 10</div>
+                    <h2>Politika Değişiklikleri</h2>
+                    <p>Bu Gizlilik Politikası, yasal düzenlemeler, hizmet değişiklikleri veya güvenlik gelişmeleri doğrultusunda güncellenebilir. Önemli değişiklikler aşağıdaki yollarla bildirilir:</p>
+                    <ul>
+                        <li>Hesabınıza kayıtlı e-posta adresine bildirim gönderilmesi</li>
+                        <li>Platform giriş sayfasında görünür bir duyuru yapılması</li>
+                        <li>Bu sayfanın en üstündeki "Son güncellenme" tarihinin güncellenmesi</li>
+                    </ul>
+                    <p>Değişiklik bildiriminden sonra platformu kullanmaya devam etmeniz, güncellenmiş politikayı kabul ettiğiniz anlamına gelir.</p>
+                </div>
+
+                <hr class="privacy-divider">
+
+                <!-- 11 -->
+                <div class="privacy-section" id="s11">
+                    <div class="section-num"><i class="fas fa-envelope"></i> Bölüm 11</div>
+                    <h2>İletişim</h2>
+                    <p>Gizlilik politikamız veya kişisel verilerinizin işlenmesi hakkında sorularınız, talepleriniz ya da şikayetleriniz için bizimle iletişime geçebilirsiniz:</p>
+                    <div class="contact-ref">
+                        <strong>EduNex Veri Sorumlusu</strong><br>
+                        E-posta: <a href="mailto:kvkk@edunex.com.tr">kvkk@edunex.com.tr</a><br>
+                        Adres: Maslak Mah. Büyükdere Cad. No:255, Sarıyer / İstanbul, 34398<br><br>
+                        Şikayetlerinizi ayrıca Kişisel Verileri Koruma Kurumu'na (<a href="https://www.kvkk.gov.tr" target="_blank" rel="noopener">www.kvkk.gov.tr</a>) iletebilirsiniz.
+                    </div>
+                    <p style="margin-top:16px;">Genel destek için <a href="/main/contact.html" style="color:#0056b3;font-weight:600;">İletişim sayfamızı</a> ziyaret edin.</p>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/assets/js/loadFooter.js"></script>
+    <script>
+    (function () {
+        // TOC active state on scroll
+        const sections = document.querySelectorAll('.privacy-section');
+        const links    = document.querySelectorAll('#tocList a');
+
+        const observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    links.forEach(l => l.classList.remove('active'));
+                    const active = document.querySelector('#tocList a[href="#' + entry.target.id + '"]');
+                    if (active) active.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+
+        sections.forEach(s => observer.observe(s));
+    })();
+    </script>
+</body>
+</html>

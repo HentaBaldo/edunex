@@ -1,4 +1,5 @@
-const { Lesson } = require('../models');
+const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, sequelize } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * Yeni Ders Oluşturma ve Video Yükleme İşlemi
@@ -39,6 +40,106 @@ exports.createLessonWithVideo = async (req, res, next) => {
             success: true,
             message: 'Video başarıyla yüklendi ve ders müfredata eklendi.',
             data: newLesson
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.getPublicProfile = async (req, res, next) => {
+    try {
+        const { instructorId } = req.params;
+
+        const profil = await Profile.findOne({
+            where: { id: instructorId, rol: 'egitmen' },
+            attributes: ['id', 'ad', 'soyad', 'sehir', 'website', 'profil_fotografi',
+                         'facebook', 'instagram', 'linkedin', 'tiktok', 'x_twitter', 'youtube'],
+            include: [{
+                model: InstructorDetail,
+                attributes: ['unvan', 'baslik', 'biyografi', 'deneyim_yili']
+            }]
+        });
+
+        if (!profil) {
+            return res.status(404).json({ success: false, message: 'Eğitmen bulunamadı.' });
+        }
+
+        const kurslar = await Course.findAll({
+            where: { egitmen_id: instructorId, durum: 'yayinda', silindi_mi: false },
+            attributes: ['id', 'baslik', 'aciklama', 'fiyat', 'kategori_id'],
+            include: [
+                {
+                    model: Category,
+                    attributes: ['id', 'ad']
+                },
+                {
+                    model: Review,
+                    attributes: ['puan'],
+                    required: false
+                }
+            ],
+            order: [['olusturulma_tarihi', 'DESC']]
+        });
+
+        const kurslarHesapli = kurslar.map(k => {
+            const yorumlar = k.Reviews || [];
+            const toplamYorum = yorumlar.length;
+            const ortalamaPuan = toplamYorum > 0
+                ? parseFloat((yorumlar.reduce((t, r) => t + r.puan, 0) / toplamYorum).toFixed(1))
+                : 0;
+
+            const plain = k.get({ plain: true });
+            delete plain.Reviews;
+            return { ...plain, istatistikler: { ortalama_puan: ortalamaPuan, toplam_yorum: toplamYorum } };
+        });
+
+        const tumYorumlar = kurslar.flatMap(k => k.Reviews || []);
+        const toplamYorum = tumYorumlar.length;
+        const ortalamaPuan = toplamYorum > 0
+            ? parseFloat((tumYorumlar.reduce((t, r) => t + r.puan, 0) / toplamYorum).toFixed(1))
+            : 0;
+
+        const paunDagilimi = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        tumYorumlar.forEach(r => { if (paunDagilimi[r.puan] != null) paunDagilimi[r.puan]++; });
+
+        const kursIdleri = kurslar.map(k => k.id);
+        let toplamOgrenci = 0;
+        if (kursIdleri.length > 0) {
+            toplamOgrenci = await CourseEnrollment.count({
+                where: { kurs_id: { [Op.in]: kursIdleri } },
+                col: 'ogrenci_id',
+                distinct: true
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: {
+                profil: {
+                    id: profil.id,
+                    ad: profil.ad,
+                    soyad: profil.soyad,
+                    sehir: profil.sehir,
+                    website: profil.website,
+                    profil_fotografi: profil.profil_fotografi,
+                    facebook: profil.facebook,
+                    instagram: profil.instagram,
+                    linkedin: profil.linkedin,
+                    tiktok: profil.tiktok,
+                    x_twitter: profil.x_twitter,
+                    youtube: profil.youtube,
+                },
+                detay: profil.InstructorDetail || {},
+                kurslar: kurslarHesapli,
+                istatistikler: {
+                    toplam_kurs: kurslarHesapli.length,
+                    toplam_ogrenci: toplamOgrenci,
+                    toplam_yorum: toplamYorum,
+                    ortalama_puan: ortalamaPuan,
+                    puan_dagilimi: paunDagilimi,
+                }
+            }
         });
 
     } catch (error) {

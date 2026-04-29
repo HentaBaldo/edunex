@@ -1,38 +1,41 @@
 // public/main/js/main.js
-// EduNex Ana Sayfa — Kurs Listesi ve Öneri Modülleri
+// EduNex Ana Sayfa — Akıllı Hero + Öneri Modülleri
 // Navbar, Auth ve Global Arama: /assets/js/loadNavbar.js tarafından yönetilir.
 
-window.tumYayindakiKurslar = [];
-
 document.addEventListener('DOMContentLoaded', async () => {
-    await yayindakiKurslariYukle();
+    heroAyarla();
     await tumOnerileriYukle();
+    await kisisellestirilmisOnerileriYukle();
 });
 
 // ============================================================
-// ÖNE ÇIKAN KURSLAR
+// AKILLI HERO — Auth durumuna göre banner seç
 // ============================================================
 
-async function yayindakiKurslariYukle() {
-    const izgara = document.getElementById('courseGrid');
-    if (!izgara) return;
+function heroAyarla() {
+    const jeton        = localStorage.getItem('edunex_token');
+    const kullanicJson = localStorage.getItem('edunex_user');
 
-    izgara.innerHTML = '<div class="loading-state"><p>Kurslar yükleniyor...</p></div>';
-    try {
-        const sonuc = await ApiService.get('/courses/published');
-        window.tumYayindakiKurslar = sonuc.data || [];
+    if (!jeton || !kullanicJson) {
+        document.getElementById('heroLoggedOut').style.display = 'block';
+        document.getElementById('heroLoggedIn').style.display  = 'none';
+        return;
+    }
 
-        if (!window.tumYayindakiKurslar.length) {
-            izgara.innerHTML = '<p class="info-message">Henüz yayınlanmış bir kurs bulunmuyor.</p>';
-            return;
-        }
-        izgara.innerHTML = '';
-        window.tumYayindakiKurslar.forEach(kurs => {
-            izgara.insertAdjacentHTML('beforeend', kursKartiOlustur(kurs));
-        });
-    } catch (hata) {
-        console.error('[KURSLAR] Yüklenemedi:', hata.message);
-        izgara.innerHTML = '<div class="hata-mesaji"><p>Kurslar şu anda yüklenemiyor.</p></div>';
+    let kullanici;
+    try { kullanici = JSON.parse(kullanicJson); } catch { return; }
+
+    document.getElementById('heroLoggedOut').style.display = 'none';
+    document.getElementById('heroLoggedIn').style.display  = 'block';
+
+    const adEl = document.getElementById('hosgeldinAd');
+    if (adEl) adEl.textContent = kullanici.ad || 'Öğrenci';
+
+    const panelLink = document.getElementById('hosgeldinPanelLink');
+    if (panelLink) {
+        panelLink.href = kullanici.rol === 'egitmen'
+            ? '/instructor/dashboard.html'
+            : '/student/dashboard.html';
     }
 }
 
@@ -41,7 +44,7 @@ async function yayindakiKurslariYukle() {
 // ============================================================
 
 async function tumOnerileriYukle() {
-    const tohumKursId     = sessionStorage.getItem('son_goruntulenen_kurs_id') || '';
+    const tohumKursId     = sessionStorage.getItem('son_goruntulenen_kurs_id')     || '';
     const tohumKategoriId = sessionStorage.getItem('son_goruntulenen_kategori_id') || '';
 
     const parametreler = new URLSearchParams();
@@ -58,6 +61,7 @@ async function tumOnerileriYukle() {
         renderBirlikteAlinan(veri.birlikteAlinanKurslar  || []);
         renderKategoriCarpraz(veri.kategoriBazliCarpraz  || []);
         renderEnCokBegenilen(veri.enCokBegenilen         || []);
+        renderPopulerEgitmenler(veri.populerEgitmenler   || []);
     } catch (hata) {
         console.error('[ÖNERİLER] Ana sayfa yüklenemedi:', hata.message);
         ['enPopulerGrid', 'birlikteAlinanGrid', 'enCokBegenilenGrid'].forEach(id => {
@@ -65,11 +69,9 @@ async function tumOnerileriYukle() {
             if (el) el.innerHTML = '<div class="hata-mesaji"><p>Öneriler yüklenemedi.</p></div>';
         });
     }
-
-    await kisisellestirilmisOnerileriYukle();
 }
 
-// ── MODÜL 1 ──────────────────────────────────────────────────
+// ── MODÜL 1: En Popüler Kurslar ──────────────────────────────
 function renderEnPopulerKurslar(kurslar) {
     const izgara = document.getElementById('enPopulerGrid');
     if (!izgara) return;
@@ -78,7 +80,7 @@ function renderEnPopulerKurslar(kurslar) {
         : '<div class="bos-durum"><p>Henüz popüler kurs verisi bulunmuyor.</p></div>';
 }
 
-// ── MODÜL 2 — Kategori kartları ──────────────────────────────
+// ── MODÜL 2: Kategori kartları ───────────────────────────────
 function renderPopulerKategoriler(kategoriler) {
     const izgara = document.getElementById('populerKategorilerGrid');
     if (!izgara) return;
@@ -111,12 +113,14 @@ function renderPopulerKategoriler(kategoriler) {
                     </div>
                 </div>
                 <div class="kategori-kurslar">${ornekKursHtml}</div>
-                <a href="#courses" class="kategori-tum-link">Tüm kursları gör <i class="fas fa-arrow-right"></i></a>
+                <a href="/main/category.html?id=${guvenliMetin(kat.id)}" class="kategori-tum-link">
+                    Tüm kursları gör <i class="fas fa-arrow-right"></i>
+                </a>
             </div>`);
     });
 }
 
-// ── MODÜL 3 — Collaborative filtering ───────────────────────
+// ── MODÜL 3: Collaborative filtering ────────────────────────
 function renderBirlikteAlinan(kurslar) {
     const izgara = document.getElementById('birlikteAlinanGrid');
     if (!izgara) return;
@@ -128,7 +132,7 @@ function renderBirlikteAlinan(kurslar) {
            </div>`;
 }
 
-// ── MODÜL 4 — Kategori çapraz öneri ─────────────────────────
+// ── MODÜL 4: Kategori çapraz öneri ──────────────────────────
 function renderKategoriCarpraz(kategoriler) {
     const bolum  = document.getElementById('kategoriCarprazSection');
     const izgara = document.getElementById('kategoriCarprazGrid');
@@ -161,13 +165,27 @@ function renderKategoriCarpraz(kategoriler) {
     });
 }
 
-// ── MODÜL 5 ──────────────────────────────────────────────────
+// ── MODÜL 5: En Çok Beğenilenler ────────────────────────────
 function renderEnCokBegenilen(kurslar) {
     const izgara = document.getElementById('enCokBegenilenGrid');
     if (!izgara) return;
     izgara.innerHTML = kurslar.length
         ? kurslar.map(kursKartiOlustur).join('')
         : '<div class="bos-durum"><p>Henüz yeterli değerlendirme bulunmuyor.</p></div>';
+}
+
+// ── MODÜL 6: En Popüler Eğitmenler ──────────────────────────
+function renderPopulerEgitmenler(egitmenler) {
+    const izgara = document.getElementById('egitmenlerGrid');
+    const bolum  = document.getElementById('egitmenlerSection');
+    if (!izgara) return;
+
+    if (!egitmenler.length) {
+        if (bolum) bolum.style.display = 'none';
+        return;
+    }
+
+    izgara.innerHTML = egitmenler.map(egitmenKartiOlustur).join('');
 }
 
 // ── KİŞİSELLEŞTİRİLMİŞ (auth gerektirir) ─────────────────────
@@ -180,18 +198,20 @@ async function kisisellestirilmisOnerileriYukle() {
         if (bolum) bolum.style.display = 'none';
         return;
     }
+
     if (bolum) bolum.style.display = 'block';
 
     try {
         const sonuc   = await ApiService.get('/recommendations/personalized');
         const kurslar = sonuc.veri || sonuc.data || [];
+
         if (!kurslar.length) {
             izgara.innerHTML = `
                 <div class="bos-durum bos-durum-acik" style="grid-column:1/-1;">
                     <i class="fas fa-info-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
-                    <p>Henüz kişiselleştirilmiş öneri oluşturulamadı.</p>
-                    <a href="/profile/index.html" style="color:white;text-decoration:underline;margin-top:10px;display:inline-block;">
-                        Profil Ayarlarına Git →
+                    <p>Kişiselleştirilmiş öneri oluşturmak için birkaç kursa göz atın.</p>
+                    <a href="/main/courses.html" style="color:white;text-decoration:underline;margin-top:10px;display:inline-block;">
+                        Kurslara Git →
                     </a>
                 </div>`;
             return;
@@ -203,32 +223,44 @@ async function kisisellestirilmisOnerileriYukle() {
 }
 
 // ============================================================
-// ORTAK KART VE YARDIMCI FONKSİYONLAR
+// KART FONKSİYONLARI
 // ============================================================
 
-function guvenliMetin(metin) {
-    if (metin == null) return '';
-    const div = document.createElement('div');
-    div.textContent = String(metin);
-    return div.innerHTML;
-}
+function egitmenKartiOlustur(e) {
+    const tam    = `${guvenliMetin(e.ad)} ${guvenliMetin(e.soyad)}`.trim();
+    const unvan  = e.unvan ? guvenliMetin(e.unvan) : 'Eğitmen';
+    const ist    = e.istatistikler || {};
+    const ogrenci = parseInt(ist.toplam_ogrenci || 0).toLocaleString('tr-TR');
+    const kurs    = parseInt(ist.toplam_kurs || 0);
+    const puan    = ist.ortalama_puan ? parseFloat(ist.ortalama_puan).toFixed(1) : null;
 
-function yildizHtmlOlustur(puan, yorumSayisi) {
-    if (!puan || parseFloat(puan) === 0) {
-        return `<div class="kurs-puan kurs-puan-bos"><i class="far fa-star"></i> Henüz değerlendirilmedi</div>`;
-    }
-    const p = parseFloat(puan);
-    let yildiz = '';
-    for (let i = 1; i <= 5; i++) {
-        if (i <= Math.floor(p))                       yildiz += '<i class="fas fa-star"></i> ';
-        else if (i === Math.ceil(p) && p % 1 >= 0.5) yildiz += '<i class="fas fa-star-half-alt"></i> ';
-        else                                          yildiz += '<i class="far fa-star"></i> ';
-    }
-    return `<div class="kurs-puan">
-                <span class="puan-deger">${p.toFixed(1)}</span>
-                <span class="yildizlar">${yildiz}</span>
-                <span class="puan-yorum">(${yorumSayisi || 0})</span>
-            </div>`;
+    const baslarf = (e.ad || '?')[0].toUpperCase();
+    const soylarf = (e.soyad || '?')[0].toUpperCase();
+    const initials = baslarf + soylarf;
+
+    const avatarIc = e.profil_fotografi
+        ? `<img src="${guvenliMetin(e.profil_fotografi)}" alt="${tam}" class="egitmen-foto">`
+        : `<span class="egitmen-initials">${initials}</span>`;
+
+    const puanHtml = puan
+        ? `<span class="egitmen-puan"><i class="fas fa-star"></i> ${puan}</span>`
+        : '';
+
+    return `
+    <a href="/main/instructor-profile.html?id=${guvenliMetin(e.id)}" class="egitmen-karti">
+        <div class="egitmen-kart-ic">
+            <div class="egitmen-avatar">${avatarIc}</div>
+            <div class="egitmen-bilgi">
+                <h3 class="egitmen-adi">${tam}</h3>
+                <p class="egitmen-unvan">${unvan}</p>
+                <div class="egitmen-meta">
+                    <span><i class="fas fa-users"></i> ${ogrenci} öğrenci</span>
+                    <span><i class="fas fa-play-circle"></i> ${kurs} kurs</span>
+                    ${puanHtml}
+                </div>
+            </div>
+        </div>
+    </a>`;
 }
 
 function kursKartiOlustur(kurs) {
@@ -237,8 +269,8 @@ function kursKartiOlustur(kurs) {
     const altBaslik = kurs.alt_baslik || '';
 
     let egitmenAdi = 'Uzman Eğitmen';
-    if (kurs.egitmen)       egitmenAdi = `${kurs.egitmen.ad || ''} ${kurs.egitmen.soyad || ''}`.trim();
-    else if (kurs.Egitmen)  egitmenAdi = `${kurs.Egitmen.ad || ''} ${kurs.Egitmen.soyad || ''}`.trim();
+    if (kurs.egitmen)      egitmenAdi = `${kurs.egitmen.ad || ''} ${kurs.egitmen.soyad || ''}`.trim();
+    else if (kurs.Egitmen) egitmenAdi = `${kurs.Egitmen.ad || ''} ${kurs.Egitmen.soyad || ''}`.trim();
 
     const fiyat      = kurs.fiyat > 0 ? `${parseFloat(kurs.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
     const kategoriAd = kurs.kategori?.ad || kurs.Kategori?.ad || kurs.Category?.ad || 'Genel';
@@ -266,8 +298,51 @@ function kursKartiOlustur(kurs) {
         </a>`;
 }
 
+// ============================================================
+// YARDIMCI FONKSİYONLAR
+// ============================================================
+
+function guvenliMetin(metin) {
+    if (metin == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(metin);
+    return div.innerHTML;
+}
+
+function yildizHtmlOlustur(puan, yorumSayisi) {
+    if (!puan || parseFloat(puan) === 0) {
+        return `<div class="kurs-puan kurs-puan-bos"><i class="far fa-star"></i> Henüz değerlendirilmedi</div>`;
+    }
+    const p = parseFloat(puan);
+    let yildiz = '';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= Math.floor(p))                       yildiz += '<i class="fas fa-star"></i> ';
+        else if (i === Math.ceil(p) && p % 1 >= 0.5) yildiz += '<i class="fas fa-star-half-alt"></i> ';
+        else                                          yildiz += '<i class="far fa-star"></i> ';
+    }
+    return `<div class="kurs-puan">
+                <span class="puan-deger">${p.toFixed(1)}</span>
+                <span class="yildizlar">${yildiz}</span>
+                <span class="puan-yorum">(${yorumSayisi || 0})</span>
+            </div>`;
+}
+
+// ============================================================
+// CAROUSEL — Ok düğmesi kaydırma
+// ============================================================
+
+function carScroll(btn, dir) {
+    const track = btn.closest('.car-wrap').querySelector('.car-track');
+    const card  = track.querySelector('.course-card, .egitmen-karti, .kategori-karti');
+    if (!card) return;
+    const step = card.offsetWidth + 24; // 24 = gap
+    track.scrollBy({ left: dir * step * 3, behavior: 'smooth' });
+}
+window.carScroll = carScroll;
+
 // ─── Geriye dönük alias'lar ────────────────────────────────────
-window.escapeHtml           = guvenliMetin;
-window.renderCourseCard     = kursKartiOlustur;
-window.generateStarRatingHtml = yildizHtmlOlustur;
-window.loadAllRecommendations = async () => tumOnerileriYukle();
+window.escapeHtml               = guvenliMetin;
+window.renderCourseCard         = kursKartiOlustur;
+window.generateStarRatingHtml   = yildizHtmlOlustur;
+window.loadAllRecommendations   = async () => tumOnerileriYukle();
+window.tumYayindakiKurslar      = [];

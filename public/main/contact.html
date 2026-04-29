@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İletişim - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/assets/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .contact-hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0056b3 100%);
+            color: #fff;
+            padding: 72px 0;
+            text-align: center;
+        }
+        .contact-hero .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #93c5fd;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+        .contact-hero h1 {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 800;
+            margin-bottom: 14px;
+        }
+        .contact-hero p {
+            color: #cbd5e1;
+            font-size: 1.05rem;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        /* ─── Layout ─── */
+        .contact-main {
+            padding: 64px 0 80px;
+        }
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr;
+            gap: 48px;
+            align-items: start;
+        }
+
+        /* ─── Info Panel ─── */
+        .contact-info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .contact-info-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px 22px;
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .contact-info-card:hover {
+            box-shadow: 0 8px 30px rgba(0,86,179,0.10);
+            transform: translateY(-2px);
+        }
+        .info-icon {
+            width: 46px; height: 46px;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #0056b3;
+            font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .info-body h4 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .info-body p, .info-body a {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            text-decoration: none;
+        }
+        .info-body a:hover { color: #0056b3; }
+
+        /* Saat Tablosu */
+        .hours-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            margin-top: 6px;
+        }
+        .hours-table tr td {
+            padding: 4px 0;
+            color: var(--text-muted);
+        }
+        .hours-table tr td:first-child { font-weight: 600; color: #0f172a; width: 120px; }
+        .badge-open {
+            display: inline-block;
+            background: #d1fae5;
+            color: #059669;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 6px;
+        }
+
+        /* SSS */
+        .faq-section {
+            margin-top: 28px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .faq-section h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+            padding: 18px 22px 14px;
+            border-bottom: 1px solid var(--border-color);
+            margin: 0;
+        }
+        .faq-item {
+            border-bottom: 1px solid var(--border-color);
+        }
+        .faq-item:last-child { border-bottom: none; }
+        .faq-q {
+            padding: 14px 22px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #0f172a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .faq-q:hover { background: #f8fafc; }
+        .faq-q .faq-icon { color: #0056b3; transition: transform 0.2s; }
+        .faq-q.open .faq-icon { transform: rotate(180deg); }
+        .faq-a {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+            padding: 0 22px 16px;
+            display: none;
+        }
+        .faq-a.visible { display: block; }
+
+        /* ─── Form Panel ─── */
+        .contact-form-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px 36px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+        .contact-form-card h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .contact-form-card .form-subtitle {
+            color: var(--text-muted);
+            font-size: 0.93rem;
+            margin-bottom: 28px;
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.93rem;
+            color: #0f172a;
+            font-family: var(--font-main);
+            background: #fafafa;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #0056b3;
+            box-shadow: 0 0 0 3px rgba(0,86,179,0.12);
+            background: #fff;
+        }
+        .form-group textarea { min-height: 140px; }
+
+        .btn-submit {
+            width: 100%;
+            background: #0056b3;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s, transform 0.15s;
+            font-family: var(--font-main);
+        }
+        .btn-submit:hover { background: #004499; transform: translateY(-1px); }
+        .btn-submit:active { transform: translateY(0); }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+
+        .form-success {
+            display: none;
+            text-align: center;
+            padding: 32px 16px;
+        }
+        .form-success .success-icon {
+            width: 64px; height: 64px;
+            background: #d1fae5;
+            color: #059669;
+            border-radius: 50%;
+            font-size: 1.8rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .form-success h3 { font-size: 1.3rem; color: #0f172a; margin-bottom: 8px; }
+        .form-success p { color: var(--text-muted); font-size: 0.93rem; }
+
+        .form-error-msg {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            font-size: 0.88rem;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        @media (max-width: 860px) {
+            .contact-grid { grid-template-columns: 1fr; }
+            .contact-form-card { padding: 28px 20px; }
+        }
+        @media (max-width: 540px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+
+    <!-- Hero -->
+    <section class="contact-hero">
+        <div class="container">
+            <div class="hero-eyebrow"><i class="fas fa-envelope"></i> İletişim</div>
+            <h1>Sizinle Konuşmaktan Mutluluk Duyarız</h1>
+            <p>Sorularınız, önerileriniz veya iş birliği talepleriniz için aşağıdaki formu doldurun ya da doğrudan bize ulaşın.</p>
+        </div>
+    </section>
+
+    <main class="contact-main">
+        <div class="container">
+            <div class="contact-grid">
+
+                <!-- Sol: Bilgi & SSS -->
+                <div class="contact-info-panel">
+                    <div class="contact-info-card">
+                        <div class="info-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="info-body">
+                            <h4>E-posta</h4>
+                            <a href="mailto:destek@edunex.com.tr">destek@edunex.com.tr</a><br>
+                            <a href="mailto:egitmen@edunex.com.tr">egitmen@edunex.com.tr</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <div class="info-icon"><i class="fas fa-phone-alt"></i></div>
+                        <div class="info-body">
+                            <h4>Telefon</h4>
+                            <a href="tel:+902121234567">+90 (212) 123 45 67</a>
+                            <p style="margin-top:4px; font-size:0.83rem;">Mesai saatleri içinde destek hattı</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <div class="info-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="info-body">
+                            <h4>Adres</h4>
+                            <p>Maslak Mah. Büyükdere Cad. No:255<br>Sarıyer / İstanbul, 34398</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <div class="info-icon"><i class="fas fa-clock"></i></div>
+                        <div class="info-body">
+                            <h4>Çalışma Saatleri <span class="badge-open">Açık</span></h4>
+                            <table class="hours-table">
+                                <tr><td>Pazartesi – Cuma</td><td>09:00 – 18:00</td></tr>
+                                <tr><td>Cumartesi</td><td>10:00 – 15:00</td></tr>
+                                <tr><td>Pazar</td><td>Kapalı</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SSS -->
+                    <div class="faq-section">
+                        <h3><i class="fas fa-question-circle" style="color:#0056b3;margin-right:6px;"></i>Sıkça Sorulan Sorular</h3>
+                        <div class="faq-item">
+                            <div class="faq-q" onclick="toggleFaq(this)">
+                                Kursa nasıl kayıt olabilirim?
+                                <i class="fas fa-chevron-down faq-icon"></i>
+                            </div>
+                            <div class="faq-a">Herhangi bir kursu açarak "Sepete Ekle" ya da "Ücretsiz Kayıt Ol" butonuna tıklamanız yeterli. Hesabınız yoksa kayıt adımı sizi yönlendirecektir.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-q" onclick="toggleFaq(this)">
+                                Eğitmen olmak için ne gerekiyor?
+                                <i class="fas fa-chevron-down faq-icon"></i>
+                            </div>
+                            <div class="faq-a">Alanınızda deneyimli olmanız ve videoları yükleyebilecek bir sisteme sahip olmanız yeterlidir. "Eğitmen Ol" sayfasından başvurunuzu tamamlayabilirsiniz.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-q" onclick="toggleFaq(this)">
+                                İade politikanız nedir?
+                                <i class="fas fa-chevron-down faq-icon"></i>
+                            </div>
+                            <div class="faq-a">Satın alma tarihinden itibaren 30 gün içinde, kursu %25'ten az tamamlamış olmanız durumunda iade talebinde bulunabilirsiniz.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-q" onclick="toggleFaq(this)">
+                                Sertifika alabilir miyim?
+                                <i class="fas fa-chevron-down faq-icon"></i>
+                            </div>
+                            <div class="faq-a">Evet. Kursu %80 ve üzeri tamamladığınızda dijital bitirme sertifikanız otomatik olarak oluşturulur ve profilinizden indirilebilir.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sağ: Form -->
+                <div class="contact-form-card">
+                    <h2>Mesaj Gönderin</h2>
+                    <p class="form-subtitle">Tüm mesajlara en geç 1 iş günü içinde yanıt veriyoruz.</p>
+
+                    <div class="form-error-msg" id="formError"></div>
+
+                    <form id="contactForm" novalidate>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="firstName">Ad *</label>
+                                <input type="text" id="firstName" placeholder="Adınız" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Soyad *</label>
+                                <input type="text" id="lastName" placeholder="Soyadınız" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">E-posta Adresi *</label>
+                            <input type="email" id="email" placeholder="ornek@email.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject">Konu *</label>
+                            <select id="subject" required>
+                                <option value="">Bir konu seçin...</option>
+                                <option>Teknik Destek</option>
+                                <option>Kurs ve İçerik</option>
+                                <option>Eğitmen Başvurusu</option>
+                                <option>Ödeme ve Fatura</option>
+                                <option>İş Birliği Teklifi</option>
+                                <option>Hukuki ve Gizlilik</option>
+                                <option>Diğer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="message">Mesajınız *</label>
+                            <textarea id="message" placeholder="Mesajınızı detaylı şekilde yazın..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-submit" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i> Mesajı Gönder
+                        </button>
+                    </form>
+
+                    <div class="form-success" id="formSuccess">
+                        <div class="success-icon"><i class="fas fa-check"></i></div>
+                        <h3>Mesajınız İletildi!</h3>
+                        <p>En geç 1 iş günü içinde <strong id="successEmail"></strong> adresine yanıt vereceğiz.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/assets/js/loadFooter.js"></script>
+    <script>
+    (function () {
+        function toggleFaq(el) {
+            const a = el.nextElementSibling;
+            el.classList.toggle('open');
+            a.classList.toggle('visible');
+        }
+        window.toggleFaq = toggleFaq;
+
+        document.getElementById('contactForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const first   = document.getElementById('firstName').value.trim();
+            const last    = document.getElementById('lastName').value.trim();
+            const email   = document.getElementById('email').value.trim();
+            const subject = document.getElementById('subject').value;
+            const message = document.getElementById('message').value.trim();
+            const errEl   = document.getElementById('formError');
+
+            if (!first || !last || !email || !subject || !message) {
+                errEl.textContent = 'Lütfen tüm zorunlu alanları doldurun.';
+                errEl.style.display = 'block';
+                return;
+            }
+            const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRe.test(email)) {
+                errEl.textContent = 'Geçerli bir e-posta adresi girin.';
+                errEl.style.display = 'block';
+                return;
+            }
+            errEl.style.display = 'none';
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gönderiliyor...';
+
+            // Simulated send (form backend bağlantısı yapılabilir)
+            setTimeout(function () {
+                document.getElementById('contactForm').style.display = 'none';
+                document.getElementById('successEmail').textContent = email;
+                document.getElementById('formSuccess').style.display = 'block';
+            }, 1200);
+        });
+    })();
+    </script>
+</body>
+</html>

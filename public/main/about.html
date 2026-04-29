@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hakkımızda - EduNex</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/assets/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* ─── Hero ─── */
+        .about-hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0056b3 100%);
+            color: #fff;
+            padding: 80px 0 100px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .about-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+        .about-hero .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #93c5fd;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+        }
+        .about-hero h1 {
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .about-hero h1 span { color: #60a5fa; }
+        .about-hero p {
+            font-size: 1.15rem;
+            color: #cbd5e1;
+            max-width: 620px;
+            margin: 0 auto;
+            line-height: 1.75;
+            position: relative;
+        }
+
+        /* ─── Stats Bar ─── */
+        .stats-bar {
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+        .stats-bar-inner {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+        }
+        .stat-item {
+            padding: 32px 24px;
+            text-align: center;
+            border-right: 1px solid var(--border-color);
+        }
+        .stat-item:last-child { border-right: none; }
+        .stat-item .stat-num {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #0056b3;
+            display: block;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        .stat-item .stat-lbl {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ─── Sections ─── */
+        .about-section {
+            padding: 72px 0;
+        }
+        .about-section:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .section-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eff6ff;
+            color: #0056b3;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+        }
+
+        .about-section h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 14px;
+            line-height: 1.2;
+        }
+        .about-section .lead {
+            font-size: 1.08rem;
+            color: var(--text-muted);
+            line-height: 1.75;
+            max-width: 580px;
+        }
+
+        /* Mission / Vision cards */
+        .mv-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 40px;
+        }
+        .mv-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 36px 32px;
+            position: relative;
+            overflow: hidden;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .mv-card:hover {
+            box-shadow: 0 12px 40px rgba(0,86,179,0.12);
+            transform: translateY(-4px);
+        }
+        .mv-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+        }
+        .mv-card.mission::before { background: linear-gradient(90deg, #0056b3, #38bdf8); }
+        .mv-card.vision::before  { background: linear-gradient(90deg, #7c3aed, #f43f5e); }
+
+        .mv-icon {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+        }
+        .mission .mv-icon { background: #eff6ff; color: #0056b3; }
+        .vision  .mv-icon { background: #faf5ff; color: #7c3aed; }
+
+        .mv-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+        .mv-card p {
+            color: var(--text-muted);
+            line-height: 1.75;
+            font-size: 0.97rem;
+        }
+
+        /* Values */
+        .values-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 40px;
+        }
+        .value-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 28px 24px;
+            text-align: center;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .value-card:hover {
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            transform: translateY(-3px);
+        }
+        .value-icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: #eff6ff;
+            color: #0056b3;
+            font-size: 1.5rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .value-card h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .value-card p {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        /* Story timeline */
+        .story-timeline {
+            position: relative;
+            padding-left: 32px;
+            margin-top: 36px;
+        }
+        .story-timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px; top: 0; bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #0056b3, #e1e4e8);
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 36px;
+        }
+        .timeline-item:last-child { margin-bottom: 0; }
+        .timeline-dot {
+            position: absolute;
+            left: -28px; top: 4px;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #0056b3;
+            border: 3px solid #fff;
+            box-shadow: 0 0 0 2px #0056b3;
+        }
+        .timeline-year {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #0056b3;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .timeline-item h4 {
+            font-size: 1.02rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .timeline-item p {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        /* CTA */
+        .about-cta {
+            background: linear-gradient(135deg, #0056b3 0%, #0f172a 100%);
+            color: #fff;
+            text-align: center;
+            padding: 72px 0;
+        }
+        .about-cta h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 14px;
+        }
+        .about-cta p {
+            color: #cbd5e1;
+            font-size: 1.05rem;
+            margin-bottom: 32px;
+        }
+        .cta-btn-group { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+        .btn-cta-white {
+            background: #fff;
+            color: #0056b3;
+            padding: 13px 28px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: box-shadow 0.2s, transform 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-cta-white:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.2); transform: translateY(-2px); }
+        .btn-cta-outline {
+            background: transparent;
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.4);
+            padding: 11px 28px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: border-color 0.2s, background 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-cta-outline:hover { border-color: #fff; background: rgba(255,255,255,0.07); }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+
+        @media (max-width: 800px) {
+            .mv-grid, .two-col { grid-template-columns: 1fr; }
+            .values-grid { grid-template-columns: 1fr 1fr; }
+            .stats-bar-inner { grid-template-columns: 1fr 1fr; }
+            .stat-item:nth-child(2) { border-right: none; }
+            .stat-item:nth-child(3) { border-right: 1px solid var(--border-color); }
+        }
+        @media (max-width: 540px) {
+            .values-grid { grid-template-columns: 1fr; }
+            .stats-bar-inner { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+
+    <!-- Hero -->
+    <section class="about-hero">
+        <div class="container">
+            <div class="hero-eyebrow"><i class="fas fa-graduation-cap"></i> EduNex Hakkında</div>
+            <h1>Öğrenmenin Geleceğini<br><span>Birlikte İnşa Ediyoruz</span></h1>
+            <p>EduNex; nitelikli eğitimi herkes için erişilebilir kılmayı misyon edinen, yeni nesil bir eğitim teknolojileri platformudur.</p>
+        </div>
+    </section>
+
+    <!-- İstatistikler -->
+    <div class="stats-bar">
+        <div class="container">
+            <div class="stats-bar-inner">
+                <div class="stat-item">
+                    <span class="stat-num">10.000+</span>
+                    <span class="stat-lbl">Aktif Öğrenci</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">500+</span>
+                    <span class="stat-lbl">Yayındaki Kurs</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">200+</span>
+                    <span class="stat-lbl">Uzman Eğitmen</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">4.8 / 5</span>
+                    <span class="stat-lbl">Platform Puanı</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Misyon & Vizyon -->
+    <section class="about-section">
+        <div class="container">
+            <div class="section-eyebrow"><i class="fas fa-compass"></i> Yönümüz</div>
+            <h2>Misyonumuz ve Vizyonumuz</h2>
+            <p class="lead">Teknoloji çağında eğitim; coğrafi sınırları, ekonomik engelleri ve zaman kısıtlamalarını aşmalıdır. Bu inançla yola çıktık.</p>
+            <div class="mv-grid">
+                <div class="mv-card mission">
+                    <div class="mv-icon"><i class="fas fa-bullseye"></i></div>
+                    <h3>Misyonumuz</h3>
+                    <p>Türkiye'nin ve dünyanın her köşesindeki bireylere, alanında uzman eğitmenlerden kaliteli, uygun fiyatlı ve esnek eğitim içerikleri sunmak. Her öğrencinin kendi hızında, kendi zamanında öğrenebileceği bir ekosistem oluşturmak ve bireylerin potansiyellerini tam anlamıyla ortaya çıkarmalarına destek olmak.</p>
+                </div>
+                <div class="mv-card vision">
+                    <div class="mv-icon"><i class="fas fa-telescope"></i></div>
+                    <h3>Vizyonumuz</h3>
+                    <p>2030 yılına kadar Türkiye'nin en büyük ve en güvenilir dijital eğitim platformu olmak. Eğitmenlerin bilgilerini gelire dönüştürebildiği, öğrencilerin ise kariyerlerini şekillendirecek beceriler kazandığı, sürdürülebilir bir öğrenme ekonomisi yaratmak.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Değerlerimiz -->
+    <section class="about-section">
+        <div class="container">
+            <div class="section-eyebrow"><i class="fas fa-heart"></i> İlkelerimiz</div>
+            <h2>Temel Değerlerimiz</h2>
+            <p class="lead">Her kararımızın, her özelliğimizin ve her çalışmamızın arkasında şu değerler yatmaktadır.</p>
+            <div class="values-grid">
+                <div class="value-card">
+                    <div class="value-icon"><i class="fas fa-universal-access"></i></div>
+                    <h4>Erişilebilirlik</h4>
+                    <p>Nitelikli eğitim yalnızca büyük şehirlerin ya da varlıklı ailelerin tekeli olmamalıdır. Ücretsiz ve ücretli içeriklerimizle herkes için kapıları açık tutuyoruz.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon"><i class="fas fa-medal"></i></div>
+                    <h4>Kalite</h4>
+                    <p>Platformumuzdaki her kurs, içerik kalitesi, anlatım akıcılığı ve güncellik açısından titizlikle değerlendirilir. Ortalama değil, mükemmel içerikler sunmayı hedefleriz.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h4>Güven</h4>
+                    <p>Hem eğitmenlerimizin hem de öğrencilerimizin kişisel ve finansal verilerini en yüksek güvenlik standartlarıyla koruyoruz. Şeffaflık, işimizin temelidir.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon"><i class="fas fa-users"></i></div>
+                    <h4>Topluluk</h4>
+                    <p>Öğrenme, yalnız bir yolculuk değildir. EduNex'te öğrenciler ve eğitmenler arasında güçlü, destekleyici bir öğrenme topluluğu oluşturmayı önceliklendiriyoruz.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon"><i class="fas fa-sync-alt"></i></div>
+                    <h4>Sürekli Gelişim</h4>
+                    <p>Teknoloji durağan değildir; biz de değiliz. Platform altyapımızı, içerik kalitemizi ve kullanıcı deneyimimizi sürekli iyileştirme taahhüdündeyiz.</p>
+                </div>
+                <div class="value-card">
+                    <div class="value-icon"><i class="fas fa-handshake"></i></div>
+                    <h4>Ortaklık</h4>
+                    <p>Eğitmenlerimiz birer ortak, öğrencilerimiz birer topluluk üyesidir. Başarınız bizim başarımızdır; adil gelir paylaşımı ve şeffaf iletişim bu ilişkinin temelini oluşturur.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hikayemiz -->
+    <section class="about-section">
+        <div class="container">
+            <div class="two-col">
+                <div>
+                    <div class="section-eyebrow"><i class="fas fa-book-open"></i> Hikayemiz</div>
+                    <h2>Nasıl Başladık?</h2>
+                    <p class="lead">EduNex, Türkiye'de eğitime erişimin önündeki bariyerleri kaldırma hayaliyle 2024 yılında kuruldu. Dört bilgisayar mühendisliği öğrencisinin bir bitirme projesi olarak başlayan bu yolculuk, bugün binlerce öğrenciyi uzman eğitmenlerle buluşturan gerçek bir platforma dönüştü.</p>
+                </div>
+                <div class="story-timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-year">2024 — Başlangıç</div>
+                        <h4>Fikrin Doğuşu</h4>
+                        <p>Üniversite öğrencileri olarak online eğitim platformlarındaki içerik kalitesi sorunlarını fark ettik. "Biz daha iyisini yapabiliriz" dedik ve kolları sıvadık.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-year">2025 — Geliştirme</div>
+                        <h4>Platform Altyapısı</h4>
+                        <p>Node.js, MySQL, BunnyCDN ve iyzico entegrasyonlarıyla sağlam bir teknik altyapı inşa ettik. İlk 50 eğitmeni platforma davet ederek beta sürecini başlattık.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-year">2026 — Büyüme</div>
+                        <h4>Topluluk Oluşturma</h4>
+                        <p>Canlı ders desteği, akıllı öneri algoritmaları ve gelişmiş arama motoru ile platformu zenginleştirdik. 10.000 aktif öğrenci hedefine ulaştık.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-year">2027 — Hedef</div>
+                        <h4>Türkiye'nin Lideri</h4>
+                        <p>Mobil uygulama, yapay zeka destekli kişiselleştirme ve kurumsal eğitim çözümleriyle Türkiye'nin en büyük eğitim platformu olmayı hedefliyoruz.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="about-cta">
+        <div class="container">
+            <h2>Öğrenme Yolculuğunuza Başlayın</h2>
+            <p>Binlerce kurs, yüzlerce uzman eğitmen. Tek bir tıklamayla kariyerinizi şekillendirmeye başlayın.</p>
+            <div class="cta-btn-group">
+                <a href="/main/courses.html" class="btn-cta-white"><i class="fas fa-play-circle"></i> Kurslara Göz At</a>
+                <a href="/auth/index.html" class="btn-cta-outline"><i class="fas fa-chalkboard-teacher"></i> Eğitmen Ol</a>
+            </div>
+        </div>
+    </section>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/assets/js/loadFooter.js"></script>
+</body>
+</html>

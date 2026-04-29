@@ -116,7 +116,10 @@
 
             anaListe.innerHTML = anaKategoriler.length
                 ? anaKategoriler.map(p => `
-                    <div class="cat-item p-item" onmouseenter="altKategorileriGoster('${p.id}', this)">
+                    <div class="cat-item p-item"
+                         onmouseenter="altKategorileriGoster('${p.id}', this)"
+                         onclick="window.location.href='/main/category.html?id=${p.id}'"
+                         style="cursor:pointer;">
                         ${_escHtml(p.ad)} <i class="fas fa-chevron-right"></i>
                     </div>`).join('')
                 : '<p style="padding:10px 20px;color:#64748b;">Kategori bulunamadı.</p>';
@@ -139,7 +142,10 @@
         if (cocuklar.length) {
             cocukKol.style.display  = 'block';
             cocukListe.innerHTML    = cocuklar.map(c => `
-                <div class="cat-item c-item" onmouseenter="torunKategorileriGoster('${c.id}', this)">
+                <div class="cat-item c-item"
+                     onmouseenter="torunKategorileriGoster('${c.id}', this)"
+                     onclick="window.location.href='/main/category.html?id=${c.id}'"
+                     style="cursor:pointer;">
                     ${_escHtml(c.ad)} <i class="fas fa-chevron-right"></i>
                 </div>`).join('');
         } else {
@@ -159,7 +165,12 @@
 
         if (torunlar.length) {
             torunKol.style.display  = 'block';
-            torunListe.innerHTML    = torunlar.map(g => `<div class="cat-item">${_escHtml(g.ad)}</div>`).join('');
+            torunListe.innerHTML    = torunlar.map(g => `
+                <div class="cat-item"
+                     onclick="window.location.href='/main/category.html?id=${g.id}'"
+                     style="cursor:pointer;">
+                    ${_escHtml(g.ad)}
+                </div>`).join('');
         } else {
             torunKol.style.display = 'none';
         }
@@ -260,7 +271,7 @@
                 <div class="search-group">
                     <div class="search-group-title"><i class="fas fa-user"></i> Eğitmenler</div>
                     ${egitmenSonuc.map(e => `
-                        <a href="/main/courses.html?q=${encodeURIComponent(e.ad)}" class="search-item">
+                        <a href="/main/instructor-profile.html?id=${encodeURIComponent(e.id)}" class="search-item">
                             <i class="fas fa-chalkboard-teacher"></i>
                             <span class="search-item-title">${_escHtml(e.ad)}</span>
                         </a>`).join('')}
