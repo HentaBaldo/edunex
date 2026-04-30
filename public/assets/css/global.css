@@ -1,14 +1,24 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* ======================================================
+   EduNex Global Styles — v2
+   ====================================================== */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
 
 body {
-    font-family: var(--font-main);
-    background-color: var(--bg-light);
+    font-family: var(--font-ui);
+    background: var(--bg-light);
     color: var(--text-color);
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    color: var(--brand-navy);
 }
 
 .container {
@@ -17,14 +27,19 @@ body {
     padding: 0 20px;
 }
 
+/* ─── Navbar ──────────────────────────────────────────── */
 .navbar {
-    background-color: var(--white);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--border-color);
     height: 70px;
     display: flex;
     align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
-
 .navbar .container {
     display: flex;
     justify-content: space-between;
@@ -32,25 +47,145 @@ body {
     width: 100%;
 }
 
-.logo {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--primary-color);
+/* ─── Marka Logosu ────────────────────────────────────── */
+.logo, .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1.55rem;
     text-decoration: none;
+    line-height: 1;
+}
+.brand-logo .brand-edu {
+    font-family: var(--font-ui);
+    font-weight: 500;
+    color: var(--brand-navy);
+    letter-spacing: -0.01em;
+}
+.brand-logo .brand-nex {
+    font-family: var(--font-display);
+    font-weight: 800;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+}
+.brand-logo .brand-arrow {
+    width: 18px;
+    height: 18px;
+    color: var(--brand-indigo);
+    transition: transform .3s ease;
+}
+.brand-logo:hover .brand-arrow { transform: translateX(3px); }
+
+/* Eski metin tabanlı ".logo"yu da yeni paletle hizala */
+.logo {
+    font-weight: 800;
+    color: var(--brand-indigo);
 }
 
-/* Buton Standartları */
+/* ─── Buton Standartları ──────────────────────────────── */
 .btn-primary {
-    background-color: var(--primary-color);
-    color: white !important;
-    padding: 10px 20px;
+    background: var(--gradient-primary);
+    color: #fff !important;
+    padding: 11px 24px;
     border-radius: var(--border-radius);
     text-decoration: none;
     font-weight: 600;
+    font-family: var(--font-ui);
     display: inline-block;
     border: none;
     cursor: pointer;
+    box-shadow: var(--shadow-glow);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
 }
-textarea {
-    resize: vertical;
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(99, 102, 241, .4);
+    filter: brightness(1.05);
+}
+.btn-primary:active { transform: translateY(0); }
+
+textarea { resize: vertical; }
+
+/* ─── Glassmorphism Utility ───────────────────────────── */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+}
+.glass-panel-dark {
+    background: var(--glass-bg-dark);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+    color: #f1f5f9;
+}
+
+/* ─── Animated Blob/Orb Arkaplan ──────────────────────── */
+.bg-blobs {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+.bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.55;
+    will-change: transform;
+}
+.bg-blob--indigo  { width: 480px; height: 480px; background: #4338ca; top: -120px; left: -100px; animation: blobFloat 18s ease-in-out infinite; }
+.bg-blob--purple  { width: 380px; height: 380px; background: #a78bfa; top: 30%;  right: -80px; animation: blobFloat 22s ease-in-out infinite reverse; }
+.bg-blob--cyan    { width: 320px; height: 320px; background: #22d3ee; bottom: -100px; left: 30%; animation: blobFloat 26s ease-in-out infinite; }
+
+@keyframes blobFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(40px, -30px) scale(1.08); }
+    66%      { transform: translate(-30px, 40px) scale(0.95); }
+}
+
+/* ─── Parçacık (Stardust) Katmanı ─────────────────────── */
+.bg-particles {
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.5), transparent),
+        radial-gradient(1.5px 1.5px at 60% 70%, rgba(167,139,250,.6), transparent),
+        radial-gradient(1px 1px at 80% 20%, rgba(34,211,238,.5), transparent),
+        radial-gradient(2px 2px at 40% 80%, rgba(255,255,255,.4), transparent),
+        radial-gradient(1px 1px at 90% 50%, rgba(167,139,250,.5), transparent);
+    background-size: 300px 300px;
+    background-repeat: repeat;
+    opacity: 0.6;
+    animation: particlesDrift 60s linear infinite;
+    pointer-events: none;
+}
+@keyframes particlesDrift {
+    0%   { background-position: 0 0; }
+    100% { background-position: 300px 300px; }
+}
+
+/* ─── Giriş Animasyonları (AOS-benzeri) ───────────────── */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.animate-fade-up { animation: fadeInUp 0.6s ease forwards; }
+.animate-scale-in { animation: scaleIn 0.5s ease forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+    .bg-blob, .bg-particles { animation: none; }
+    .animate-fade-up, .animate-scale-in { animation: none; }
 }
