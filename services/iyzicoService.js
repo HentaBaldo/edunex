@@ -13,9 +13,18 @@ const { APP_BASE_URL } = process.env;
  * iyzico'nun belirli alanlarda izin verdiği karakterleri korur,
  * riskli karakterleri (=, &, vb.) boşlukla değiştirir.
  */
-const sanitize = (value, fallback = 'EduNex Kullanici') => {
+const sanitize = (value, fallback = 'EduNex') => {
     if (!value) return fallback;
-    return String(value).replace(/[=&?#]/g, ' ').trim() || fallback;
+    return String(value).replace(/[=&?#<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || fallback;
+};
+
+const formatPhone = (phone) => {
+    if (!phone) return '+905000000000';
+    const d = String(phone).replace(/\D/g, '');
+    if (d.startsWith('90') && d.length === 12) return '+' + d;
+    if (d.startsWith('0') && d.length === 11) return '+9' + d;
+    if (d.length === 10) return '+90' + d;
+    return '+905000000000';
 };
 
 /**
@@ -57,30 +66,30 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             enabledInstallments: [2, 3, 6, 9],
             buyer: {
                 id: user.id,
-                name: 'Hasan Talha',
-                surname: 'Keskin',
-                gsmNumber: '+905350000000',
-                email: 'test@test.com',
-                identityNumber: '74300864791',
-                registrationAddress: 'Sakarya Universitesi Bilgisayar Bolumu',
-                ip: '85.34.78.112',
-                city: 'Sakarya',
+                name: sanitize(user.ad, 'EduNex'),
+                surname: sanitize(user.soyad, 'Kullanici'),
+                gsmNumber: formatPhone(user.telefon),
+                email: user.email || 'kullanici@edunex.com',
+                identityNumber: '11111111111',
+                registrationAddress: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
+                ip: user.ip || '85.34.78.112',
+                city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
                 country: 'Turkey',
-                zipCode: '54000',
+                zipCode: '34000',
             },
             shippingAddress: {
-                contactName: 'Hasan Talha Keskin',
-                city: 'Sakarya',
+                contactName: sanitize(`${user.ad || ''} ${user.soyad || ''}`.trim(), 'EduNex Kullanici'),
+                city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
                 country: 'Turkey',
-                address: 'Sakarya Universitesi Bilgisayar Bolumu',
-                zipCode: '54000',
+                address: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
+                zipCode: '34000',
             },
             billingAddress: {
-                contactName: 'Hasan Talha Keskin',
-                city: 'Sakarya',
+                contactName: sanitize(`${user.ad || ''} ${user.soyad || ''}`.trim(), 'EduNex Kullanici'),
+                city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
                 country: 'Turkey',
-                address: 'Sakarya Universitesi Bilgisayar Bolumu',
-                zipCode: '54000',
+                address: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
+                zipCode: '34000',
             },
             basketItems,
         };

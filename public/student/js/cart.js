@@ -103,10 +103,29 @@ async function handleCheckout() {
         }
         throw new Error('Ödeme sayfası adresi alınamadı.');
     } catch (err) {
-        toast(err.message, 'error');
         btn.disabled = false;
         btn.textContent = 'Ödemeye Geç';
+        await showPaymentError(err.message);
     }
+}
+
+async function showPaymentError(message) {
+    if (!window.Swal) {
+        await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+    Swal.fire({
+        icon: 'error',
+        title: 'Ödeme Başlatılamadı',
+        text: message || 'Beklenmedik bir hata oluştu. Lütfen tekrar deneyin.',
+        confirmButtonText: 'Tamam',
+        confirmButtonColor: '#2563eb',
+    });
 }
 
 function toast(msg, type = 'success') {

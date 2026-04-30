@@ -1,0 +1,384 @@
+/* ════════════════════════════════════════════════════════
+   EduNex Landing Page — Unified SaaS Design (No Animation)
+   ════════════════════════════════════════════════════════ */
+
+/* ─── Hero (Logged Out) — Premium Dark ────────────────── */
+.hero {
+    background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99, 102, 241, 0.35) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(34, 211, 238, 0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 60% at 10% 70%, rgba(167, 139, 250, 0.22) 0%, transparent 70%),
+        linear-gradient(180deg, #0a0e27 0%, #111738 50%, #0f1629 100%);
+    color: white;
+    padding: 100px 0 96px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(180deg, transparent 0%, #f7f9fc 100%);
+    pointer-events: none;
+}
+.hero-grid { position: relative; z-index: 2; }
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    color: #c7d2fe;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border-radius: 999px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    margin-bottom: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero p {
+    font-size: 1.15rem;
+    color: #94a3b8;
+    margin: 0 auto 36px;
+    max-width: 600px;
+    line-height: 1.7;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+}
+
+.btn-hero-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    color: white;
+    padding: 14px 32px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.98rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 10px 30px -8px rgba(99, 102, 241, 0.6), inset 0 1px 0 rgba(255,255,255,0.15);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+.btn-hero-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px -8px rgba(99, 102, 241, 0.8), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.btn-hero-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: white;
+    padding: 13px 28px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.98rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background .2s ease, border-color .2s ease;
+}
+.btn-hero-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.hero-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    color: #64748b;
+    font-size: 0.92rem;
+}
+.hero-stat span { color: #e2e8f0; font-weight: 700; }
+.hero-stat-sep { color: #334155; }
+
+/* ─── Hero Kişisel (Logged In) ────────────────────────── */
+.hero-kisisel {
+    background:
+        radial-gradient(ellipse 60% 50% at 80% 30%, rgba(99, 102, 241, 0.3) 0%, transparent 70%),
+        linear-gradient(135deg, #0a0e27 0%, #111738 50%, #1e1b4b 100%);
+    padding: 64px 0;
+    position: relative;
+    overflow: hidden;
+}
+.hero-kisisel::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(180deg, transparent 0%, #f7f9fc 100%);
+    pointer-events: none;
+}
+.hero-kisisel-ic { position: relative; z-index: 2; }
+.hosgeldin-baslik span {
+    background: linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ─── Tüm Section'lar — Sade & Tek Tip ────────────────── */
+.oneri-bolumu {
+    padding: 88px 0;
+    position: relative;
+    background: #f7f9fc;
+    border-top: 1px solid rgba(99, 102, 241, 0.06);
+}
+.oneri-gri { background: #f7f9fc; }
+.oneri-beyaz { background: #ffffff; }
+
+.oneri-mor {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+    color: white;
+}
+.oneri-mor::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(167, 139, 250, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.oneri-koyu {
+    background: linear-gradient(135deg, #0a0e27 0%, #0f172a 50%, #111738 100%);
+    color: white;
+}
+.oneri-koyu::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 80% 30%, rgba(99, 102, 241, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+}
+.oneri-bolumu > .container { position: relative; z-index: 2; }
+
+/* ─── Section Header ──────────────────────────────────── */
+.section-header { margin-bottom: 56px; text-align: center; }
+.section-header h2 {
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    margin-bottom: 12px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #0a0e27;
+}
+.section-header p {
+    font-size: 1.05rem;
+    color: #64748b;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+.oneri-mor .section-header h2,
+.oneri-koyu .section-header h2,
+.oneri-baslik-beyaz h2 {
+    color: white;
+    background: linear-gradient(180deg, #ffffff 0%, #e9d5ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.oneri-mor .section-header p,
+.oneri-koyu .section-header p,
+.oneri-baslik-beyaz p { color: #cbd5e1; }
+
+/* ─── Etiketler ───────────────────────────────────────── */
+.oneri-etiket {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4338ca;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+}
+.oneri-etiket i { font-size: 0.7rem; }
+.oneri-etiket-mavi   { background: rgba(37, 99, 235, 0.1);  color: #2563eb; border-color: rgba(37, 99, 235, 0.2); }
+.oneri-etiket-yesil  { background: rgba(22, 163, 74, 0.1);  color: #16a34a; border-color: rgba(22, 163, 74, 0.2); }
+.oneri-etiket-sari   { background: rgba(202, 138, 4, 0.1);  color: #ca8a04; border-color: rgba(202, 138, 4, 0.2); }
+.oneri-etiket-turuncu{ background: rgba(234, 88, 12, 0.1);  color: #ea580c; border-color: rgba(234, 88, 12, 0.2); }
+.oneri-etiket-mor    { background: rgba(124, 58, 237, 0.1); color: #7c3aed; border-color: rgba(124, 58, 237, 0.2); }
+
+.oneri-mor .oneri-etiket,
+.oneri-koyu .oneri-etiket {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e9d5ff;
+}
+
+/* ─── Carousel ────────────────────────────────────────── */
+.car-wrap { position: relative; display: flex; align-items: center; gap: 16px; }
+.car-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4338ca;
+    cursor: pointer;
+    transition: all .2s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+.car-btn:hover {
+    background: #4338ca;
+    border-color: #4338ca;
+    color: white;
+    box-shadow: 0 8px 20px -4px rgba(67, 56, 202, 0.4);
+}
+.oneri-mor .car-btn,
+.oneri-koyu .car-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: white;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.oneri-mor .car-btn:hover,
+.oneri-koyu .car-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: white;
+}
+
+/* ─── Alt CTA ─────────────────────────────────────────── */
+.section-alt-link { text-align: center; margin-top: 48px; }
+.section-alt-link a {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #4338ca;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.95rem;
+    padding: 12px 28px;
+    border: 1.5px solid rgba(67, 56, 202, 0.25);
+    border-radius: 12px;
+    background: white;
+    transition: all .2s ease;
+}
+.section-alt-link a:hover {
+    background: #4338ca;
+    color: white;
+    border-color: #4338ca;
+    box-shadow: 0 10px 24px -8px rgba(67, 56, 202, 0.5);
+    transform: translateY(-2px);
+}
+.oneri-mor .section-alt-link a,
+.oneri-koyu .section-alt-link a {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: white;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.oneri-mor .section-alt-link a:hover,
+.oneri-koyu .section-alt-link a:hover {
+    background: white;
+    color: #4338ca;
+    border-color: white;
+}
+
+/* ─── Kurs Kartı ──────────────────────────────────────── */
+.kurs-kart-ic {
+    background: white;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.course-card:hover .kurs-kart-ic {
+    border-color: rgba(99, 102, 241, 0.25);
+    box-shadow: 0 20px 40px -16px rgba(67, 56, 202, 0.25);
+    transform: translateY(-4px);
+}
+.kurs-kart-kapak {
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 60%, #a78bfa 100%);
+}
+
+.loading-state, .bos-durum {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+    font-size: 0.95rem;
+}
+.oneri-yukleniyor { color: rgba(255, 255, 255, 0.7); }
+
+/* ─── Eğitmen Kartı ───────────────────────────────────── */
+.egitmen-kart-ic {
+    background: white;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.egitmen-karti:hover .egitmen-kart-ic {
+    border-color: rgba(99, 102, 241, 0.25);
+    box-shadow: 0 20px 40px -16px rgba(67, 56, 202, 0.25);
+}
+.egitmen-avatar {
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 60%, #22d3ee 100%);
+}
+
+/* ─── Kategori Kartı ──────────────────────────────────── */
+.kategori-karti {
+    background: white;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.kategori-karti:hover {
+    border-color: rgba(99, 102, 241, 0.25);
+    box-shadow: 0 20px 40px -16px rgba(67, 56, 202, 0.25);
+}
+.kategori-ikon {
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+}
+.kategori-ikon-mor { background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); }
+
+/* ─── Responsive ──────────────────────────────────────── */
+@media (max-width: 768px) {
+    .oneri-bolumu { padding: 64px 0; }
+    .hero { padding: 80px 0 72px; }
+    .hero-kisisel { padding: 48px 0; }
+    .section-header { margin-bottom: 36px; }
+}
