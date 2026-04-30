@@ -5,23 +5,9 @@
  */
 
 const Iyzipay = require('iyzipay');
+const iyzipay = require('../config/iyzipay');
 
-const {
-    IYZICO_API_KEY,
-    IYZICO_SECRET_KEY,
-    IYZICO_BASE_URL,
-    APP_BASE_URL,
-} = process.env;
-
-if (!IYZICO_API_KEY || !IYZICO_SECRET_KEY) {
-    console.warn('[IYZICO] Uyari: IYZICO_API_KEY / IYZICO_SECRET_KEY .env icinde tanimli degil.');
-}
-
-const iyzipay = new Iyzipay({
-    apiKey: IYZICO_API_KEY || 'sandbox-api-key',
-    secretKey: IYZICO_SECRET_KEY || 'sandbox-secret-key',
-    uri: IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com',
-});
+const { APP_BASE_URL } = process.env;
 
 /**
  * iyzico'nun belirli alanlarda izin verdiği karakterleri korur,
@@ -50,10 +36,14 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
         const basketItems = items.map(item => ({
             id: item.id,
             name: sanitize(item.baslik, 'Kurs'),
-            category1: sanitize(item.kategori || 'Egitim', 'Egitim'),
+            category1:'Egitim',
             itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
             price: Number(item.fiyat).toFixed(2),
         }));
+
+        if (Number(totalPrice) <= 0) {
+            return reject(new Error('Odeme tutari sifir veya negatif olamaz.'));
+        }
 
         const request = {
             locale: Iyzipay.LOCALE.TR,
@@ -67,31 +57,36 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             enabledInstallments: [2, 3, 6, 9],
             buyer: {
                 id: user.id,
-                name: sanitize(user.ad, 'EduNex'),
-                surname: sanitize(user.soyad, 'Kullanici'),
-                gsmNumber: user.telefon || '+905000000000',
-                email: user.email || 'kullanici@edunex.local',
-                identityNumber: '11111111111',
-                registrationAddress: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
-                ip: user.ip || '85.34.78.112',
-                city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
+                name: 'Hasan Talha',
+                surname: 'Keskin',
+                gsmNumber: '+905350000000',
+                email: 'test@test.com',
+                identityNumber: '74300864791',
+                registrationAddress: 'Sakarya Universitesi Bilgisayar Bolumu',
+                ip: '85.34.78.112',
+                city: 'Sakarya',
                 country: 'Turkey',
+                zipCode: '54000',
             },
             shippingAddress: {
-                contactName: sanitize(`${user.ad || ''} ${user.soyad || ''}`.trim(), 'EduNex Kullanici'),
-                city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
+                contactName: 'Hasan Talha Keskin',
+                city: 'Sakarya',
                 country: 'Turkey',
-                address: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
+                address: 'Sakarya Universitesi Bilgisayar Bolumu',
+                zipCode: '54000',
             },
             billingAddress: {
-                contactName: sanitize(`${user.ad || ''} ${user.soyad || ''}`.trim(), 'EduNex Kullanici'),
-                city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
+                contactName: 'Hasan Talha Keskin',
+                city: 'Sakarya',
                 country: 'Turkey',
-                address: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
+                address: 'Sakarya Universitesi Bilgisayar Bolumu',
+                zipCode: '54000',
             },
             basketItems,
         };
 
+        console.log('[IYZICO] CALLBACK URL:', callbackUrl);
+        console.log('--- IYZICO REQUEST PAYLOAD ---', JSON.stringify(request, null, 2));
         iyzipay.checkoutFormInitialize.create(request, (err, result) => {
             if (err) return reject(err);
             if (!result || result.status !== 'success') {
