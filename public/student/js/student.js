@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setHeroName();
     await loadDashboardData();
     loadDashboardCartBadge();
+    checkPaymentNotification();
 });
 
 function checkStudentAccess() {
@@ -210,6 +211,40 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function checkPaymentNotification() {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('payment');
+    if (!status) return;
+
+    history.replaceState(null, '', window.location.pathname);
+
+    const isSuccess = status === 'success';
+    const reason = params.get('reason');
+
+    const msg = isSuccess
+        ? 'Tebrikler! Ödemeniz başarıyla alındı ve kurslarınız hesabınıza eklendi.'
+        : `Ödeme tamamlanamadı${reason ? ': ' + decodeURIComponent(reason) : '.'}`;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+        background:${isSuccess ? '#16a34a' : '#dc2626'};color:#fff;
+        padding:14px 28px;border-radius:10px;font-size:0.95rem;font-weight:600;
+        box-shadow:0 4px 20px rgba(0,0,0,.18);z-index:9999;
+        animation:fadeInUp .3s ease;max-width:90vw;text-align:center;`;
+    toast.textContent = (isSuccess ? '✓ ' : '✗ ') + msg;
+
+    if (!document.getElementById('_paymentToastStyle')) {
+        const s = document.createElement('style');
+        s.id = '_paymentToastStyle';
+        s.textContent = '@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+        document.head.appendChild(s);
+    }
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
 }
 
 function logout() {

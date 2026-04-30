@@ -182,6 +182,7 @@ exports.checkout = async (req, res, next) => {
             },
         });
     } catch (error) {
+        console.error('ODEME HATASI DETAYI:', error);
         next(error);
     }
 };
@@ -192,9 +193,11 @@ exports.checkout = async (req, res, next) => {
  * @route POST /api/payments/callback
  */
 exports.callback = async (req, res) => {
+    console.log('--- IYZICO CALLBACK TETIKLENDI ---');
+    console.log('Gelen Body:', req.body);
     const token = req.body?.token || req.query?.token;
-    const successUrl = '/student/payment-success.html';
-    const failureUrl = '/student/payment-failure.html';
+    const successUrl = '/student/dashboard.html?payment=success';
+    const failureUrl = '/student/dashboard.html?payment=failed';
 
     if (!token) {
         return res.redirect(`${failureUrl}?reason=token_yok`);
@@ -209,7 +212,7 @@ exports.callback = async (req, res) => {
 
         // Idempotency: zaten tamamlanmissa tekrar isleme
         if (order.durum === 'tamamlandi') {
-            return res.redirect(`${successUrl}?siparis=${order.id}`);
+            return res.redirect(successUrl);
         }
         if (order.durum === 'basarisiz' || order.durum === 'iade_edildi') {
             return res.redirect(`${failureUrl}?reason=siparis_iptal`);
@@ -217,6 +220,7 @@ exports.callback = async (req, res) => {
 
         // iyzico'dan dogrulama al
         const retrieveResult = await iyzicoService.retrieveCheckoutForm(token, order.conversation_id);
+        console.log('[IYZICO] RETRIEVE SONUCU:', retrieveResult?.status, '| paymentStatus:', retrieveResult?.paymentStatus, '| errorMessage:', retrieveResult?.errorMessage);
 
         await PaymentTransaction.create({
             siparis_id: order.id,
@@ -304,9 +308,10 @@ exports.callback = async (req, res) => {
             }
         });
 
-        return res.redirect(`${successUrl}?siparis=${order.id}`);
+        return res.redirect(successUrl);
     } catch (error) {
         console.error('[PAYMENT CALLBACK ERROR]', error);
+        console.error('ODEME HATASI DETAYI:', error);
         return res.redirect(`${failureUrl}?reason=sunucu_hatasi`);
     }
 };
