@@ -21,6 +21,7 @@
  */
 
 const { CourseSection, Lesson, LessonProgress, CourseEnrollment } = require('../models');
+const { generateCertificate } = require('../controllers/certificateController');
 
 /**
  * Bir bolumun GORUNUR derslerinin hepsi tamamlandi mi?
@@ -92,6 +93,12 @@ const recalculateCourseProgress = async (ogrenciId, kursId) => {
         { ilerleme_yuzdesi: yuzde },
         { where: { ogrenci_id: ogrenciId, kurs_id: kursId } }
     );
+
+    if (yuzde === 100) {
+        generateCertificate(ogrenciId, kursId).catch(err =>
+            console.error('[CERTIFICATE] PDF uretim hatasi:', err.message)
+        );
+    }
 
     return yuzde;
 };

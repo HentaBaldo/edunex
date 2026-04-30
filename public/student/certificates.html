@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Sertifikalarım</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/student/css/student.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .cert-hero { background: linear-gradient(135deg,#854d0e 0%,#ca8a04 60%,#facc15 100%); }
+        .cert-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(300px,1fr)); gap: 24px; margin-top: 28px; }
+        .cert-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.08); overflow: hidden; transition: transform .2s, box-shadow .2s; }
+        .cert-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.13); }
+        .cert-card-thumb { background: linear-gradient(135deg,#1e3a8a,#2563eb); height: 120px; display: flex; align-items: center; justify-content: center; }
+        .cert-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .cert-card-thumb .cert-icon { font-size: 3rem; color: rgba(255,255,255,.8); }
+        .cert-card-body { padding: 20px; }
+        .cert-card-body h3 { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0 0 8px; line-height: 1.4; }
+        .cert-date { font-size: 0.82rem; color: #64748b; margin-bottom: 16px; }
+        .cert-code { font-size: 0.72rem; color: #94a3b8; margin-bottom: 14px; word-break: break-all; }
+        .btn-cert { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; background: linear-gradient(135deg,#1e3a8a,#2563eb); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; text-decoration: none; cursor: pointer; transition: opacity .2s; }
+        .btn-cert:hover { opacity: .88; color: #fff; }
+        .cert-empty { text-align: center; padding: 80px 20px; color: #94a3b8; }
+        .cert-empty i { font-size: 4rem; margin-bottom: 16px; display: block; }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
+
+    <main class="container dashboard-container">
+        <section class="lh-hero cert-hero">
+            <div class="lh-hero-text">
+                <h1><i class="fas fa-certificate"></i> Sertifikalarım</h1>
+                <p>Tamamladığın kurslara ait başarı sertifikaları burada listeleniyor.</p>
+            </div>
+            <div class="lh-stats-row">
+                <div class="lh-stat-card">
+                    <div class="lh-stat-icon" style="background:rgba(255,255,255,.2);">
+                        <i class="fas fa-award" style="color:#fff;"></i>
+                    </div>
+                    <div>
+                        <div class="lh-stat-value" id="certCount">–</div>
+                        <div class="lh-stat-label">Toplam Sertifika</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="certGrid" class="cert-grid">
+            <div class="cert-empty" style="grid-column:1/-1;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Sertifikalar yükleniyor...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/main/js/main.js"></script>
+    <script src="/main/js/loadNavbar.js"></script>
+    <script src="/student/js/certificates.js"></script>
+</body>
+</html>

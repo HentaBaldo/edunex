@@ -583,8 +583,11 @@ async function markLessonComplete(lessonId, isSilent = false) {
             `;
         }
 
-        // Eğer manuel olarak butona tıklandıysa (isSilent = false) sağ üstte bildirim göster
-        if (!isSilent) {
+        // %100 tamamlandıysa kutlama göster
+        const yuzde = response?.data?.ilerleme_yuzdesi;
+        if (yuzde >= 100) {
+            showCourseCompleteModal();
+        } else if (!isSilent) {
             showNotification('Ders tamamlandı olarak işaretlendi!', 'success');
         }
 
@@ -940,4 +943,61 @@ function _quizNoQuizHtml() {
         <h3 style="color:#e2e8f0;margin:0 0 10px;">Quiz Henüz Eklenmedi</h3>
         <p>Eğitmen bu derse henüz soru eklememiş.</p>
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// KURS TAMAMLAMA KUTLAMASI
+// ═══════════════════════════════════════════════════
+
+function showCourseCompleteModal() {
+    // Konfeti (canvas-confetti CDN)
+    if (!window._confettiLoaded) {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js';
+        s.onload = () => { window._confettiLoaded = true; _fireConfetti(); };
+        document.head.appendChild(s);
+    } else {
+        _fireConfetti();
+    }
+
+    // Modalı oluştur (bir kez)
+    if (document.getElementById('courseCompleteModal')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'courseCompleteModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:20px;padding:48px 40px;max-width:460px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:popIn .4s cubic-bezier(.175,.885,.32,1.275);">
+            <div style="font-size:4rem;margin-bottom:12px;">🎉</div>
+            <h2 style="font-size:1.6rem;font-weight:800;color:#1e3a8a;margin:0 0 12px;">Tebrikler!</h2>
+            <p style="color:#475569;line-height:1.6;margin-bottom:28px;">
+                Kursu başarıyla tamamladınız ve sertifikanız oluşturuldu.
+            </p>
+            <a href="/student/certificates.html"
+               style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;border-radius:10px;font-weight:700;font-size:1rem;text-decoration:none;margin-bottom:12px;">
+                <i class="fas fa-certificate"></i> Sertifikamı Gör
+            </a>
+            <br>
+            <button onclick="document.getElementById('courseCompleteModal').remove()"
+                    style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.88rem;margin-top:4px;">
+                Kapat
+            </button>
+        </div>
+    `;
+
+    if (!document.querySelector('style[data-pop-anim]')) {
+        const st = document.createElement('style');
+        st.setAttribute('data-pop-anim', '');
+        st.textContent = `@keyframes popIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}`;
+        document.head.appendChild(st);
+    }
+
+    document.body.appendChild(overlay);
+}
+
+function _fireConfetti() {
+    if (typeof confetti !== 'function') return;
+    confetti({ particleCount: 160, spread: 90, origin: { y: 0.55 } });
+    setTimeout(() => confetti({ particleCount: 80, angle: 60, spread: 70, origin: { x: 0, y: 0.6 } }), 400);
+    setTimeout(() => confetti({ particleCount: 80, angle: 120, spread: 70, origin: { x: 1, y: 0.6 } }), 700);
 }

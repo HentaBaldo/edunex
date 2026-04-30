@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: DataTypes.NOW,
       },
+      pdf_yolu: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
     },
     {
       tableName: 'sertifikalar'
