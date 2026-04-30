@@ -60,6 +60,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const liveSessionRoutes = require('./routes/liveSessionRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const quizRoutes = require('./routes/quizRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
@@ -76,6 +77,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/live-sessions', liveSessionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/quiz', quizRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {
