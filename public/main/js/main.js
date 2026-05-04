@@ -4,6 +4,7 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     heroAyarla();
+    await canliDerslerYukle();
     await tumOnerileriYukle();
     await kisisellestirilmisOnerileriYukle();
 });
@@ -414,6 +415,147 @@ function checkAuth() {
             logout(); 
         }
     }
+}
+
+
+// "Derse Katıl" butonuna tıklandığında:
+function derseKatil(sessionId, odaAdi) {
+    // 1. Session ID'yi kaydet
+    localStorage.setItem('current_live_session_id', sessionId);
+    // 2. Odaya yönlendir
+    window.location.href = `/canli-ders/${odaAdi}`;
+}
+// ============================================================
+// CANLI DERSLER — API'den veri çekme ve render etme
+// ============================================================
+
+async function canliDerslerYukle() {
+    const bolum = document.getElementById('canliDerslerSection');
+    const jeton = localStorage.getItem('edunex_token');
+
+    if (!bolum) return;
+    if (!jeton) {
+        bolum.style.display = 'none';
+        return;
+    }
+
+    const devamGrid = document.getElementById('devamEdenlerGrid');
+    const planGrid = document.getElementById('planlananlarGrid');
+    const bosMesaj = '<div class="bos-canli" style="grid-column:1/-1;"><i class="fas fa-video-slash"></i><p>Şu an devam eden veya planlanan canlı dersiniz bulunmamaktadır.</p></div>';
+
+    try {
+        const yanit = await fetch('/api/live-sessions/active', {
+            headers: { 'Authorization': `Bearer ${jeton}` }
+        });
+
+        if (yanit.status === 401 || yanit.status === 403) {
+            bolum.style.display = 'none';
+            return;
+        }
+
+        const sonuc = await yanit.json();
+
+        if (!sonuc.success || !sonuc.data) {
+            bolum.style.display = 'block';
+            if (devamGrid) devamGrid.innerHTML = bosMesaj;
+            if (planGrid) planGrid.innerHTML = bosMesaj;
+            return;
+        }
+
+        const { devam_edenler = [], planlananlar = [] } = sonuc.data;
+
+        bolum.style.display = 'block';
+
+        if (devamGrid) {
+            devamGrid.innerHTML = devam_edenler.length
+                ? devam_edenler.map(canliKartiOlustur).join('')
+                : '<div class="bos-canli" style="grid-column:1/-1;"><i class="fas fa-video"></i><p>Şu an yayında ders yok.</p></div>';
+        }
+
+        if (planGrid) {
+            planGrid.innerHTML = planlananlar.length
+                ? planlananlar.map(planliKartiOlustur).join('')
+                : '<div class="bos-canli" style="grid-column:1/-1;"><i class="fas fa-calendar"></i><p>Yaklaşan ders yok.</p></div>';
+        }
+    } catch (hata) {
+        console.error('[CANLI DERSLER]', hata);
+        bolum.style.display = 'block';
+        if (devamGrid) devamGrid.innerHTML = bosMesaj;
+        if (planGrid) planGrid.innerHTML = bosMesaj;
+    }
+}
+function canliKartiOlustur(ders) {
+    const dersId = ders.id || '';
+    const baslik = ders.baslik || 'Başlıksız Ders';
+    const odaAdi = ders.jitsi_oda_adi || '';
+    const baslangicTarih = new Date(ders.baslangic_tarihi);
+    const saatStr = baslangicTarih.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const tarihStr = baslangicTarih.toLocaleDateString('tr-TR');
+
+    const egitmen = ders.Egitmen || {};
+    const egitmenAdi = `${egitmen.ad || ''} ${egitmen.soyad || ''}`.trim() || 'Eğitmen';
+
+    // BURADA <a href> YERİNE <button onclick> KULLANIYORUZ
+    return `
+        <div class="canli-kart">
+            <div class="canli-kart-ust">
+                <span class="canli-badge canli-badge-live"><i class="fas fa-circle"></i> CANLI</span>
+                <h3 class="canli-kart-baslik">${guvenliMetin(baslik)}</h3>
+                <div class="canli-kart-meta">
+                    <div class="canli-meta-item">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span class="canli-egitmen">${guvenliMetin(egitmenAdi)}</span>
+                    </div>
+                    <div class="canli-meta-item">
+                        <i class="fas fa-clock"></i>
+                        <span>${saatStr}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="canli-kart-icerik">
+                <div class="canli-kart-buttons">
+                    <button class="canli-btn canli-btn-katil" onclick="derseKatil('${guvenliMetin(dersId)}', '${guvenliMetin(odaAdi)}')">
+                        <i class="fas fa-play"></i> Hemen Katıl
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+function planliKartiOlustur(ders) {
+    const baslik = ders.baslik || 'Başlıksız Ders';
+    const baslangicTarih = new Date(ders.baslangic_tarihi);
+    const saatStr = baslangicTarih.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const tarihStr = baslangicTarih.toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' });
+
+    const egitmen = ders.Egitmen || {};
+    const egitmenAdi = `${egitmen.ad || ''} ${egitmen.soyad || ''}`.trim() || 'Eğitmen';
+
+    return `
+        <div class="canli-kart">
+            <div class="canli-kart-ust">
+                <span class="canli-badge canli-badge-soon"><i class="fas fa-calendar"></i> YAKINDA</span>
+                <h3 class="canli-kart-baslik">${guvenliMetin(baslik)}</h3>
+                <div class="canli-kart-meta">
+                    <div class="canli-meta-item">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span class="canli-egitmen">${guvenliMetin(egitmenAdi)}</span>
+                    </div>
+                    <div class="canli-meta-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>${tarihStr} ${saatStr}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="canli-kart-icerik">
+                <div class="canli-kart-buttons">
+                    <button class="canli-btn canli-btn-reminder" onclick="alert('Hatırlatıcı kur (Çok Yakında)')">
+                        <i class="fas fa-bell"></i> Hatırlatıcı Kur
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function logout() {

@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       kurs_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
       },
       egitmen_id: {
         type: DataTypes.UUID,
@@ -42,6 +42,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.ENUM('planlandi', 'devam_ediyor', 'tamamlandi', 'iptal'),
         allowNull: false,
         defaultValue: 'planlandi',
+      },
+      yayin_tipi: {
+        type: DataTypes.ENUM('kursa_ozel', 'genel'),
+        allowNull: false,
+        defaultValue: 'kursa_ozel',
+      },
+      kayit_alinsin_mi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      kayit_video_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
       },
       olusturulma_tarihi: {
         type: DataTypes.DATE,

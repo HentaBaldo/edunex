@@ -7,7 +7,8 @@ const {
     CourseEnrollment,
     Category,
     InstructorDetail,
-    Review
+    Review,
+    LiveSession
 } = require('../models');
 const path = require('path');
 const fs = require('fs');
@@ -190,6 +191,20 @@ exports.getCourseDetails = async (req, res, next) => {
                             required: false
                         }
                     ]
+                },
+                {
+                    // 4. Tamamlanan canlı ders kayıtları (kursa özel)
+                    model: LiveSession,
+                    as: 'LiveSessions',
+                    attributes: ['id', 'baslik', 'aciklama', 'baslangic_tarihi', 'kayit_video_url', 'yayin_tipi'],
+                    where: {
+                        durum: 'tamamlandi',
+                        kayit_alinsin_mi: true,
+                        yayin_tipi: 'kursa_ozel',
+                        kayit_video_url: { [require('sequelize').Op.ne]: null }
+                    },
+                    required: false,
+                    order: [['baslangic_tarihi', 'DESC']]
                 }
             ],
             order: [

@@ -83,6 +83,12 @@ app.use('/api/certificates', certificateRoutes);
 app.get('/', (req, res) => {
     res.redirect('/main/index.html');
 });
+
+// Canlı ders odası (Jitsi iframe wrapper). :oda_adi sadece statik HTML servis edilir,
+// JS tarafı URL'den oda adını çekip Jitsi'yi başlatır (oturum doğrulaması iframe içinde).
+app.get('/canli-ders/:oda_adi', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'main', 'live-room.html'));
+});
 // --- 6. Database Synchronization & Seeding ---
 /**
  * Veritabani semasini modellerle esitler ve baslangic verilerini yukler.

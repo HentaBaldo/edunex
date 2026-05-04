@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         renderCurriculum(course.Sections || []);
+        renderRecordings(course.LiveSessions || []);
         loadReviews();
     } catch (error) {
         console.error("[HATA] Kurs detayları çekilemedi:", error.message);
@@ -914,12 +915,40 @@ function updateStarUI(rating) {
     document.querySelectorAll('.star-rating-input i').forEach(s => {
         const val = parseInt(s.dataset.value);
         const isSelected = val <= rating;
-        
+
         // Klasları değiştir (fas: dolu yıldız, far: boş yıldız)
         s.classList.toggle('fas', isSelected);
         s.classList.toggle('far', !isSelected);
-        
+
         // Rengi ayarla
         s.style.color = isSelected ? '#fbbf24' : '#cbd5e1';
     });
+}
+
+function renderRecordings(recordings) {
+    const section = document.getElementById('recordingsSection');
+    const list = document.getElementById('recordingsList');
+
+    if (!recordings || recordings.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = recordings.map(r => {
+        const date = new Date(r.baslangic_tarihi);
+        const dateStr = date.toLocaleString('tr-TR', { dateStyle: 'medium' });
+        return `
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';" onmouseout="this.style.transform=''; this.style.boxShadow='';'">
+                <div style="position:relative; background:#0f172a; height:160px; display:flex; align-items:center; justify-content:center;">
+                    <i class="fas fa-play-circle" style="font-size:3rem; color:#fff; opacity:0.8;"></i>
+                </div>
+                <div style="padding:16px;">
+                    <h4 style="margin:0 0 8px 0; color:#1e293b; font-weight:600;">${escapeHtml(r.baslik)}</h4>
+                    <p style="margin:0 0 12px 0; color:#64748b; font-size:0.85rem; line-height:1.4;">${r.aciklama ? escapeHtml(r.aciklama).substring(0, 80) + '...' : 'Açıklama yok'}</p>
+                    <p style="margin:0 0 12px 0; color:#94a3b8; font-size:0.8rem;"><i class="fas fa-calendar"></i> ${dateStr}</p>
+                    <a href="${r.kayit_video_url}" target="_blank" class="btn-primary-lg-alt" style="display:inline-block; padding:8px 16px; font-size:0.85rem; text-decoration:none; border-radius:6px; color:#fff; background:var(--primary-color); text-align:center;"><i class="fas fa-play"></i> İzle</a>
+                </div>
+            </div>`;
+    }).join('');
 }

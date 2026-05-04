@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Canlı Dersler</title>
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/instructor/css/instructor.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-dashboard.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-forms.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-edit.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="navbar-placeholder"></div>
+
+    <main class="dashboard-container" style="max-width:1280px; margin:0 auto; padding:24px;">
+
+        <header class="page-header">
+            <div class="header-text">
+                <h1>Canlı Dersler</h1>
+                <p class="subtitle">Tüm canlı yayınlarınızı (Kursa Özel + Genel Webinar) buradan yönetin.</p>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="btn-primary-lg-alt" id="createSessionBtn">
+                    <i class="fas fa-plus"></i> Yeni Canlı Ders Oluştur
+                </button>
+            </div>
+        </header>
+
+        <section class="table-card" style="background:#fff; border-radius:12px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); padding:24px;">
+
+            <!-- Sekmeler -->
+            <div style="display:flex; gap:12px; border-bottom:2px solid #e2e8f0; margin-bottom:20px;">
+                <button id="tabAktifBtn" class="tab-button" style="padding:12px 16px; background:none; border:none; border-bottom:3px solid var(--primary-color); color:var(--primary-color); font-weight:600; cursor:pointer;">
+                    <i class="fas fa-play-circle"></i> Aktif ve Yaklaşan Yayınlar
+                </button>
+                <button id="tabKayitBtn" class="tab-button" style="padding:12px 16px; background:none; border:none; border-bottom:3px solid transparent; color:#64748b; font-weight:600; cursor:pointer;">
+                    <i class="fas fa-video"></i> Yayın Kayıtları
+                </button>
+            </div>
+
+            <!-- Arama + Filtre -->
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px; align-items:center;">
+                <div style="flex:1; min-width:240px; position:relative;">
+                    <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                    <input type="text" id="liveSearchInput" placeholder="Ders ara (başlık)..." style="width:100%; padding:10px 12px 10px 36px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.92rem; outline:none;">
+                </div>
+                <select id="liveStatusFilter" style="padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.92rem; background:#fff; cursor:pointer; min-width:170px;">
+                    <option value="all">Tüm Durumlar</option>
+                    <option value="planlandi">Planlandı</option>
+                    <option value="devam_ediyor">Yayında</option>
+                    <option value="tamamlandi">Tamamlandı</option>
+                    <option value="iptal">İptal</option>
+                </select>
+                <select id="liveTypeFilter" style="padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.92rem; background:#fff; cursor:pointer; min-width:160px;">
+                    <option value="all">Tüm Tipler</option>
+                    <option value="kursa_ozel">Kursa Özel</option>
+                    <option value="genel">Genel Webinar</option>
+                </select>
+            </div>
+
+            <!-- Sekme 1: Aktif -->
+            <div id="tabAktifContent" class="tab-panel" style="display:block;">
+                <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</p>
+            </div>
+
+            <!-- Sekme 2: Kayıtlar -->
+            <div id="tabKayitContent" class="tab-panel" style="display:none;">
+                <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</p>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <div id="liveModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h3 class="modal-title" id="liveModalTitle">Yeni Canlı Ders</h3>
+            <form id="liveForm" class="modal-form">
+                <input type="hidden" id="lf_id">
+
+                <div class="form-group">
+                    <label class="form-label">Yayın Tipi</label>
+                    <div style="display:flex; gap:12px; margin-top:8px;">
+                        <label class="lf-yayin-opt" style="flex:1; cursor:pointer; border:2px solid #e2e8f0; border-radius:10px; padding:12px 14px; display:flex; align-items:center; gap:10px; background:#fff; transition:all 0.2s;">
+                            <input type="radio" name="lf_yayin_tipi" value="kursa_ozel" checked style="accent-color:#8b5cf6;">
+                            <div>
+                                <div style="font-weight:600; color:#1e293b; font-size:0.92rem;"><i class="fas fa-graduation-cap" style="color:#8b5cf6; margin-right:6px;"></i>Kursa Özel</div>
+                                <div style="font-size:0.75rem; color:#64748b;">Sadece kursun öğrencilerine</div>
+                            </div>
+                        </label>
+                        <label class="lf-yayin-opt" style="flex:1; cursor:pointer; border:2px solid #e2e8f0; border-radius:10px; padding:12px 14px; display:flex; align-items:center; gap:10px; background:#fff; transition:all 0.2s;">
+                            <input type="radio" name="lf_yayin_tipi" value="genel" style="accent-color:#8b5cf6;">
+                            <div>
+                                <div style="font-weight:600; color:#1e293b; font-size:0.92rem;"><i class="fas fa-globe" style="color:#10b981; margin-right:6px;"></i>Genel Webinar</div>
+                                <div style="font-size:0.75rem; color:#64748b;">Herkese açık (Masterclass)</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="lf_kurs_group">
+                    <label for="lf_kurs_id" class="form-label">Kurs Seçin</label>
+                    <select id="lf_kurs_id" class="form-control">
+                        <option value="">— Kurs Seçin —</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="lf_baslik" class="form-label">Başlık</label>
+                    <input type="text" id="lf_baslik" class="form-control" required placeholder="Örn: React Hooks Masterclass">
+                </div>
+
+                <div class="form-group">
+                    <label for="lf_aciklama" class="form-label">Açıklama (Opsiyonel)</label>
+                    <textarea id="lf_aciklama" class="form-control" rows="3" placeholder="İçerik / Gündem"></textarea>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="lf_tarih" class="form-label">Başlangıç Tarihi</label>
+                        <input type="datetime-local" id="lf_tarih" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lf_sure" class="form-label">Süre (Dakika)</label>
+                        <input type="number" id="lf_sure" class="form-control" min="15" max="480" value="60" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
+                        <input type="checkbox" id="lf_kayit" style="width:18px; height:18px; accent-color:#8b5cf6;">
+                        <div>
+                            <div style="font-weight:600; color:#1e293b; font-size:0.9rem;"><i class="fas fa-record-vinyl" style="color:#ef4444; margin-right:6px;"></i>Bu yayını kaydet</div>
+                            <div style="font-size:0.75rem; color:#64748b;">Sonradan izlenebilir hale getirilsin</div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary-lg-alt">Kaydet</button>
+                    <button type="button" id="liveModalCloseBtn" class="btn-logout-alt">İptal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Attendance Modal -->
+    <div id="attendanceModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="max-width: 700px;">
+            <h3 class="modal-title" id="attendanceTitle">Katılım Raporu</h3>
+            <div id="attendanceContent" style="max-height:70vh; overflow-y:auto;">
+                <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="attendanceModalCloseBtn" class="btn-logout-alt">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script type="module" src="/instructor/js/live-sessions.js"></script>
+</body>
+</html>
