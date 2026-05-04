@@ -1,4 +1,4 @@
-const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, InstructorEarning, sequelize } = require('../models');
+const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, InstructorEarning, LiveSession, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -250,6 +250,18 @@ exports.getPublicProfile = async (req, res, next) => {
             });
         }
 
+        const webinarlar = await LiveSession.findAll({
+            where: {
+                egitmen_id: instructorId,
+                durum: 'tamamlandi',
+                kayit_alinsin_mi: true,
+                yayin_tipi: 'genel',
+                kayit_video_url: { [Op.ne]: null }
+            },
+            attributes: ['id', 'baslik', 'aciklama', 'baslangic_tarihi', 'kayit_video_url'],
+            order: [['baslangic_tarihi', 'DESC']]
+        });
+
         return res.json({
             success: true,
             data: {
@@ -269,6 +281,7 @@ exports.getPublicProfile = async (req, res, next) => {
                 },
                 detay: profil.InstructorDetail || {},
                 kurslar: kurslarHesapli,
+                webinarlar: webinarlar,
                 istatistikler: {
                     toplam_kurs: kurslarHesapli.length,
                     toplam_ogrenci: toplamOgrenci,

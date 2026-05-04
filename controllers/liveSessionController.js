@@ -5,6 +5,7 @@
 
 const crypto = require('crypto');
 const { Op } = require('sequelize');
+const { uploadVideoToBunny } = require('../services/bunnyService');
 const {
     sequelize,
     LiveSession,
@@ -74,20 +75,48 @@ async function resolveCourseAccess(courseId, user) {
  */
 exports.createSession = async (req, res, next) => {
     try {
-        const { kurs_id, baslik, aciklama, baslangic_tarihi, sure_dakika } = req.body;
+        const {
+            kurs_id,
+            baslik,
+            aciklama,
+            baslangic_tarihi,
+            sure_dakika,
+            yayin_tipi,
+            kayit_alinsin_mi,
+        } = req.body;
 
-        if (!kurs_id || !baslik || !baslangic_tarihi) {
-            const err = new Error('kurs_id, baslik ve baslangic_tarihi zorunludur.');
+        if (!baslik || !baslangic_tarihi) {
+            const err = new Error('baslik ve baslangic_tarihi zorunludur.');
             err.statusCode = 400;
             throw err;
         }
 
-        await assertInstructorOwnsCourse(kurs_id, req.user.id);
+        if (new Date(baslangic_tarihi) < new Date()) {
+            const err = new Error('Geçmiş bir tarihe canlı ders planlanamaz.');
+            err.statusCode = 400;
+            throw err;
+        }
 
-        const odaAdi = `edunex-${kurs_id.slice(0, 8)}-${crypto.randomBytes(8).toString('hex')}`;
+        // Defansif tip belirleme: yayin_tipi açıkça 'genel' ise veya kurs_id boş ise → genel.
+        // Sadece yayin_tipi='kursa_ozel' VE kurs_id dolu olduğunda kursa_ozel olarak işle.
+        const istenenTip = yayin_tipi === 'genel' ? 'genel' : (yayin_tipi || 'kursa_ozel');
+        const tip = (istenenTip === 'kursa_ozel' && kurs_id) ? 'kursa_ozel' : 'genel';
+        let finalKursId = null;
+        let odaPrefix;
+
+        if (tip === 'kursa_ozel') {
+            await assertInstructorOwnsCourse(kurs_id, req.user.id);
+            finalKursId = kurs_id;
+            odaPrefix = kurs_id.slice(0, 8);
+        } else {
+            finalKursId = null;
+            odaPrefix = `genel-${req.user.id.slice(0, 6)}`;
+        }
+
+        const odaAdi = `edunex-${odaPrefix}-${crypto.randomBytes(8).toString('hex')}`;
 
         const session = await LiveSession.create({
-            kurs_id,
+            kurs_id: finalKursId,
             egitmen_id: req.user.id,
             baslik,
             aciklama: aciklama || null,
@@ -95,9 +124,60 @@ exports.createSession = async (req, res, next) => {
             sure_dakika: sure_dakika || 60,
             jitsi_oda_adi: odaAdi,
             durum: 'planlandi',
+            yayin_tipi: tip,
+            kayit_alinsin_mi: !!kayit_alinsin_mi,
         });
 
         return res.status(201).json({ success: true, data: session });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/live-sessions/public
+ * Herkese açık (token gerektirmeyen) genel yayınlar listesi.
+ * Sadece yayin_tipi='genel' ve durum != 'iptal' olanlar; eğitmen profili ile.
+ */
+exports.getPublicLiveSessions = async (req, res, next) => {
+    try {
+        const sessions = await LiveSession.findAll({
+            where: {
+                yayin_tipi: 'genel',
+                durum: { [Op.ne]: 'iptal' },
+            },
+            include: [{
+                model: Profile,
+                as: 'Egitmen',
+                attributes: ['id', 'ad', 'soyad', 'profil_fotografi'],
+            }],
+            order: [['baslangic_tarihi', 'ASC']],
+        });
+
+        return res.status(200).json({ success: true, data: sessions });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/live-sessions/my-sessions
+ * Eğitmenin tüm canlı yayınları (genel + kursa_ozel), tarihe göre azalan sıralı.
+ * Kursa özel olanlar için Course.baslik include edilir.
+ */
+exports.getMyLiveSessions = async (req, res, next) => {
+    try {
+        const sessions = await LiveSession.findAll({
+            where: { egitmen_id: req.user.id },
+            include: [{
+                model: Course,
+                attributes: ['id', 'baslik'],
+                required: false,
+            }],
+            order: [['baslangic_tarihi', 'DESC']],
+        });
+
+        return res.status(200).json({ success: true, data: sessions });
     } catch (error) {
         next(error);
     }
@@ -126,6 +206,9 @@ exports.getSessionsByCourse = async (req, res, next) => {
 /**
  * PUT /api/live-sessions/:id
  * Oturum bilgisi günceller. Sadece eğitmen (oturum sahibi) güncelleyebilir.
+ * yayin_tipi değişikliklerinde kurs_id otomatik normalize edilir:
+ *  - genel  → kurs_id zorla null
+ *  - kursa_ozel → kurs_id zorunlu + sahiplik kontrolü
  */
 exports.updateSession = async (req, res, next) => {
     try {
@@ -142,10 +225,34 @@ exports.updateSession = async (req, res, next) => {
             throw err;
         }
 
-        const allowed = ['baslik', 'aciklama', 'baslangic_tarihi', 'sure_dakika', 'durum'];
+        const allowed = ['baslik', 'aciklama', 'baslangic_tarihi', 'sure_dakika', 'durum', 'kayit_alinsin_mi'];
         for (const key of allowed) {
             if (req.body[key] !== undefined) session[key] = req.body[key];
         }
+
+        // yayin_tipi + kurs_id güncellemesi (defansif normalizasyon)
+        if (req.body.yayin_tipi !== undefined) {
+            const yeniTip = req.body.yayin_tipi === 'genel' ? 'genel' : 'kursa_ozel';
+            if (yeniTip === 'genel') {
+                session.yayin_tipi = 'genel';
+                session.kurs_id = null;
+            } else {
+                const yeniKursId = req.body.kurs_id || session.kurs_id;
+                if (!yeniKursId) {
+                    const err = new Error('Kursa özel yayın için kurs_id zorunludur.');
+                    err.statusCode = 400;
+                    throw err;
+                }
+                await assertInstructorOwnsCourse(yeniKursId, req.user.id);
+                session.yayin_tipi = 'kursa_ozel';
+                session.kurs_id = yeniKursId;
+            }
+        } else if (req.body.kurs_id !== undefined && session.yayin_tipi === 'kursa_ozel') {
+            // yayin_tipi değişmiyor ama kurs_id güncellenmek isteniyor
+            await assertInstructorOwnsCourse(req.body.kurs_id, req.user.id);
+            session.kurs_id = req.body.kurs_id;
+        }
+
         await session.save();
 
         return res.status(200).json({ success: true, data: session });
@@ -197,7 +304,10 @@ exports.joinSession = async (req, res, next) => {
             throw err;
         }
 
-        await resolveCourseAccess(session.kurs_id, req.user);
+        // Genel yayınlar herkese açık; sadece kursa_ozel oturumlarda kurs erişimi kontrol edilir.
+        if (session.yayin_tipi === 'kursa_ozel' && session.kurs_id) {
+            await resolveCourseAccess(session.kurs_id, req.user);
+        }
 
         const profile = await Profile.findByPk(req.user.id, {
             attributes: ['id', 'ad', 'soyad', 'eposta'],
@@ -252,7 +362,10 @@ exports.heartbeat = async (req, res, next) => {
             throw err;
         }
 
-        await resolveCourseAccess(session.kurs_id, req.user);
+        // Genel yayınlar herkese açık; kurs erişimi sadece kursa_ozel için kontrol edilir.
+        if (session.yayin_tipi === 'kursa_ozel' && session.kurs_id) {
+            await resolveCourseAccess(session.kurs_id, req.user);
+        }
 
         const now = new Date();
 
@@ -294,6 +407,7 @@ exports.heartbeat = async (req, res, next) => {
 /**
  * GET /api/live-sessions/:id/attendance
  * Sadece oturum sahibi eğitmen erişebilir. Öğrenci bazında toplam dakika raporu.
+ * Attendance hesaplaması: katılım_dakika / toplam_dakika (null/0'a karşı korumalı).
  */
 exports.getAttendance = async (req, res, next) => {
     try {
@@ -314,10 +428,18 @@ exports.getAttendance = async (req, res, next) => {
             where: { canli_oturum_id: id },
             include: [{
                 model: Profile,
-                attributes: ['id', 'ad', 'soyad', 'eposta'],
+                attributes: ['id', 'ad', 'soyad', 'eposta', 'rol'],
             }],
             order: [['toplam_dakika', 'DESC']],
         });
+
+        const sureDakika = session.sure_dakika || 1;
+        const studentAttendances = attendances
+            .filter(a => a.Profile?.rol === 'ogrenci')
+            .map(a => ({
+                ...a.toJSON(),
+                katilim_orani: Math.min(100, Math.round(((a.toplam_dakika || 0) / sureDakika) * 100)),
+            }));
 
         return res.status(200).json({
             success: true,
@@ -328,9 +450,96 @@ exports.getAttendance = async (req, res, next) => {
                     baslangic_tarihi: session.baslangic_tarihi,
                     sure_dakika: session.sure_dakika,
                 },
-                attendances,
+                attendances: studentAttendances,
             },
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * PUT /api/live-sessions/:id/start
+ * Eğitmen "Yayına Gir" butonuna basınca durum'u 'devam_ediyor' yapar
+ * ve oda adı + Jitsi domain bilgisini geri döner.
+ */
+exports.startSession = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const session = await LiveSession.findByPk(id);
+        if (!session) {
+            const err = new Error('Oturum bulunamadı.');
+            err.statusCode = 404;
+            throw err;
+        }
+        if (session.egitmen_id !== req.user.id) {
+            const err = new Error('Bu oturum üzerinde yetkiniz yok.');
+            err.statusCode = 403;
+            throw err;
+        }
+        if (session.durum === 'iptal') {
+            const err = new Error('İptal edilmiş ders başlatılamaz.');
+            err.statusCode = 410;
+            throw err;
+        }
+        if (session.durum === 'tamamlandi') {
+            const err = new Error('Tamamlanmış ders tekrar başlatılamaz.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        if (session.durum !== 'devam_ediyor') {
+            session.durum = 'devam_ediyor';
+            await session.save();
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                id: session.id,
+                durum: session.durum,
+                jitsi_oda_adi: session.jitsi_oda_adi,
+                redirect_url: `/canli-ders/${session.jitsi_oda_adi}`,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * PUT /api/live-sessions/:id/status
+ * Oturum durumunu günceller (planlandi, devam_ediyor, tamamlandi, iptal).
+ * Sadece oturum sahibi eğitmen güncelleyebilir.
+ */
+exports.updateSessionStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { durum } = req.body;
+
+        if (!durum || !['planlandi', 'devam_ediyor', 'tamamlandi', 'iptal'].includes(durum)) {
+            const err = new Error('Geçersiz durum değeri.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const session = await LiveSession.findByPk(id);
+        if (!session) {
+            const err = new Error('Oturum bulunamadı.');
+            err.statusCode = 404;
+            throw err;
+        }
+
+        if (session.egitmen_id !== req.user.id) {
+            const err = new Error('Bu oturum üzerinde yetkiniz yok.');
+            err.statusCode = 403;
+            throw err;
+        }
+
+        session.durum = durum;
+        await session.save();
+
+        return res.status(200).json({ success: true, data: session });
     } catch (error) {
         next(error);
     }
@@ -371,6 +580,137 @@ exports.getUpcomingForStudent = async (req, res, next) => {
 
         return res.status(200).json({ success: true, data: sessions });
     } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * POST /api/live-sessions/:id/upload-recording
+ * Canlı ders kaydını Bunny.net'e yükle ve kayit_video_url'yi güncelle.
+ * Dosya req.file.path'te multer tarafından sağlanır.
+ */
+exports.uploadSessionRecording = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!req.file) {
+            const err = new Error('Dosya gereklidir.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const session = await LiveSession.findByPk(id);
+        if (!session) {
+            const err = new Error('Oturum bulunamadı.');
+            err.statusCode = 404;
+            throw err;
+        }
+
+        if (session.egitmen_id !== req.user.id) {
+            const err = new Error('Bu oturum üzerinde yetkiniz yok.');
+            err.statusCode = 403;
+            throw err;
+        }
+
+        const bunnyResult = await uploadVideoToBunny(
+            req.file.path,
+            `live-recording-${session.id}-${session.baslik}`
+        );
+
+        session.kayit_video_url = `https://video.bunnycdn.com/${bunnyResult.guid}`;
+        await session.save();
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                guid: bunnyResult.guid,
+                video_url: session.kayit_video_url,
+                message: 'Video başarıyla kuyruğa eklendi.',
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/live-sessions/active
+ * Öğrenci ana sayfası için aktif dersleri listele.
+ * Mantık:
+ *  - devam_ediyor: tarih filtresi YOK (ders başladığı için geçmiş olabilir)
+ *  - planlandi: sadece gelecek tarihliler (baslangic_tarihi >= now)
+ *  - Görünürlük: yayin_tipi='genel' (tümü) VEYA yayin_tipi='kursa_ozel' + öğrenci kursa kayıtlı
+ * Response: { devam_edenler: [...], planlananlar: [...] }
+ */
+exports.getActiveSessions = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const now = new Date();
+
+        const enrollments = await CourseEnrollment.findAll({
+            where: { ogrenci_id: userId },
+            attributes: ['kurs_id'],
+        });
+
+        const courseIds = enrollments.map(e => e.kurs_id).filter(Boolean);
+
+        // Görünürlük: yayin_tipi='genel' (herkese) VEYA kursa_ozel + kayıtlı kurs.
+        // Op.or'i where içine doğrudan yazıyoruz (spread Symbol-key kayıplarını önlemek için).
+        const visibilityOr = [
+            { yayin_tipi: 'genel' },
+        ];
+        if (courseIds.length > 0) {
+            visibilityOr.push({
+                yayin_tipi: 'kursa_ozel',
+                kurs_id: { [Op.in]: courseIds },
+            });
+        }
+
+        const includeBlock = [
+            {
+                model: Profile,
+                as: 'Egitmen',
+                attributes: ['id', 'ad', 'soyad'],
+            },
+            {
+                model: Course,
+                attributes: ['id', 'baslik'],
+                required: false, // Genel yayınlarda kurs olmayabilir (LEFT JOIN)
+            },
+        ];
+
+        const devamEdenler = await LiveSession.findAll({
+            where: {
+                durum: 'devam_ediyor',
+                [Op.or]: visibilityOr,
+            },
+            include: includeBlock,
+            order: [['baslangic_tarihi', 'ASC']],
+            limit: 50,
+            subQuery: false,
+        });
+
+        const planlananlar = await LiveSession.findAll({
+            where: {
+                durum: 'planlandi',
+                baslangic_tarihi: { [Op.gte]: now },
+                [Op.or]: visibilityOr,
+            },
+            include: includeBlock,
+            order: [['baslangic_tarihi', 'ASC']],
+            limit: 50,
+            subQuery: false,
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                devam_edenler: devamEdenler,
+                planlananlar: planlananlar,
+            },
+        });
+    } catch (error) {
+        console.error('[getActiveSessions] HATA:', error.message, error.stack);
         next(error);
     }
 };

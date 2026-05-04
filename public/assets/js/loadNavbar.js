@@ -45,6 +45,7 @@
                 : '/student/dashboard.html';
 
             const ogrenciMi = kullanici.rol === 'ogrenci';
+            const egitmenMi = kullanici.rol === 'egitmen';
 
             const sepetHtml = ogrenciMi ? `
                 <a href="/student/cart.html" class="nav-sepet-link" title="Sepetim">
@@ -55,6 +56,9 @@
             const ogrenciMenusu = ogrenciMi ? `
                 <a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a>
                 <a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>` : '';
+
+            const egitmenMenusu = egitmenMi ? `
+                <a href="/instructor/live-sessions.html"><i class="fas fa-video" style="width:20px;color:#ef4444;"></i> Canlı Derslerim</a>` : '';
 
             authEl.innerHTML = `
                 ${sepetHtml}
@@ -67,6 +71,7 @@
                     <div class="dropdown-content">
                         <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
                         <a href="${panelLinki}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
+                        ${egitmenMenusu}
                         ${ogrenciMenusu}
                         <hr>
                         <button onclick="cikisYap()" class="text-danger">

@@ -371,63 +371,87 @@
     .action-buttons { flex-wrap: wrap; }
     .form-grid { grid-template-columns: 1fr; }
 }
-
-/* ── Studio Header ── */
+/* ── Studio Header (Durum Çubuğu) ── */
 .studio-header {
     background: #ffffff;
     border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
     padding: 12px 0;
+    position: relative; /* "sticky" özelliğini iptal ettik, artık sayfa ile beraber kayacak */
+    z-index: 10;
 }
+
+.studio-header-container {
+    max-width: 1280px; /* İçerik ile aynı hizada olması için */
+    padding: 0 24px;
+}
+
 .studio-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 16px;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* Mobilde alt alta geçmesi için */
 }
+
 .studio-bar-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    flex: 1; /* Uzun isimleri itmek için */
+    min-width: 250px;
 }
+
 .studio-bar-left h2 {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: #1e293b;
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 400px;
+    max-width: 500px;
 }
+
 .studio-bar-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
 /* ── Status Badges ── */
 .status-badge {
     font-size: 0.75rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     white-space: nowrap;
+    border: 1px solid transparent;
 }
-.status-taslak { background: #f1f5f9; color: #475569; }
-.status-onay_bekliyor { background: #fef3c7; color: #92400e; }
-.status-onaylandi { background: #dcfce7; color: #166534; }
-.status-yayinda { background: #dbeafe; color: #1e40af; }
-.status-arsiv { background: #f1f5f9; color: #64748b; }
+.status-taslak { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.status-onay_bekliyor { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.status-onaylandi { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.status-yayinda { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+.status-arsiv { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
 
 .ogrenci-badge {
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    background: #ede9fe;
+    background: #f5f3ff;
     color: #6d28d9;
-    padding: 4px 10px;
-    border-radius: 12px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ogrenci-badge::before {
+    content: "\f0c0"; /* fa-users ikonu unicode */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
 }
 
 /* ── Publish / Danger Buttons ── */
@@ -435,37 +459,38 @@
     background: #10b981;
     color: #fff;
     border: none;
-    padding: 9px 16px;
+    padding: 9px 18px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    transition: background 0.2s;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
-.btn-publish:hover { background: #059669; }
-.btn-publish.unpublish { background: #f59e0b; }
-.btn-publish.unpublish:hover { background: #d97706; }
-.btn-publish:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-publish:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); }
+.btn-publish.unpublish { background: #f59e0b; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2); }
+.btn-publish.unpublish:hover { background: #d97706; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); }
+.btn-publish:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; transform: none; }
 
 .btn-danger-sm {
-    background: #fee2e2;
-    color: #991b1b;
+    background: #ffffff;
+    color: #ef4444;
     border: 1px solid #fca5a5;
     padding: 9px 14px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     transition: all 0.2s;
 }
-.btn-danger-sm:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
-.btn-danger-sm:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-danger-sm:hover { background: #fef2f2; border-color: #ef4444; }
+.btn-danger-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Save Changes Bar ── */
 .save-bar {
@@ -475,71 +500,89 @@
     right: 0;
     background: #1e293b;
     color: #fff;
-    padding: 12px 24px;
+    padding: 14px 24px;
     display: none;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     z-index: 1100;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.2);
+    box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
+    animation: slideUpBar 0.3s ease-out;
 }
+@keyframes slideUpBar {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
 .save-bar.visible { display: flex; }
-.save-bar p { margin: 0; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
-.save-bar-actions { display: flex; gap: 10px; }
+.save-bar p { margin: 0; font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+.save-bar-actions { display: flex; gap: 12px; }
 
 /* ── Thumbnail Preview ── */
-.thumbnail-preview-wrap { display: inline-block; }
+.thumbnail-preview-wrap { display: inline-block; width: 100%; max-width: 400px; }
 .thumbnail-preview {
-    width: 320px;
-    height: 180px;
+    width: 100%;
+    aspect-ratio: 16/9; /* Otomatik HD boyutu */
     object-fit: cover;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 2px solid #e2e8f0;
     display: block;
     cursor: pointer;
+    transition: filter 0.2s;
 }
+.thumbnail-preview:hover { filter: brightness(0.9); }
+
 .thumbnail-placeholder {
-    width: 320px;
-    height: 180px;
+    width: 100%;
+    aspect-ratio: 16/9;
     background: #f8fafc;
     border: 2px dashed #cbd5e1;
-    border-radius: 10px;
+    border-radius: 12px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #94a3b8;
-    font-size: 0.9rem;
-    gap: 10px;
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 500;
+    gap: 12px;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
+    transition: all 0.2s;
 }
-.thumbnail-placeholder:hover { border-color: #2563eb; color: #2563eb; }
+.thumbnail-placeholder i { font-size: 2rem; color: #94a3b8; transition: color 0.2s; }
+.thumbnail-placeholder:hover { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+.thumbnail-placeholder:hover i { color: #2563eb; }
 
 /* ── Review Cards ── */
 .review-card {
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 12px;
-    transition: border-color 0.2s;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s;
 }
-.review-card:hover { border-color: #cbd5e1; }
+.review-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 .review-card-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
-    gap: 12px;
+    margin-bottom: 14px;
+    gap: 16px;
 }
-.review-stars { color: #f59e0b; font-size: 0.95rem; white-space: nowrap; }
+.review-stars { color: #f59e0b; font-size: 1.1rem; white-space: nowrap; letter-spacing: 2px; }
 
 /* ── Quill editor border fix ── */
-#quillEditorContainer .ql-container { border-radius: 0 0 8px 8px; border-color: #d1d5db; min-height: 160px; }
-#quillEditorContainer .ql-toolbar { border-radius: 8px 8px 0 0; border-color: #d1d5db; background: #f8fafc; }
+#quillEditorContainer .ql-container { border-radius: 0 0 10px 10px; border-color: #cbd5e1; min-height: 200px; font-size: 1rem; font-family: inherit;}
+#quillEditorContainer .ql-toolbar { border-radius: 10px 10px 0 0; border-color: #cbd5e1; background: #f8fafc; padding: 12px;}
 
-@media (max-width: 640px) {
-    .studio-bar-left h2 { max-width: 160px; font-size: 0.9rem; }
-    .thumbnail-preview, .thumbnail-placeholder { width: 100%; max-width: 320px; }
-    .save-bar { flex-direction: column; align-items: flex-start; padding: 14px 16px; }
+@media (max-width: 768px) {
+    .studio-bar { flex-direction: column; align-items: flex-start; }
+    .studio-bar-left { width: 100%; justify-content: space-between; }
+    .studio-bar-left h2 { max-width: 200px; font-size: 1rem; }
+    .studio-bar-right { width: 100%; justify-content: space-between; margin-top: 10px; }
+    .btn-text-mobile { display: none; } /* Mobilde "Sil" yazısını gizle, sadece ikon kalsın */
+    .save-bar { flex-direction: column; align-items: stretch; padding: 16px; }
+    .save-bar-actions { justify-content: space-between; margin-top: 12px; }
+    .save-bar-actions button { flex: 1; justify-content: center; }
 }

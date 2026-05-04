@@ -707,6 +707,10 @@ window.switchTab = (tabId) => {
         window._reviewsLoaded = true;
         loadReviews();
     }
+    if (tabId === 'canli_dersler' && !window._liveSessionsLoaded) {
+        window._liveSessionsLoaded = true;
+        loadCourseLiveSessions();
+    }
 };
 
 window.showSectionModal = () => {
@@ -1284,3 +1288,217 @@ window.saveQuiz = async () => {
         saveBtn.innerHTML = '<i class="fas fa-save"></i> Kaydet';
     }
 };
+
+// ============================================
+// CANLI DERS (Kursa Özel) — Modal & CRUD
+// ============================================
+
+let __courseSessionsCache = [];
+
+async function loadCourseLiveSessions() {
+    const container = document.getElementById('canliOturumListesi');
+    if (!container) return;
+    container.innerHTML = '<p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</p>';
+    try {
+        const res = await ApiService.get(`/live-sessions/course/${courseId}`);
+        __courseSessionsCache = res.data || [];
+        renderCourseLiveSessions();
+    } catch (err) {
+        container.innerHTML = `<div class="empty-section"><p style="color:#dc2626;">${escapeHtmlLS(err.message)}</p></div>`;
+    }
+}
+
+function renderCourseLiveSessions() {
+    const container = document.getElementById('canliOturumListesi');
+    if (!container) return;
+    if (__courseSessionsCache.length === 0) {
+        container.innerHTML = `
+            <div class="empty-section">
+                <i class="fas fa-video" style="font-size:2rem; display:block; margin-bottom:10px; color:#94a3b8;"></i>
+                <p>Bu kurs için henüz canlı oturum planlanmadı.</p>
+            </div>`;
+        return;
+    }
+    container.innerHTML = __courseSessionsCache.map(renderCourseSessionCard).join('');
+}
+
+function renderCourseSessionCard(s) {
+    const date = new Date(s.baslangic_tarihi);
+    const dateLabel = date.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
+    return `
+        <div class="section-item" id="live-session-${s.id}">
+            <div class="section-header" style="cursor:default;">
+                <div class="section-title-group">
+                    <h4 style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-video" style="color:#8b5cf6;"></i>
+                        ${escapeHtmlLS(s.baslik)}
+                        <span class="live-badge" style="font-size:0.72rem; padding:3px 10px; border-radius:12px; background:#e0e7ff; color:#4338ca;">${statusLabelLS(s.durum)}</span>
+                        ${s.kayit_alinsin_mi ? '<span style="font-size:0.7rem; padding:3px 8px; border-radius:10px; background:#fee2e2; color:#b91c1c;"><i class="fas fa-record-vinyl"></i> Kayıt</span>' : ''}
+                    </h4>
+                    <div style="color:#64748b; font-size:0.9rem; margin-top:6px;">
+                        <i class="far fa-clock"></i> ${dateLabel} · ${s.sure_dakika} dk
+                    </div>
+                    ${s.aciklama ? `<p style="color:#475569; margin-top:8px;">${escapeHtmlLS(s.aciklama)}</p>` : ''}
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <a href="/live/live-room.html?sessionId=${s.id}" target="_blank" class="btn-primary-lg-alt" style="padding:8px 14px; font-size:0.85rem;">
+                        <i class="fas fa-sign-in-alt"></i> Odaya Gir
+                    </a>
+                    <button type="button" onclick="window.openAttendanceModal('${s.id}')" class="btn-logout-alt" style="padding:8px 14px; font-size:0.85rem;">
+                        <i class="fas fa-clipboard-list"></i> Yoklama
+                    </button>
+                    <button type="button" onclick="window.editLiveSession('${s.id}')" class="btn-logout-alt" style="padding:8px 14px; font-size:0.85rem;">
+                        <i class="fas fa-edit"></i> Düzenle
+                    </button>
+                    <button type="button" onclick="window.deleteLiveSession('${s.id}')" class="btn-logout-alt" style="padding:8px 14px; font-size:0.85rem; color:#dc2626;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+}
+
+function setMinDateTimeNowLS(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    input.min = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+window.showLiveSessionModal = () => {
+    document.getElementById('canliOturumModalTitle').textContent = 'Yeni Canlı Oturum';
+    document.getElementById('canliOturumForm').reset();
+    document.getElementById('canli_oturum_id').value = '';
+    document.getElementById('cs_sure').value = 60;
+    setMinDateTimeNowLS('cs_tarih');
+    document.getElementById('canliOturumModal').style.display = 'flex';
+};
+
+window.closeLiveSessionModal = () => {
+    document.getElementById('canliOturumModal').style.display = 'none';
+};
+
+window.editLiveSession = (id) => {
+    const s = __courseSessionsCache.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('canliOturumModalTitle').textContent = 'Oturumu Düzenle';
+    document.getElementById('canli_oturum_id').value = s.id;
+    document.getElementById('cs_baslik').value = s.baslik || '';
+    document.getElementById('cs_aciklama').value = s.aciklama || '';
+    document.getElementById('cs_tarih').value = toLocalDateTimeInputLS(s.baslangic_tarihi);
+    document.getElementById('cs_sure').value = s.sure_dakika || 60;
+    document.getElementById('cs_kayit_alinsin_mi').checked = !!s.kayit_alinsin_mi;
+    setMinDateTimeNowLS('cs_tarih');
+    document.getElementById('canliOturumModal').style.display = 'flex';
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('canliOturumForm');
+    if (form) form.addEventListener('submit', handleSaveCourseLiveSession);
+});
+
+async function handleSaveCourseLiveSession(e) {
+    e.preventDefault();
+    const id = document.getElementById('canli_oturum_id').value;
+    const tarihValue = document.getElementById('cs_tarih').value;
+
+    if (new Date(tarihValue) < new Date()) {
+        showToast('Geçmiş bir tarihe canlı ders planlanamaz.', 'error');
+        return;
+    }
+
+    const payload = {
+        kurs_id: courseId,
+        yayin_tipi: 'kursa_ozel',
+        kayit_alinsin_mi: document.getElementById('cs_kayit_alinsin_mi').checked,
+        baslik: document.getElementById('cs_baslik').value.trim(),
+        aciklama: document.getElementById('cs_aciklama').value.trim(),
+        baslangic_tarihi: new Date(tarihValue).toISOString(),
+        sure_dakika: parseInt(document.getElementById('cs_sure').value, 10) || 60,
+    };
+
+    try {
+        if (id) {
+            await ApiService.put(`/live-sessions/${id}`, payload);
+            showToast('Oturum güncellendi.', 'success');
+        } else {
+            await ApiService.post('/live-sessions', payload);
+            showToast('Oturum oluşturuldu.', 'success');
+        }
+        window.closeLiveSessionModal();
+        await loadCourseLiveSessions();
+    } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+    }
+}
+
+window.deleteLiveSession = async (id) => {
+    if (!confirm('Bu canlı oturumu silmek istediğinize emin misiniz?')) return;
+    try {
+        await ApiService.delete(`/live-sessions/${id}`);
+        showToast('Oturum silindi.', 'success');
+        await loadCourseLiveSessions();
+    } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+    }
+};
+
+window.openAttendanceModal = async (id) => {
+    document.getElementById('yoklamaModal').style.display = 'flex';
+    const body = document.getElementById('yoklamaContent');
+    body.innerHTML = '<p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</p>';
+    try {
+        const result = await ApiService.get(`/live-sessions/${id}/attendance`);
+        const { session, attendances } = result.data;
+        document.getElementById('yoklamaModalTitle').textContent = `Yoklama: ${session.baslik}`;
+        if (!attendances || attendances.length === 0) {
+            body.innerHTML = '<p style="color:#64748b; padding:20px; text-align:center;">Henüz katılım kaydı yok.</p>';
+            return;
+        }
+        const totalSure = session.sure_dakika || 60;
+        body.innerHTML = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead><tr style="background:#f1f5f9;">
+                    <th style="text-align:left; padding:10px;">Öğrenci</th>
+                    <th style="text-align:left; padding:10px;">E-Posta</th>
+                    <th style="text-align:right; padding:10px;">Süre</th>
+                    <th style="text-align:right; padding:10px;">Oran</th>
+                </tr></thead>
+                <tbody>
+                    ${attendances.map(a => {
+                        const p = a.Profile || {};
+                        const oran = Math.min(100, Math.round(((a.toplam_dakika || 0) / totalSure) * 100));
+                        return `<tr>
+                            <td style="padding:10px; border-bottom:1px solid #f1f5f9;">${escapeHtmlLS((p.ad || '') + ' ' + (p.soyad || ''))}</td>
+                            <td style="padding:10px; border-bottom:1px solid #f1f5f9; color:#64748b;">${escapeHtmlLS(p.eposta || '')}</td>
+                            <td style="padding:10px; border-bottom:1px solid #f1f5f9; text-align:right;"><b>${a.toplam_dakika || 0}</b> dk</td>
+                            <td style="padding:10px; border-bottom:1px solid #f1f5f9; text-align:right;">${oran}%</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>`;
+    } catch (err) {
+        body.innerHTML = `<p style="color:#dc2626; padding:20px;">${escapeHtmlLS(err.message)}</p>`;
+    }
+};
+
+window.closeAttendanceModal = () => {
+    document.getElementById('yoklamaModal').style.display = 'none';
+};
+
+function statusLabelLS(d) {
+    return ({ planlandi:'Planlandı', devam_ediyor:'Devam Ediyor', tamamlandi:'Tamamlandı', iptal:'İptal' })[d] || (d || '-');
+}
+
+function toLocalDateTimeInputLS(iso) {
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function escapeHtmlLS(text) {
+    if (text == null) return '';
+    const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}

@@ -1062,3 +1062,183 @@
     gap: 10px;
 }
 
+/* ===== CANLI DERSLER BOLUMU ===== */
+.canli-dersler-bolumu {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 60px 0;
+    margin: 40px 0;
+}
+
+.canli-baslik h2 {
+    color: #1e293b;
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.canli-alt-bolum {
+    margin-top: 40px;
+    margin-bottom: 50px;
+}
+
+.canli-alt-baslik {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+}
+
+.canli-kartlar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.canli-kart {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+}
+
+.canli-kart:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-4px);
+    border-color: #cbd5e0;
+}
+
+.canli-kart-ust {
+    padding: 20px;
+    background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+    border-bottom: 1px solid #cbd5e0;
+    position: relative;
+}
+
+.canli-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+}
+
+.canli-badge-live {
+    background: #ff4757;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.canli-badge-soon {
+    background: #1e90ff;
+    color: white;
+}
+
+.canli-kart-baslik {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.canli-kart-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.canli-meta-item {
+    font-size: 0.9rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.canli-meta-item i {
+    color: #94a3b8;
+    width: 16px;
+}
+
+.canli-egitmen {
+    color: #1e90ff;
+    font-weight: 600;
+}
+
+.canli-kart-icerik {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.canli-kart-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.canli-btn {
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.canli-btn-katil {
+    background: linear-gradient(135deg, #ff4757 0%, #ff6348 100%);
+    color: white;
+    flex: 1;
+}
+
+.canli-btn-katil:hover {
+    box-shadow: 0 8px 16px rgba(255, 71, 87, 0.3);
+    transform: translateY(-2px);
+}
+
+.canli-btn-reminder {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e0;
+    flex: 1;
+}
+
+.canli-btn-reminder:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.bos-canli {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
+
+.bos-canli i {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+    display: block;
+}
+
