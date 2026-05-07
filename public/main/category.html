@@ -14,9 +14,10 @@
 <body>
     <div id="navbar-placeholder"></div>
 
-    <!-- Hero -->
-    <section class="category-hero">
-        <div class="container">
+    <!-- Hero Banner (kapak fotoğrafı + overlay) -->
+    <section id="categoryHero" class="category-hero category-hero-cover">
+        <div class="category-hero-overlay"></div>
+        <div class="container category-hero-inner">
             <nav class="hero-breadcrumb">
                 <a href="/main/index.html"><i class="fas fa-home"></i> Ana Sayfa</a>
                 <i class="fas fa-chevron-right"></i>
@@ -24,7 +25,13 @@
                 <i class="fas fa-chevron-right"></i>
                 <span id="heroCategoryName">Yükleniyor...</span>
             </nav>
+            <div class="category-hero-rating" id="heroRating" style="display:none;">
+                <span class="hero-rating-stars" id="heroRatingStars"></span>
+                <span class="hero-rating-num"  id="heroRatingNum"></span>
+                <span class="hero-rating-label" id="heroRatingLabel"></span>
+            </div>
             <h1 id="heroTitle">Yükleniyor...</h1>
+            <p id="heroDescription" class="category-hero-desc"></p>
             <div class="hero-meta" id="heroMeta"></div>
         </div>
     </section>

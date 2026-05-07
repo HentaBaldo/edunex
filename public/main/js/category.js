@@ -36,8 +36,61 @@
     function heroDoldur(kat) {
         if (!kat) return;
         document.title = `${kat.ad} — EduNex`;
+
         document.getElementById('heroCategoryName').textContent = kat.ad;
         document.getElementById('heroTitle').textContent        = kat.ad;
+
+        // Kapak Fotoğrafı (CDN) → hero arka planı
+        const heroEl = document.getElementById('categoryHero');
+        if (kat.kapak_fotografi) {
+            heroEl.classList.add('has-cover');
+            heroEl.style.backgroundImage = `url('${kat.kapak_fotografi}')`;
+        } else {
+            heroEl.classList.remove('has-cover');
+            heroEl.style.backgroundImage = '';
+        }
+
+        // Açıklama
+        const descEl = document.getElementById('heroDescription');
+        if (kat.aciklama && kat.aciklama.trim()) {
+            descEl.textContent = kat.aciklama;
+            descEl.style.display = 'block';
+        } else {
+            descEl.style.display = 'none';
+        }
+
+        // Yıldız ortalaması
+        const puan = parseFloat(kat.yildiz_ortalamasi || kat.yildiz || 0);
+        const ratingWrap = document.getElementById('heroRating');
+        if (puan > 0) {
+            document.getElementById('heroRatingStars').innerHTML = _heroYildizlar(puan);
+            document.getElementById('heroRatingNum').textContent = puan.toFixed(1);
+            document.getElementById('heroRatingLabel').textContent = 'kategori ortalama puanı';
+            ratingWrap.style.display = 'inline-flex';
+        } else {
+            ratingWrap.style.display = 'none';
+        }
+
+        // Meta (kurs sayısı / öğrenci sayısı)
+        const metaEl = document.getElementById('heroMeta');
+        const kursSayisi = parseInt(kat.kurs_sayisi || 0, 10);
+        const ogrSayisi  = parseInt(kat.toplam_ogrenci || 0, 10);
+        const parcalar = [];
+        if (kursSayisi > 0) parcalar.push(`<span class="hero-meta-item"><i class="fas fa-play-circle"></i> ${kursSayisi} kurs</span>`);
+        if (ogrSayisi  > 0) parcalar.push(`<span class="hero-meta-item"><i class="fas fa-user-graduate"></i> ${ogrSayisi.toLocaleString('tr-TR')} öğrenci</span>`);
+        metaEl.innerHTML = parcalar.join('');
+    }
+
+    function _heroYildizlar(puan) {
+        const r = parseFloat(puan) || 0;
+        const tam = Math.floor(r);
+        const yarim = (r - tam) >= 0.5 ? 1 : 0;
+        const bos = 5 - tam - yarim;
+        let html = '';
+        for (let i = 0; i < tam;   i++) html += '<i class="fas fa-star"></i>';
+        if (yarim) html += '<i class="fas fa-star-half-alt"></i>';
+        for (let i = 0; i < bos;   i++) html += '<i class="far fa-star"></i>';
+        return html;
     }
 
     function altKategorileriDoldur(altKategoriler) {

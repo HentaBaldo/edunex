@@ -104,11 +104,36 @@
                 </h2>
                 <div class="section-line"></div>
             </div>
+            <!-- Sekme menüsü: Tümü / Yayında / Taslak / Onay Bekleyen -->
+            <div class="course-tabs" id="courseTabs" role="tablist">
+                <button type="button" class="course-tab active" data-filter="all" role="tab" aria-selected="true">
+                    <i class="fas fa-layer-group"></i> Tümü
+                    <span class="course-tab-count" id="cnt-all">0</span>
+                </button>
+                <button type="button" class="course-tab" data-filter="yayinda" role="tab" aria-selected="false">
+                    <i class="fas fa-rocket"></i> Yayında
+                    <span class="course-tab-count" id="cnt-yayinda">0</span>
+                </button>
+                <button type="button" class="course-tab" data-filter="taslak" role="tab" aria-selected="false">
+                    <i class="fas fa-file-alt"></i> Taslak
+                    <span class="course-tab-count" id="cnt-taslak">0</span>
+                </button>
+                <button type="button" class="course-tab" data-filter="onay_bekliyor" role="tab" aria-selected="false">
+                    <i class="fas fa-hourglass-half"></i> Onay Bekleyen
+                    <span class="course-tab-count" id="cnt-onay_bekliyor">0</span>
+                </button>
+            </div>
+
             <div id="courseList" class="course-management-grid">
                 <div class="loading-state">
                     <div class="spinner"></div>
                     <p>Kurslarınız yükleniyor...</p>
                 </div>
+            </div>
+
+            <div id="courseEmptyFilter" class="course-empty-filter" style="display:none;">
+                <i class="fas fa-filter"></i>
+                <p>Bu sekmede gösterilecek kurs bulunamadı.</p>
             </div>
         </section>
 

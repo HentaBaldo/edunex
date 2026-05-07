@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { Review, CourseEnrollment, StudentDetail, Profile, Course } = require('../models');
 
 /**
@@ -119,6 +120,47 @@ exports.getCourseReviews = async (req, res) => {
     } catch (error) {
         console.error('[REVIEW GET ERROR]', error);
         res.status(500).json({ success: false, message: 'Yorumlar getirilirken hata oluştu.' });
+    }
+};
+
+/**
+ * Ana sayfa: Son yüksek puanlı yorumları getir (herkese açık)
+ * GET /api/reviews/recent?limit=6
+ */
+exports.getRecentReviews = async (req, res) => {
+    try {
+        const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 6));
+
+        const reviews = await Review.findAll({
+            where: { puan: { [Op.gte]: 4 }, yorum: { [Op.ne]: null } },
+            include: [
+                {
+                    model: Profile,
+                    as: 'Yazar',
+                    attributes: ['ad', 'soyad', 'profil_fotografi']
+                },
+                {
+                    model: Course,
+                    attributes: ['id', 'baslik']
+                }
+            ],
+            order: [['olusturulma_tarihi', 'DESC']],
+            limit
+        });
+
+        const veri = reviews.map(r => ({
+            puan:           r.puan,
+            yorum:          r.yorum,
+            ad:             r.Yazar ? `${r.Yazar.ad || ''} ${(r.Yazar.soyad || '').charAt(0)}.`.trim() : 'Öğrenci',
+            profil_fotografi: r.Yazar?.profil_fotografi || null,
+            kurs:           r.Course?.baslik || '',
+            kurs_id:        r.Course?.id     || ''
+        }));
+
+        return res.status(200).json({ success: true, data: veri });
+    } catch (error) {
+        console.error('[REVIEW RECENT ERROR]', error);
+        res.status(500).json({ success: false, message: 'Son yorumlar getirilirken hata oluştu.' });
     }
 };
 

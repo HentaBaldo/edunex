@@ -1,48 +1,41 @@
 /* ════════════════════════════════════════════════════════
-   EduNex Landing Page — Unified SaaS Design (No Animation)
+   EduNex Landing Page — Unified SaaS Design (Light Mode)
    ════════════════════════════════════════════════════════ */
 
-/* ─── Hero (Logged Out) — Premium Dark ────────────────── */
+/* ─── Hero (Logged Out) — Clean Light ────────────────── */
 .hero {
-    background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99, 102, 241, 0.35) 0%, transparent 70%),
-        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(34, 211, 238, 0.18) 0%, transparent 70%),
-        radial-gradient(ellipse 60% 60% at 10% 70%, rgba(167, 139, 250, 0.22) 0%, transparent 70%),
-        linear-gradient(180deg, #0a0e27 0%, #111738 50%, #0f1629 100%);
-    color: white;
-    padding: 100px 0 96px;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 100%);
+    color: #0f172a;
+    padding: 96px 0 88px;
     text-align: center;
     position: relative;
     overflow: hidden;
+    border-bottom: 1px solid #e8edf5;
 }
-.hero::after {
+.hero::before {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 80px;
-    background: linear-gradient(180deg, transparent 0%, #f7f9fc 100%);
+    inset: 0;
+    background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(99, 102, 241, 0.07) 0%, transparent 70%);
     pointer-events: none;
 }
+.hero::after { display: none; }
 .hero-grid { position: relative; z-index: 2; }
 
 .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: rgba(167, 139, 250, 0.15);
-    border: 1px solid rgba(167, 139, 250, 0.35);
-    color: #c7d2fe;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 8px 18px;
     border-radius: 999px;
     margin-bottom: 24px;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
 }
 
 .hero h1 {
@@ -51,15 +44,12 @@
     font-weight: 800;
     line-height: 1.1;
     letter-spacing: -0.025em;
-    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #0f172a;
 }
 
 .hero p {
     font-size: 1.15rem;
-    color: #94a3b8;
+    color: #64748b;
     margin: 0 auto 36px;
     max-width: 600px;
     line-height: 1.7;
@@ -74,28 +64,28 @@
 }
 
 .btn-hero-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     color: white;
     padding: 14px 32px;
     border-radius: 12px;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 0.98rem;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    box-shadow: 0 10px 30px -8px rgba(99, 102, 241, 0.6), inset 0 1px 0 rgba(255,255,255,0.15);
+    box-shadow: 0 8px 24px -4px rgba(37, 99, 235, 0.45);
     transition: transform .2s ease, box-shadow .2s ease;
 }
 .btn-hero-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 40px -8px rgba(99, 102, 241, 0.8), inset 0 1px 0 rgba(255,255,255,0.2);
+    box-shadow: 0 16px 36px -8px rgba(37, 99, 235, 0.65);
 }
 
 .btn-hero-secondary {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: white;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #374151;
     padding: 13px 28px;
     border-radius: 12px;
     font-weight: 600;
@@ -104,13 +94,12 @@
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
     transition: background .2s ease, border-color .2s ease;
 }
 .btn-hero-secondary:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.35);
+    background: #f8fafc;
+    border-color: #cbd5e1;
 }
 
 .hero-stats-row {
@@ -118,34 +107,25 @@
     align-items: center;
     justify-content: center;
     gap: 18px;
-    color: #64748b;
+    color: #94a3b8;
     font-size: 0.92rem;
 }
-.hero-stat span { color: #e2e8f0; font-weight: 700; }
-.hero-stat-sep { color: #334155; }
+.hero-stat span { color: #0f172a; font-weight: 700; }
+.hero-stat-sep { color: #cbd5e1; }
 
 /* ─── Hero Kişisel (Logged In) ────────────────────────── */
 .hero-kisisel {
-    background:
-        radial-gradient(ellipse 60% 50% at 80% 30%, rgba(99, 102, 241, 0.3) 0%, transparent 70%),
-        linear-gradient(135deg, #0a0e27 0%, #111738 50%, #1e1b4b 100%);
+    background: linear-gradient(180deg, #f0f4ff 0%, #eff6ff 100%);
+    color: #0f172a;
     padding: 64px 0;
     position: relative;
     overflow: hidden;
+    border-bottom: 1px solid #e0e7ff;
 }
-.hero-kisisel::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: linear-gradient(180deg, transparent 0%, #f7f9fc 100%);
-    pointer-events: none;
-}
+.hero-kisisel::after { display: none; }
 .hero-kisisel-ic { position: relative; z-index: 2; }
 .hosgeldin-baslik span {
-    background: linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;

@@ -24,6 +24,7 @@ function kursBicimlendir(kurs) {
         id:        degerler.id,
         baslik:    degerler.baslik,
         alt_baslik: degerler.alt_baslik || '',
+        kapak_fotografi: degerler.kapak_fotografi || null,
         fiyat:     degerler.fiyat ? parseFloat(degerler.fiyat).toFixed(2) : '0.00',
         seviye:    degerler.seviye || 'Başlangıç',
         egitmen: egitmen ? {
@@ -63,7 +64,7 @@ async function _enPopulerKurslariGetir(sinir = 8) {
     const kurslar = await Course.findAll({
         where: { durum: 'yayinda', silindi_mi: false },
         attributes: [
-            'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
+            'id', 'baslik', 'alt_baslik', 'kapak_fotografi', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
             [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
@@ -86,17 +87,27 @@ async function _enPopulerKurslariGetir(sinir = 8) {
  */
 async function _populerKategorileriGetir(sinir = 6) {
     // Kategori başına toplam benzersiz öğrenci ve kurs sayısını hesapla
+    // Yıldız ortalamasını ayrı subquery ile hesaplıyoruz; aksi halde
+    // kurs_kayitlari ile yorumlar JOIN'i AVG'yi enrollment sayısıyla çarpıtırdı.
     const populerKategoriler = await sequelize.query(
         `SELECT
             kat.id,
             kat.ad,
             kat.slug,
+            kat.kapak_fotografi,
+            kat.aciklama,
             COUNT(DISTINCT kk.ogrenci_id) AS toplam_kayit,
-            COUNT(DISTINCT kk.kurs_id)    AS kurs_sayisi
+            COUNT(DISTINCT kk.kurs_id)    AS kurs_sayisi,
+            COALESCE((
+                SELECT ROUND(AVG(y.puan), 2)
+                FROM yorumlar y
+                INNER JOIN kurslar k2 ON y.kurs_id = k2.id
+                WHERE k2.kategori_id = kat.id AND k2.durum = 'yayinda'
+            ), 0.00) AS yildiz_ortalamasi
          FROM kategoriler kat
          INNER JOIN kurslar k         ON k.kategori_id = kat.id AND k.durum = 'yayinda'
          INNER JOIN kurs_kayitlari kk ON kk.kurs_id = k.id
-         GROUP BY kat.id, kat.ad, kat.slug
+         GROUP BY kat.id, kat.ad, kat.slug, kat.kapak_fotografi, kat.aciklama
          ORDER BY toplam_kayit DESC
          LIMIT :sinir`,
         { replacements: { sinir }, type: QueryTypes.SELECT }
@@ -109,7 +120,7 @@ async function _populerKategorileriGetir(sinir = 6) {
     const ornekKurslar = await Course.findAll({
         where: { kategori_id: { [Op.in]: kategoriIdleri }, durum: 'yayinda' },
         attributes: [
-            'id', 'baslik', 'fiyat', 'seviye', 'kategori_id',
+            'id', 'baslik', 'kapak_fotografi', 'fiyat', 'seviye', 'kategori_id',
             [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
@@ -130,9 +141,12 @@ async function _populerKategorileriGetir(sinir = 6) {
     });
 
     return populerKategoriler.map(kat => ({
-        id:   kat.id,
-        ad:   kat.ad,
-        slug: kat.slug,
+        id:               kat.id,
+        ad:               kat.ad,
+        slug:             kat.slug,
+        kapak_fotografi:  kat.kapak_fotografi || null,
+        aciklama:         kat.aciklama || null,
+        yildiz_ortalamasi: parseFloat(kat.yildiz_ortalamasi || 0),
         istatistikler: {
             toplam_kayit: parseInt(kat.toplam_kayit),
             kurs_sayisi:  parseInt(kat.kurs_sayisi)
@@ -151,6 +165,7 @@ async function _birlikteAlinanKurslariGetir(tohumKursId, sinir = 8) {
             k.id,
             k.baslik,
             k.alt_baslik,
+            k.kapak_fotografi,
             k.fiyat,
             k.seviye,
             k.egitmen_id,
@@ -171,7 +186,7 @@ async function _birlikteAlinanKurslariGetir(tohumKursId, sinir = 8) {
          INNER JOIN kategoriler kat ON k.kategori_id  = kat.id
          WHERE kk1.kurs_id = :tohumKursId
          GROUP BY
-             k.id, k.baslik, k.alt_baslik, k.fiyat, k.seviye,
+             k.id, k.baslik, k.alt_baslik, k.kapak_fotografi, k.fiyat, k.seviye,
              k.egitmen_id, k.kategori_id, p.ad, p.soyad, kat.ad
          ORDER BY birlikte_alinma_sayisi DESC
          LIMIT :sinir`,
@@ -216,7 +231,7 @@ async function _kategoriCarprazGetir(tohumKategoriId, sinir = 5) {
     const ornekKurslar = await Course.findAll({
         where: { kategori_id: { [Op.in]: carprazKatIdleri }, durum: 'yayinda' },
         attributes: [
-            'id', 'baslik', 'fiyat', 'seviye', 'kategori_id',
+            'id', 'baslik', 'kapak_fotografi', 'fiyat', 'seviye', 'kategori_id',
             [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
@@ -251,7 +266,7 @@ async function _enCokBegenilenGetir(sinir = 8, minYorum = 5) {
     const kurslar = await Course.findAll({
         where: { durum: 'yayinda', silindi_mi: false },
         attributes: [
-            'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
+            'id', 'baslik', 'alt_baslik', 'kapak_fotografi', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum'],
             [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci']
@@ -572,7 +587,7 @@ exports.getPersonalizedRecommendations = async (req, res, next) => {
         const oneriler = await Course.findAll({
             where: whereKosulu,
             attributes: [
-                'id', 'baslik', 'alt_baslik', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
+                'id', 'baslik', 'alt_baslik', 'kapak_fotografi', 'fiyat', 'seviye', 'egitmen_id', 'kategori_id',
                 [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
                 [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
                 [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']

@@ -101,11 +101,28 @@
                 </div>
             </div>
 
+            <!-- Sekme: Devam Eden / Tamamlanan -->
+            <div class="lh-tabs" id="lhTabs" role="tablist">
+                <button type="button" class="lh-tab active" data-filter="ongoing" role="tab" aria-selected="true">
+                    <i class="fas fa-play-circle"></i> Devam Eden Eğitimlerim
+                    <span class="lh-tab-count" id="lhCntOngoing">0</span>
+                </button>
+                <button type="button" class="lh-tab" data-filter="completed" role="tab" aria-selected="false">
+                    <i class="fas fa-check-circle"></i> Tamamlanan Eğitimlerim
+                    <span class="lh-tab-count" id="lhCntCompleted">0</span>
+                </button>
+            </div>
+
             <div id="enrolledCourses" class="lh-course-grid">
                 <div class="lh-loading">
                     <div class="lh-spinner"></div>
                     <p>Kurslarınız yükleniyor...</p>
                 </div>
+            </div>
+
+            <div id="lhEmptyFilter" class="lh-empty-filter" style="display:none;">
+                <i class="fas fa-folder-open"></i>
+                <p id="lhEmptyFilterText">Bu sekmede gösterilecek kurs bulunamadı.</p>
             </div>
         </section>
 
@@ -113,7 +130,7 @@
 
     <script src="/assets/js/api.js"></script>
     <script src="/main/js/main.js"></script>
-    <script src="/main/js/loadNavbar.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
     <script src="/student/js/student.js"></script>
 </body>
 </html>

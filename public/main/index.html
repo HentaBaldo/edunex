@@ -17,29 +17,65 @@
 
     <main>
 
-        <!-- ─── HERO: Giriş Yapılmamış ─────────────────────────────── -->
+        <!-- ─── 1. HERO: Giriş Yapılmamış ───────────────────────────── -->
         <section class="hero" id="heroLoggedOut">
-            <div class="container hero-grid">
-                <div class="hero-content">
-                    <div class="hero-badge"><i class="fas fa-bolt"></i> Türkiye'nin Yeni Nesil Eğitim Platformu</div>
-                    <h1>Uzmanlığınızı Paylaşın,<br>Geleceği Şekillendirin</h1>
-                    <p>EduNex, uzman eğitmenler ile öğrenmeye istekli bireyleri bir araya getiren yeni nesil eğitim pazaryeridir.</p>
-                    <div class="hero-actions">
-                        <a href="/main/courses.html" class="btn-hero-primary"><i class="fas fa-search"></i> Eğitimleri Keşfet</a>
-                        <a href="/auth/index.html" class="btn-hero-secondary"><i class="fas fa-chalkboard-teacher"></i> Eğitmen Ol</a>
+            <div class="container">
+                <div class="hero-grid">
+                    <div class="hero-content">
+                        <div class="hero-badge"><i class="fas fa-bolt"></i> Türkiye'nin Yeni Nesil Eğitim Platformu</div>
+                        <h1>Uzmanlığınızı Paylaşın,<br>Geleceği Şekillendirin</h1>
+                        <p>EduNex, uzman eğitmenler ile öğrenmeye istekli bireyleri bir araya getiren yeni nesil eğitim pazaryeridir.</p>
+                        <div class="hero-actions">
+                            <a href="/main/courses.html" class="btn-hero-primary"><i class="fas fa-search"></i> Eğitimleri Keşfet</a>
+                            <a href="/auth/index.html" class="btn-hero-secondary"><i class="fas fa-chalkboard-teacher"></i> Eğitmen Ol</a>
+                        </div>
+                        <div class="hero-stats-row">
+                            <div class="hero-stat"><span>10.000+</span> Öğrenci</div>
+                            <div class="hero-stat-sep">·</div>
+                            <div class="hero-stat"><span>500+</span> Kurs</div>
+                            <div class="hero-stat-sep">·</div>
+                            <div class="hero-stat"><span>200+</span> Eğitmen</div>
+                        </div>
                     </div>
-                    <div class="hero-stats-row">
-                        <div class="hero-stat"><span>10.000+</span> Öğrenci</div>
-                        <div class="hero-stat-sep">·</div>
-                        <div class="hero-stat"><span>500+</span> Kurs</div>
-                        <div class="hero-stat-sep">·</div>
-                        <div class="hero-stat"><span>200+</span> Eğitmen</div>
+                    <div class="hero-visual" aria-hidden="true">
+                        <div class="hero-stat-karti">
+                            <div class="hero-stat-satirlar">
+                                <div class="hero-stat-satir">
+                                    <div class="hero-stat-satir-ikon" style="background:#fff7ed"><i class="fas fa-fire" style="color:#f97316"></i></div>
+                                    <div>
+                                        <div class="hero-stat-satir-sayi">10.000+</div>
+                                        <div class="hero-stat-satir-label">Aktif Öğrenci</div>
+                                    </div>
+                                </div>
+                                <div class="hero-stat-satir">
+                                    <div class="hero-stat-satir-ikon" style="background:#e0f2fe"><i class="fas fa-play-circle" style="color:#0ea5e9"></i></div>
+                                    <div>
+                                        <div class="hero-stat-satir-sayi">500+</div>
+                                        <div class="hero-stat-satir-label">Kurs İçeriği</div>
+                                    </div>
+                                </div>
+                                <div class="hero-stat-satir">
+                                    <div class="hero-stat-satir-ikon" style="background:#f0fdf4"><i class="fas fa-chalkboard-teacher" style="color:#16a34a"></i></div>
+                                    <div>
+                                        <div class="hero-stat-satir-sayi">200+</div>
+                                        <div class="hero-stat-satir-label">Uzman Eğitmen</div>
+                                    </div>
+                                </div>
+                                <div class="hero-stat-satir">
+                                    <div class="hero-stat-satir-ikon" style="background:#faf5ff"><i class="fas fa-certificate" style="color:#7c3aed"></i></div>
+                                    <div>
+                                        <div class="hero-stat-satir-sayi">%95</div>
+                                        <div class="hero-stat-satir-label">Memnuniyet Oranı</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ─── HERO: Giriş Yapılmış ────────────────────────────────── -->
+        <!-- ─── 1b. HERO: Giriş Yapılmış ─────────────────────────────── -->
         <section class="hero hero-kisisel" id="heroLoggedIn" style="display:none;">
             <div class="container">
                 <div class="hero-kisisel-ic">
@@ -72,101 +108,33 @@
             </div>
         </section>
 
-        <!-- ─── CANLI DERSLER ──────────────────────────────────────── -->
-        <section id="canliDerslerSection" class="canli-dersler-bolumu" style="display:none;">
-            <div class="container">
-                <header class="section-header canli-baslik">
-                    <div class="oneri-etiket" style="background: linear-gradient(135deg, #ff4757, #ff6348);"><i class="fas fa-dot-circle"></i> Canlı</div>
-                    <h2>Canlı Dersler</h2>
-                    <p>Eğitmenleriniz ile gerçek zamanlı eğitim al</p>
-                </header>
-
-                <!-- ─── ŞU AN YAYINDA ─── -->
-                <div class="canli-alt-bolum">
-                    <h3 class="canli-alt-baslik"><i class="fas fa-circle" style="color:#ff4757;margin-right:8px;"></i>Şu An Yayında</h3>
-                    <div id="devamEdenlerGrid" class="canli-kartlar-grid">
-                        <div class="loading-state"><p>Canlı dersler kontrol ediliyor...</p></div>
-                    </div>
-                </div>
-
-                <!-- ─── YAKLAŞAN DERSLER ─── -->
-                <div class="canli-alt-bolum">
-                    <h3 class="canli-alt-baslik"><i class="fas fa-calendar-alt" style="color:#1e90ff;margin-right:8px;"></i>Yaklaşan Dersler</h3>
-                    <div id="planlananlarGrid" class="canli-kartlar-grid">
-                        <div class="loading-state"><p>Yaklaşan dersler yükleniyor...</p></div>
-                    </div>
+        <!-- ─── 2. GÜVENİLİRLİK ŞERİDİ ─────────────────────────────── -->
+        <div class="guven-seridi">
+            <div class="container guven-seridi-ic">
+                <span class="guven-label">Güvenilen Platform</span>
+                <div class="guven-markalar">
+                    <span class="guven-marka"><i class="fas fa-building"></i> Teknoloji Şirketleri</span>
+                    <span class="guven-ayirici">·</span>
+                    <span class="guven-marka"><i class="fas fa-university"></i> Üniversiteler</span>
+                    <span class="guven-ayirici">·</span>
+                    <span class="guven-marka"><i class="fas fa-briefcase"></i> KOBİ'ler</span>
+                    <span class="guven-ayirici">·</span>
+                    <span class="guven-marka"><i class="fas fa-star"></i> 4.8 / 5 Ortalama Puan</span>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- ─── SİZİN İÇİN ÖNERİLENLER (yalnızca giriş yapmış) ────── -->
-        <section id="recommendedSection" class="oneri-bolumu oneri-mor" style="display:none;">
-            <div class="container">
-                <header class="section-header oneri-baslik-beyaz">
-                    <div class="oneri-etiket"><i class="fas fa-magic"></i> Kişisel</div>
-                    <h2>Sizin İçin Önerilenler</h2>
-                    <p>İlgi alanlarınıza göre özel seçilen kurslar</p>
-                </header>
-                <div class="car-wrap">
-                    <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="recommendedGrid" class="car-track">
-                        <div class="loading-state oneri-yukleniyor"><p>Öneriler hazırlanıyor...</p></div>
-                    </div>
-                    <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── EN POPÜLER KURSLAR ────────────────────────────────── -->
-        <section class="oneri-bolumu oneri-gri">
-            <div class="container">
-                <header class="section-header">
-                    <div class="oneri-etiket oneri-etiket-mavi"><i class="fas fa-fire"></i> Trend</div>
-                    <h2>En Popüler Kurslar</h2>
-                    <p>Bu hafta en çok kayıt olunan kurslar</p>
-                </header>
-                <div class="car-wrap">
-                    <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="enPopulerGrid" class="car-track">
-                        <div class="loading-state"><p>Popüler kurslar yükleniyor...</p></div>
-                    </div>
-                    <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <div class="section-alt-link">
-                    <a href="/main/courses.html">Tüm Kursları Gör <i class="fas fa-arrow-right"></i></a>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── EN ÇOK BEĞENİLENLER ──────────────────────────────── -->
-        <section class="oneri-bolumu oneri-beyaz">
-            <div class="container">
-                <header class="section-header">
-                    <div class="oneri-etiket oneri-etiket-sari"><i class="fas fa-star"></i> En İyiler</div>
-                    <h2>En Çok Beğenilen Kurslar</h2>
-                    <p>Öğrenciler tarafından en yüksek puan alan kaliteli kurslar</p>
-                </header>
-                <div class="car-wrap">
-                    <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="enCokBegenilenGrid" class="car-track">
-                        <div class="loading-state"><p>En çok beğenilen kurslar yükleniyor...</p></div>
-                    </div>
-                    <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── POPÜLER KATEGORİLER ───────────────────────────────── -->
-        <section class="oneri-bolumu oneri-gri">
+        <!-- ─── 3. POPÜLER KATEGORİLER ───────────────────────────────── -->
+        <section class="kategori-bolumu">
             <div class="container">
                 <header class="section-header">
                     <div class="oneri-etiket oneri-etiket-yesil"><i class="fas fa-th-large"></i> Keşfet</div>
                     <h2>Popüler Kategoriler</h2>
-                    <p>En çok kurs satın alınan kategorileri ve öne çıkan kurslarını keşfedin</p>
+                    <p>En çok tercih edilen alanlarda kariyer adımı at</p>
                 </header>
                 <div class="car-wrap">
                     <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="populerKategorilerGrid" class="car-track">
+                    <div id="populerKategorilerGrid" class="car-track kat-car-track">
                         <div class="loading-state"><p>Kategoriler yükleniyor...</p></div>
                     </div>
                     <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
@@ -174,61 +142,134 @@
             </div>
         </section>
 
-        <!-- ─── EN POPÜLER EĞİTMENLER ────────────────────────────── -->
-        <section class="oneri-bolumu oneri-beyaz" id="egitmenlerSection">
+        <!-- ─── 4. CANLI DERSLER (Koyu Şerit) ───────────────────────── -->
+        <section id="canliDerslerSection" class="canli-dersler-bolumu" style="display:none;">
+            <div class="container">
+                <header class="section-header canli-baslik">
+                    <div class="oneri-etiket"><i class="fas fa-dot-circle"></i> Canlı</div>
+                    <h2>Canlı Dersler</h2>
+                    <p>Eğitmenleriniz ile gerçek zamanlı eğitim al</p>
+                </header>
+                <div class="canli-alt-bolum">
+                    <h3 class="canli-alt-baslik"><i class="fas fa-circle" style="color:#ff4757;margin-right:8px;"></i>Şu An Yayında</h3>
+                    <div id="devamEdenlerGrid" class="canli-kartlar-grid">
+                        <div class="loading-state"><p>Canlı dersler kontrol ediliyor...</p></div>
+                    </div>
+                </div>
+                <div class="canli-alt-bolum">
+                    <h3 class="canli-alt-baslik"><i class="fas fa-calendar-alt" style="color:#60a5fa;margin-right:8px;"></i>Yaklaşan Dersler</h3>
+                    <div id="planlananlarGrid" class="canli-kartlar-grid">
+                        <div class="loading-state"><p>Yaklaşan dersler yükleniyor...</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── 5. ÖNERİ SEKMELERİ ──────────────────────────────────── -->
+        <section id="recommendation-center" class="recommendation-center-bolumu">
+            <div class="container">
+                <header class="tab-section-header">
+                    <h2>Kurs Önerileri</h2>
+                    <p>Sizin için derlenen en iyi eğitim içerikleri</p>
+                </header>
+
+                <div class="tab-navigation" id="tabNavigation">
+                    <button class="tab-btn" id="tab-btn-sizin-icin" onclick="switchTab('tab-sizin-icin', this)" style="display:none;">Sizin İçin</button>
+                    <button class="tab-btn active" id="tab-btn-populer" onclick="switchTab('tab-populer', this)">En Popüler</button>
+                    <button class="tab-btn" onclick="switchTab('tab-begenilen', this)">En Çok Beğenilen</button>
+                    <button class="tab-btn" onclick="switchTab('tab-egitmenler', this)">Eğitmenler</button>
+                    <button class="tab-btn" onclick="switchTab('tab-kesfet', this)">Keşfet</button>
+                </div>
+
+                <!-- Sekme: Sizin İçin -->
+                <div id="tab-sizin-icin" class="tab-pane">
+                    <div class="car-wrap">
+                        <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                        <div id="recommendedGrid" class="car-track">
+                            <div class="loading-state"><p>Öneriler hazırlanıyor...</p></div>
+                        </div>
+                        <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Sekme: En Popüler -->
+                <div id="tab-populer" class="tab-pane active">
+                    <div class="car-wrap">
+                        <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                        <div id="enPopulerGrid" class="car-track">
+                            <div class="loading-state"><p>Popüler kurslar yükleniyor...</p></div>
+                        </div>
+                        <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="section-alt-link">
+                        <a href="/main/courses.html">Tüm Kursları Gör <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+
+                <!-- Sekme: En Çok Beğenilen -->
+                <div id="tab-begenilen" class="tab-pane">
+                    <div class="car-wrap">
+                        <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                        <div id="enCokBegenilenGrid" class="car-track">
+                            <div class="loading-state"><p>En çok beğenilen kurslar yükleniyor...</p></div>
+                        </div>
+                        <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Sekme: Eğitmenler -->
+                <div id="tab-egitmenler" class="tab-pane">
+                    <div class="car-wrap">
+                        <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                        <div id="egitmenlerGrid" class="car-track">
+                            <div class="loading-state"><p>Eğitmenler yükleniyor...</p></div>
+                        </div>
+                        <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Sekme: Keşfet (Birlikte Alınan + Çapraz) -->
+                <div id="tab-kesfet" class="tab-pane">
+                    <div class="car-wrap">
+                        <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                        <div id="birlikteAlinanGrid" class="car-track">
+                            <div class="loading-state"><p>Öneriler hesaplanıyor...</p></div>
+                        </div>
+                        <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div id="kategoriCarprazPane" style="display:none;">
+                        <h3 class="tab-alt-baslik"><i class="fas fa-random"></i> Bu Kategoriden Alanlar Şuradan da Aldı</h3>
+                        <div class="car-wrap">
+                            <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                            <div id="kategoriCarprazGrid" class="car-track">
+                                <div class="loading-state"><p>Çapraz öneriler hesaplanıyor...</p></div>
+                            </div>
+                            <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── 6. ÖĞRENCİ YORUMLARI ────────────────────────────────── -->
+        <section id="recentReviewsSection" class="yorumlar-bolumu">
             <div class="container">
                 <header class="section-header">
-                    <div class="oneri-etiket oneri-etiket-mor"><i class="fas fa-chalkboard-teacher"></i> Uzmanlar</div>
-                    <h2>En Popüler Eğitmenler</h2>
-                    <p>Öğrenci sayısına göre platformumuzun en çok tercih edilen eğitmenleri</p>
+                    <div class="oneri-etiket oneri-etiket-sari"><i class="fas fa-star"></i> Öğrencilerimiz</div>
+                    <h2>Öğrencilerimiz Ne Diyor?</h2>
+                    <p>Binlerce öğrencimizin gerçek deneyimlerinden bir kesit</p>
                 </header>
-                <div class="car-wrap">
-                    <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="egitmenlerGrid" class="car-track">
-                        <div class="loading-state"><p>Eğitmenler yükleniyor...</p></div>
+                <div class="review-car-wrap">
+                    <button class="car-btn car-btn-l" onclick="reviewCarScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                    <div id="recentReviewsGrid" class="review-car-track">
+                        <div class="review-card-home" style="flex:0 0 100%;"><div class="loading-state"><p>Yorumlar yükleniyor...</p></div></div>
                     </div>
-                    <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    <button class="car-btn car-btn-r" onclick="reviewCarScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
         </section>
 
-        <!-- ─── BUNU ALANLAR ŞUNU DA ALDI ────────────────────────── -->
-        <section class="oneri-bolumu oneri-koyu">
-            <div class="container">
-                <header class="section-header oneri-baslik-beyaz">
-                    <div class="oneri-etiket oneri-etiket-turuncu"><i class="fas fa-users"></i> Birlikte Alınan</div>
-                    <h2>Bunu Alanlar Şunu da Aldı</h2>
-                    <p>Benzer ilgi alanlarına sahip öğrencilerin tercih ettiği kurslar</p>
-                </header>
-                <div class="car-wrap">
-                    <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="birlikteAlinanGrid" class="car-track">
-                        <div class="loading-state oneri-yukleniyor"><p>Öneriler hesaplanıyor...</p></div>
-                    </div>
-                    <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── KATEGORİ ÇAPRAZ ÖNERİ ─────────────────────────────── -->
-        <section id="kategoriCarprazSection" class="oneri-bolumu oneri-gri" style="display:none;">
-            <div class="container">
-                <header class="section-header">
-                    <div class="oneri-etiket oneri-etiket-mor"><i class="fas fa-random"></i> Çapraz</div>
-                    <h2>Bu Kategoriden Alanlar Şuradan da Aldı</h2>
-                    <p>Seçtiğiniz kategorideki öğrencilerin ilgi gösterdiği diğer alanlar</p>
-                </header>
-                <div class="car-wrap">
-                    <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
-                    <div id="kategoriCarprazGrid" class="car-track">
-                        <div class="loading-state"><p>Çapraz öneriler hesaplanıyor...</p></div>
-                    </div>
-                    <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── NEDEN EDUNEX ──────────────────────────────────────── -->
+        <!-- ─── 7. NEDEN EDUNEX ───────────────────────────────────────── -->
         <section class="features">
             <div class="container features-grid">
                 <div class="feature-card">
