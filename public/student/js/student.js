@@ -55,6 +55,11 @@ async function loadDashboardCartBadge() {
     } catch { /* sessiz */ }
 }
 
+// Sekme filtresi durumu (Devam eden / Tamamlanan)
+const COMPLETION_THRESHOLD = 80; // %80 ve üzeri tamamlanmış sayılır
+let _enrolledCourses = [];
+let _activeProgressTab = 'ongoing';
+
 async function loadDashboardData() {
     const grid = document.getElementById('enrolledCourses');
     if (!grid) return;
@@ -74,23 +79,18 @@ async function loadDashboardData() {
         }
 
         // --- Kurslar Grid ---
-        if (!data.kurslar || data.kurslar.length === 0) {
+        _enrolledCourses = data.kurslar || [];
+
+        if (_enrolledCourses.length === 0) {
             renderEmptyState(grid);
+            const tabs = document.getElementById('lhTabs');
+            if (tabs) tabs.style.display = 'none';
             return;
         }
 
-        grid.innerHTML = '';
-        data.kurslar.forEach(course => {
-            grid.insertAdjacentHTML('beforeend', buildCourseCard(course));
-        });
-
-        // Progress bar animasyonu
-        requestAnimationFrame(() => {
-            document.querySelectorAll('.lh-bar-fill[data-progress]').forEach(bar => {
-                const pct = bar.dataset.progress;
-                setTimeout(() => { bar.style.width = pct + '%'; }, 100);
-            });
-        });
+        renderProgressCounters(_enrolledCourses);
+        wireProgressTabs();
+        applyProgressFilter(_activeProgressTab);
 
     } catch (error) {
         console.error('[DASHBOARD] Veri yüklenemedi:', error);
@@ -102,6 +102,67 @@ async function loadDashboardData() {
             </div>
         `;
     }
+}
+
+function _isCompleted(course) {
+    return Math.round(course.ilerleme_yuzdesi || 0) >= COMPLETION_THRESHOLD;
+}
+
+function renderProgressCounters(list) {
+    const completed = list.filter(_isCompleted).length;
+    const ongoing = list.length - completed;
+    const c1 = document.getElementById('lhCntOngoing');
+    const c2 = document.getElementById('lhCntCompleted');
+    if (c1) c1.textContent = ongoing;
+    if (c2) c2.textContent = completed;
+}
+
+function wireProgressTabs() {
+    const tabs = document.querySelectorAll('#lhTabs .lh-tab');
+    tabs.forEach(tab => {
+        if (tab.dataset.bound === '1') return;
+        tab.dataset.bound = '1';
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            _activeProgressTab = tab.dataset.filter;
+            applyProgressFilter(_activeProgressTab);
+        });
+    });
+}
+
+function applyProgressFilter(filter) {
+    const grid = document.getElementById('enrolledCourses');
+    const empty = document.getElementById('lhEmptyFilter');
+    const emptyText = document.getElementById('lhEmptyFilterText');
+    if (!grid) return;
+
+    const filtered = filter === 'completed'
+        ? _enrolledCourses.filter(_isCompleted)
+        : _enrolledCourses.filter(c => !_isCompleted(c));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        if (empty) empty.style.display = 'flex';
+        if (emptyText) {
+            emptyText.textContent = filter === 'completed'
+                ? 'Henüz tamamladığınız bir eğitim yok. Öğrenmeye devam edin!'
+                : 'Devam eden eğitiminiz yok. Tamamlanan eğitimleri sekmeden inceleyebilirsiniz.';
+        }
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    grid.innerHTML = filtered.map(buildCourseCard).join('');
+
+    // Progress bar animasyonu
+    requestAnimationFrame(() => {
+        grid.querySelectorAll('.lh-bar-fill[data-progress]').forEach(bar => {
+            const pct = bar.dataset.progress;
+            setTimeout(() => { bar.style.width = pct + '%'; }, 80);
+        });
+    });
 }
 
 function renderResumeCard(course) {
@@ -141,16 +202,28 @@ function buildCourseCard(course) {
     const progress = Math.round(course.ilerleme_yuzdesi || 0);
     const title = escapeHtml(course.baslik || 'Başlıksız Kurs');
     const instructor = escapeHtml(course.egitmen || 'Bilinmeyen Eğitmen');
+    const isCompleted = progress >= COMPLETION_THRESHOLD;
 
     const thumbHtml = course.kapak_fotografi
         ? `<div class="lh-card-thumb" style="background-image:url('${course.kapak_fotografi}');background-size:cover;background-position:center;"></div>`
         : `<div class="lh-card-thumb lh-card-thumb--placeholder"><i class="fas fa-play-circle"></i></div>`;
 
-    const progressColor = progress >= 100 ? '#16a34a' : progress > 0 ? 'var(--primary-color)' : '#cbd5e1';
+    const progressColor = isCompleted ? '#16a34a' : progress > 0 ? 'var(--primary-color)' : '#cbd5e1';
+    const statusBadge = isCompleted
+        ? '<span class="lh-status-badge lh-status-completed"><i class="fas fa-check-circle"></i> Tamamlandı</span>'
+        : (progress > 0
+            ? '<span class="lh-status-badge lh-status-ongoing"><i class="fas fa-play"></i> Devam Ediyor</span>'
+            : '<span class="lh-status-badge lh-status-new"><i class="fas fa-flag"></i> Henüz Başlanmadı</span>');
+
+    const ctaLabel = isCompleted ? 'Tekrar İzle' : (progress > 0 ? 'Devam Et' : 'Öğrenmeye Başla');
+    const ctaIcon  = isCompleted ? 'fa-redo' : 'fa-play';
 
     return `
         <div class="lh-course-card">
-            ${thumbHtml}
+            <div class="lh-card-thumb-wrap">
+                ${thumbHtml}
+                ${statusBadge}
+            </div>
             <div class="lh-card-body">
                 <h3 class="lh-card-title">${title}</h3>
                 <p class="lh-card-instructor">
@@ -163,8 +236,8 @@ function buildCourseCard(course) {
                     <span class="lh-progress-label">%${progress} Tamamlandı</span>
                 </div>
                 <div class="lh-card-actions">
-                    <a href="/main/course-detail.html?id=${course.kurs_id}" class="lh-btn-continue">
-                        <i class="fas fa-info-circle"></i> Kurs Detayı
+                    <a href="/student/learning-room.html?id=${course.kurs_id}" class="lh-btn-continue lh-btn-continue--primary">
+                        <i class="fas ${ctaIcon}"></i> ${ctaLabel}
                     </a>
                     <button onclick="unenrollCourse('${course.kurs_id}')" class="lh-btn-unenroll" title="Kurstan Ayrıl">
                         <i class="fas fa-times"></i>

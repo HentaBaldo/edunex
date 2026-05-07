@@ -21,6 +21,19 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.UUID,
         allowNull: true,
       },
+      kapak_fotografi: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+      },
+      aciklama: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      yildiz: {
+        type: DataTypes.DECIMAL(3, 2),
+        allowNull: false,
+        defaultValue: 0.00,
+      },
     },
     {
       tableName: 'kategoriler'
@@ -29,4 +42,3 @@ module.exports = (sequelize, DataTypes) => {
 
   return Category;
 };
-

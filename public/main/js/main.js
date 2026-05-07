@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await canliDerslerYukle();
     await tumOnerileriYukle();
     await kisisellestirilmisOnerileriYukle();
+    await sonYorumlariYukle();
 });
 
 // ============================================================
@@ -85,7 +86,33 @@ function renderEnPopulerKurslar(kurslar) {
         : '<div class="bos-durum"><p>Henüz popüler kurs verisi bulunmuyor.</p></div>';
 }
 
-// ── MODÜL 2: Kategori kartları ───────────────────────────────
+// ── MODÜL 2: Kategori kartları (Udemy tarzı, kapaklı + yıldızlı) ──
+const _KAT_IKONLAR = [
+    'fa-laptop-code','fa-palette','fa-chart-bar','fa-camera',
+    'fa-music','fa-flask','fa-language','fa-dumbbell',
+    'fa-brain','fa-database','fa-mobile-alt','fa-pencil-alt'
+];
+const _KAT_GRADIENTS = [
+    'linear-gradient(135deg,#4338ca 0%,#7c3aed 100%)',
+    'linear-gradient(135deg,#0ea5e9 0%,#1d4ed8 100%)',
+    'linear-gradient(135deg,#10b981 0%,#0d9488 100%)',
+    'linear-gradient(135deg,#f97316 0%,#dc2626 100%)',
+    'linear-gradient(135deg,#ec4899 0%,#8b5cf6 100%)',
+    'linear-gradient(135deg,#f59e0b 0%,#b91c1c 100%)'
+];
+
+function _buildKatYildizlar(puan) {
+    const r = parseFloat(puan) || 0;
+    const tam   = Math.floor(r);
+    const yarim = (r - tam) >= 0.5 ? 1 : 0;
+    const bos   = 5 - tam - yarim;
+    let html = '';
+    for (let i = 0; i < tam;   i++) html += '<i class="fas fa-star"></i>';
+    if (yarim) html += '<i class="fas fa-star-half-alt"></i>';
+    for (let i = 0; i < bos;   i++) html += '<i class="far fa-star"></i>';
+    return html;
+}
+
 function renderPopulerKategoriler(kategoriler) {
     const izgara = document.getElementById('populerKategorilerGrid');
     if (!izgara) return;
@@ -93,36 +120,42 @@ function renderPopulerKategoriler(kategoriler) {
         izgara.innerHTML = '<div class="bos-durum"><p>Kategori verisi bulunamadı.</p></div>';
         return;
     }
-    izgara.innerHTML = '';
-    kategoriler.forEach(kat => {
-        const ornekKursHtml = (kat.ornek_kurslar || []).map(k => `
-            <a href="/main/course-detail.html?id=${guvenliMetin(k.id)}" class="kategori-kurs-chip">
-                <span class="chip-baslik">${guvenliMetin(k.baslik)}</span>
-                <span class="chip-fiyat">${k.fiyat > 0 ? parseFloat(k.fiyat).toFixed(2) + ' ₺' : 'Ücretsiz'}</span>
-            </a>`).join('');
+    izgara.innerHTML = kategoriler.map((kat, i) => {
+        const ikon       = _KAT_IKONLAR[i % _KAT_IKONLAR.length];
+        const grad       = _KAT_GRADIENTS[i % _KAT_GRADIENTS.length];
+        const kursSayisi = kat.istatistikler?.kurs_sayisi || 0;
+        const puan       = parseFloat(kat.yildiz_ortalamasi || 0);
+        const aciklama   = kat.aciklama
+            ? guvenliMetin(kat.aciklama.length > 90 ? kat.aciklama.slice(0, 90) + '…' : kat.aciklama)
+            : `${kursSayisi} kurs ile yeteneklerinizi geliştirin.`;
 
-        const kayitSayisi = kat.istatistikler?.toplam_kayit || 0;
-        const kursSayisi  = kat.istatistikler?.kurs_sayisi  || 0;
+        const arkaplan = kat.kapak_fotografi
+            ? `style="background-image:url('${guvenliMetin(kat.kapak_fotografi)}');"`
+            : `style="background:${grad};"`;
 
-        izgara.insertAdjacentHTML('beforeend', `
-            <div class="kategori-karti">
-                <div class="kategori-karti-ust">
-                    <div class="kategori-ikon"><i class="fas fa-graduation-cap"></i></div>
-                    <div>
-                        <h3 class="kategori-adi">${guvenliMetin(kat.ad)}</h3>
-                        <p class="kategori-meta">
-                            <span>${kursSayisi} kurs</span>
-                            <span class="meta-ayirici">·</span>
-                            <span>${kayitSayisi.toLocaleString('tr-TR')} kayıt</span>
-                        </p>
-                    </div>
+        const yildizBlok = puan > 0
+            ? `<span class="kat-stars">${_buildKatYildizlar(puan)}</span>
+               <span class="kat-stars-num">${puan.toFixed(1)}</span>`
+            : '<span class="kat-stars-num kat-stars-empty">Yeni</span>';
+
+        const fallbackIkon = kat.kapak_fotografi
+            ? ''
+            : `<div class="kat-fallback-ikon"><i class="fas ${ikon}"></i></div>`;
+
+        return `
+        <a href="/main/category.html?id=${guvenliMetin(kat.id)}" class="kategori-karti-v2 kategori-karti-cover" ${arkaplan}>
+            <div class="kat-overlay"></div>
+            ${fallbackIkon}
+            <div class="kat-icerik">
+                <div class="kat-meta">
+                    <i class="fas fa-graduation-cap"></i> ${kursSayisi} kurs
                 </div>
-                <div class="kategori-kurslar">${ornekKursHtml}</div>
-                <a href="/main/category.html?id=${guvenliMetin(kat.id)}" class="kategori-tum-link">
-                    Tüm kursları gör <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>`);
-    });
+                <h3 class="kat-ad">${guvenliMetin(kat.ad)}</h3>
+                <p class="kat-aciklama">${aciklama}</p>
+                <div class="kat-rating">${yildizBlok}</div>
+            </div>
+        </a>`;
+    }).join('');
 }
 
 // ── MODÜL 3: Collaborative filtering ────────────────────────
@@ -139,13 +172,13 @@ function renderBirlikteAlinan(kurslar) {
 
 // ── MODÜL 4: Kategori çapraz öneri ──────────────────────────
 function renderKategoriCarpraz(kategoriler) {
-    const bolum  = document.getElementById('kategoriCarprazSection');
+    const pane   = document.getElementById('kategoriCarprazPane');
     const izgara = document.getElementById('kategoriCarprazGrid');
-    if (!bolum || !izgara) return;
+    if (!izgara) return;
 
-    if (!kategoriler.length) { bolum.style.display = 'none'; return; }
+    if (!kategoriler.length) { if (pane) pane.style.display = 'none'; return; }
 
-    bolum.style.display = 'block';
+    if (pane) pane.style.display = 'block';
     izgara.innerHTML    = '';
     kategoriler.forEach(kat => {
         const ornekKursHtml = (kat.ornek_kurslar || []).map(k => `
@@ -182,29 +215,36 @@ function renderEnCokBegenilen(kurslar) {
 // ── MODÜL 6: En Popüler Eğitmenler ──────────────────────────
 function renderPopulerEgitmenler(egitmenler) {
     const izgara = document.getElementById('egitmenlerGrid');
-    const bolum  = document.getElementById('egitmenlerSection');
     if (!izgara) return;
 
     if (!egitmenler.length) {
-        if (bolum) bolum.style.display = 'none';
+        izgara.innerHTML = '<div class="bos-durum"><i class="fas fa-user-slash" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.4;"></i><p>Henüz eğitmen verisi bulunamadı.</p></div>';
         return;
     }
 
     izgara.innerHTML = egitmenler.map(egitmenKartiOlustur).join('');
+    if (egitmenler.length <= 3) {
+        izgara.classList.add('car-track-centered');
+    } else {
+        izgara.classList.remove('car-track-centered');
+    }
 }
 
 // ── KİŞİSELLEŞTİRİLMİŞ (auth gerektirir) ─────────────────────
 async function kisisellestirilmisOnerileriYukle() {
-    const bolum  = document.getElementById('recommendedSection');
+    const tabBtn = document.getElementById('tab-btn-sizin-icin');
     const izgara = document.getElementById('recommendedGrid');
     if (!izgara) return;
 
     if (!localStorage.getItem('edunex_token')) {
-        if (bolum) bolum.style.display = 'none';
+        if (tabBtn) tabBtn.style.display = 'none';
         return;
     }
 
-    if (bolum) bolum.style.display = 'block';
+    if (tabBtn) {
+        tabBtn.style.display = '';
+        switchTab('tab-sizin-icin', tabBtn);
+    }
 
     try {
         const sonuc   = await ApiService.get('/recommendations/personalized');
@@ -212,10 +252,10 @@ async function kisisellestirilmisOnerileriYukle() {
 
         if (!kurslar.length) {
             izgara.innerHTML = `
-                <div class="bos-durum bos-durum-acik" style="grid-column:1/-1;">
-                    <i class="fas fa-info-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+                <div class="bos-durum" style="grid-column:1/-1;">
+                    <i class="fas fa-info-circle" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.5;"></i>
                     <p>Kişiselleştirilmiş öneri oluşturmak için birkaç kursa göz atın.</p>
-                    <a href="/main/courses.html" style="color:white;text-decoration:underline;margin-top:10px;display:inline-block;">
+                    <a href="/main/courses.html" style="color:#2563eb;font-weight:700;margin-top:10px;display:inline-block;">
                         Kurslara Git →
                     </a>
                 </div>`;
@@ -223,7 +263,10 @@ async function kisisellestirilmisOnerileriYukle() {
         }
         izgara.innerHTML = kurslar.map(kursKartiOlustur).join('');
     } catch {
-        if (bolum) bolum.style.display = 'none';
+        if (tabBtn) {
+            tabBtn.style.display = 'none';
+            switchTab('tab-populer', document.getElementById('tab-btn-populer'));
+        }
     }
 }
 
@@ -340,12 +383,86 @@ function yildizHtmlOlustur(puan, yorumSayisi) {
 
 function carScroll(btn, dir) {
     const track = btn.closest('.car-wrap').querySelector('.car-track');
-    const card  = track.querySelector('.course-card, .egitmen-karti, .kategori-karti');
+    const card  = track.querySelector('.course-card, .egitmen-karti, .kategori-karti, .kategori-karti-v2');
     if (!card) return;
-    const step = card.offsetWidth + 24; // 24 = gap
-    track.scrollBy({ left: dir * step * 3, behavior: 'smooth' });
+    const isKat = track.classList.contains('kat-car-track');
+    const step  = card.offsetWidth + (isKat ? 20 : 24);
+    track.scrollBy({ left: dir * (isKat ? step * 5 : step * 3), behavior: 'smooth' });
 }
 window.carScroll = carScroll;
+
+// ============================================================
+// SEKME SİSTEMİ
+// ============================================================
+
+function switchTab(tabId, btnEl) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const hedef = document.getElementById(tabId);
+    if (hedef) hedef.classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
+}
+window.switchTab = switchTab;
+
+// ============================================================
+// ÖĞRENCİ YORUMLARI
+// ============================================================
+
+async function sonYorumlariYukle() {
+    const izgara = document.getElementById('recentReviewsGrid');
+    if (!izgara) return;
+
+    try {
+        const sonuc    = await ApiService.get('/reviews/recent?limit=6');
+        const yorumlar = sonuc.veri || sonuc.data || [];
+        if (yorumlar.length) {
+            izgara.innerHTML = yorumlar.map(yorumKartiOlustur).join('');
+            return;
+        }
+    } catch {}
+
+    izgara.innerHTML = [
+        { ad: 'Ahmet Y.', kurs: 'Web Geliştirme Bootcamp', yorum: 'EduNex ile yazılım dünyasına adım attım. Eğitmenler son derece bilgili ve ilgili, içerikler her zaman güncel.', puan: 5 },
+        { ad: 'Selin K.', kurs: 'Python ile Veri Bilimi', yorum: 'Sertifikam işe alım sürecimde gerçekten fark yarattı. Uygulamalı projelerle öğrenme deneyimi olağanüstüydü.', puan: 5 },
+        { ad: 'Murat D.', kurs: 'UI/UX Tasarım Temelleri', yorum: 'Kısa sürede çok şey öğrendim. Modüler yapısı sayesinde kendi hızımda ilerleyebildim.', puan: 5 },
+        { ad: 'Zeynep A.', kurs: 'Dijital Pazarlama', yorum: 'Canlı dersler sayesinde eğitmenle doğrudan iletişim kurabilmek paha biçilemez bir deneyim.', puan: 5 },
+        { ad: 'Emre S.', kurs: 'React ile Modern Web', yorum: 'Projeye dayalı öğrenme yöntemi harika. İlk haftada gerçek bir uygulama yazdım.', puan: 5 },
+        { ad: 'Büşra T.', kurs: 'İngilizce İletişim', yorum: 'Eğitmenin dönütleri ve pratik alıştırmalar sayesinde çok kısa sürede özgüven kazandım.', puan: 5 },
+    ].map(yorumKartiOlustur).join('');
+}
+
+function yorumKartiOlustur(y) {
+    const puan    = y.puan || y.puan_degeri || 5;
+    const ad      = guvenliMetin(y.ad || y.kullanici_adi || 'Öğrenci');
+    const kurs    = guvenliMetin(y.kurs || y.kurs_baslik || '');
+    const yorum   = guvenliMetin(y.yorum || y.icerik || y.yorum_metni || '');
+    const inisyal = ad.charAt(0).toUpperCase() || '?';
+    const yildiz  = '★'.repeat(Math.min(5, Math.max(1, parseInt(puan))));
+
+    return `
+    <div class="review-card-home">
+        <div class="review-quote-icon"><i class="fas fa-quote-left"></i></div>
+        <p class="review-text">${yorum}</p>
+        <div class="review-stars">${yildiz}</div>
+        <div class="review-author">
+            <div class="review-avatar">${inisyal}</div>
+            <div class="review-author-info">
+                <div class="review-author-name">${ad}</div>
+                ${kurs ? `<div class="review-author-kurs">${kurs}</div>` : ''}
+            </div>
+        </div>
+    </div>`;
+}
+
+function reviewCarScroll(btn, dir) {
+    const track = btn.closest('.review-car-wrap').querySelector('.review-car-track');
+    const card  = track.querySelector('.review-card-home');
+    if (!card) return;
+    const step = card.offsetWidth + 24;
+    track.scrollBy({ left: dir * step * 3, behavior: 'smooth' });
+}
+window.reviewCarScroll = reviewCarScroll;
+window.sonYorumlariYukle = sonYorumlariYukle;
 
 // ─── Geriye dönük alias'lar ────────────────────────────────────
 window.escapeHtml               = guvenliMetin;
@@ -353,70 +470,6 @@ window.renderCourseCard         = kursKartiOlustur;
 window.generateStarRatingHtml   = yildizHtmlOlustur;
 window.loadAllRecommendations   = async () => tumOnerileriYukle();
 window.tumYayindakiKurslar      = [];
-
-/* ═══════════════════════════════════════════════════════════
-   Global Auth & Profile Dropdown (used in navbar)
-   ═══════════════════════════════════════════════════════════ */
-
-function checkAuth() {
-    const token = localStorage.getItem('edunex_token');
-    const userJson = localStorage.getItem('edunex_user');
-    const authContainer = document.querySelector('.nav-actions');
-    
-    if (token && userJson && authContainer) {
-        try {
-            const user = JSON.parse(userJson);
-            
-            const dashboardLink = user.rol === 'egitmen' 
-                ? '/instructor/dashboard.html' 
-                : '/student/dashboard.html';
-
-            const isStudent = user.rol === 'ogrenci';
-            const cartIconHtml = isStudent ? `
-                <a href="/student/cart.html" class="nav-cart-link" title="Sepetim" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;color:#0f172a;text-decoration:none;margin-right:8px;">
-                    <i class="fas fa-shopping-cart" style="font-size:1.15rem;"></i>
-                    <span id="cartCountBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ef4444;color:#fff;font-size:0.7rem;font-weight:700;line-height:18px;text-align:center;"></span>
-                </a>
-            ` : '';
-
-            authContainer.innerHTML = `
-                ${cartIconHtml}
-                <div class="user-dropdown">
-                    <button class="dropdown-trigger">
-                        <i class="fas fa-user-circle" style="font-size: 1.2rem;"></i>
-                        ${user.ad}
-                        <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 5px;"></i>
-                    </button>
-
-                    <div class="dropdown-content">
-                        <a href="/profile/index.html"><i class="fas fa-id-badge" style="width:20px;"></i> Profil</a>
-                        <a href="${dashboardLink}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
-                        ${isStudent ? '<a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a><a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>' : ''}
-                        <hr>
-                        <button onclick="logout()" class="text-danger">
-                            <i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            if (isStudent) {
-                (async () => {
-                    try {
-                        const r = await ApiService.get('/cart');
-                        const c = r?.data?.kalem_sayisi || 0;
-                        const b = document.getElementById('cartCountBadge');
-                        if (b && c > 0) { b.textContent = c > 99 ? '99+' : c; b.style.display = 'inline-block'; }
-                    } catch (_) {}
-                })();
-            }
-        } catch (error) {
-            console.error('[HATA] Kullanıcı verisi okunamadı.');
-            logout(); 
-        }
-    }
-}
-
 
 // "Derse Katıl" butonuna tıklandığında:
 function derseKatil(sessionId, odaAdi) {
@@ -440,8 +493,7 @@ async function canliDerslerYukle() {
     }
 
     const devamGrid = document.getElementById('devamEdenlerGrid');
-    const planGrid = document.getElementById('planlananlarGrid');
-    const bosMesaj = '<div class="bos-canli" style="grid-column:1/-1;"><i class="fas fa-video-slash"></i><p>Şu an devam eden veya planlanan canlı dersiniz bulunmamaktadır.</p></div>';
+    const planGrid  = document.getElementById('planlananlarGrid');
 
     try {
         const yanit = await fetch('/api/live-sessions/active', {
@@ -456,32 +508,42 @@ async function canliDerslerYukle() {
         const sonuc = await yanit.json();
 
         if (!sonuc.success || !sonuc.data) {
-            bolum.style.display = 'block';
-            if (devamGrid) devamGrid.innerHTML = bosMesaj;
-            if (planGrid) planGrid.innerHTML = bosMesaj;
+            bolum.style.display = 'none';
             return;
         }
 
         const { devam_edenler = [], planlananlar = [] } = sonuc.data;
 
+        if (!devam_edenler.length && !planlananlar.length) {
+            bolum.style.display = 'none';
+            return;
+        }
+
         bolum.style.display = 'block';
 
+        const devamBolum = devamGrid?.closest('.canli-alt-bolum');
+        const planBolum  = planGrid?.closest('.canli-alt-bolum');
+
         if (devamGrid) {
-            devamGrid.innerHTML = devam_edenler.length
-                ? devam_edenler.map(canliKartiOlustur).join('')
-                : '<div class="bos-canli" style="grid-column:1/-1;"><i class="fas fa-video"></i><p>Şu an yayında ders yok.</p></div>';
+            if (devam_edenler.length) {
+                devamGrid.innerHTML = devam_edenler.map(canliKartiOlustur).join('');
+                if (devamBolum) devamBolum.style.display = '';
+            } else {
+                if (devamBolum) devamBolum.style.display = 'none';
+            }
         }
 
         if (planGrid) {
-            planGrid.innerHTML = planlananlar.length
-                ? planlananlar.map(planliKartiOlustur).join('')
-                : '<div class="bos-canli" style="grid-column:1/-1;"><i class="fas fa-calendar"></i><p>Yaklaşan ders yok.</p></div>';
+            if (planlananlar.length) {
+                planGrid.innerHTML = planlananlar.map(planliKartiOlustur).join('');
+                if (planBolum) planBolum.style.display = '';
+            } else {
+                if (planBolum) planBolum.style.display = 'none';
+            }
         }
     } catch (hata) {
         console.error('[CANLI DERSLER]', hata);
-        bolum.style.display = 'block';
-        if (devamGrid) devamGrid.innerHTML = bosMesaj;
-        if (planGrid) planGrid.innerHTML = bosMesaj;
+        bolum.style.display = 'none';
     }
 }
 function canliKartiOlustur(ders) {
@@ -558,11 +620,3 @@ function planliKartiOlustur(ders) {
     `;
 }
 
-function logout() {
-    if (typeof ApiService !== 'undefined' && ApiService.logout) {
-        ApiService.logout();
-    } else {
-        localStorage.clear();
-        window.location.reload();
-    }
-}

@@ -187,19 +187,68 @@ function renderStars(puan) {
     ).join('');
 }
 
+// Sekme filtresi için tüm kurslar belleğe alınıp client-side filtrelenir
+let _instructorCourses = [];
+let _activeStatusFilter = 'all';
+
 async function loadMyCourses() {
     const courseListDiv = document.getElementById('courseList');
     if (!courseListDiv) return;
     try {
         const result = await ApiService.get('/courses/my-courses');
-        const courses = result.data || [];
-        if (courses.length === 0) { renderEmptyState(courseListDiv); return; }
-        courseListDiv.innerHTML = '';
-        courses.forEach(course => courseListDiv.insertAdjacentHTML('beforeend', createCourseCard(course)));
+        _instructorCourses = result.data || [];
+
+        if (_instructorCourses.length === 0) { renderEmptyState(courseListDiv); return; }
+
+        renderCourseTabsCounters(_instructorCourses);
+        wireCourseTabs();
+        applyCourseFilter(_activeStatusFilter);
     } catch (error) {
         console.error('[DASHBOARD] Kurslar yüklenemedi:', error.message);
         renderErrorState(courseListDiv, error.message);
     }
+}
+
+function renderCourseTabsCounters(list) {
+    const counts = { all: list.length, yayinda: 0, taslak: 0, onay_bekliyor: 0 };
+    list.forEach(c => { if (counts[c.durum] !== undefined) counts[c.durum]++; });
+    Object.keys(counts).forEach(k => {
+        const el = document.getElementById(`cnt-${k}`);
+        if (el) el.textContent = counts[k];
+    });
+}
+
+function wireCourseTabs() {
+    const tabs = document.querySelectorAll('#courseTabs .course-tab');
+    tabs.forEach(tab => {
+        if (tab.dataset.bound === '1') return;
+        tab.dataset.bound = '1';
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            _activeStatusFilter = tab.dataset.filter;
+            applyCourseFilter(_activeStatusFilter);
+        });
+    });
+}
+
+function applyCourseFilter(filter) {
+    const courseListDiv = document.getElementById('courseList');
+    const emptyEl = document.getElementById('courseEmptyFilter');
+    if (!courseListDiv) return;
+
+    const filtered = filter === 'all'
+        ? _instructorCourses
+        : _instructorCourses.filter(c => c.durum === filter);
+
+    if (filtered.length === 0) {
+        courseListDiv.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'flex';
+        return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    courseListDiv.innerHTML = filtered.map(createCourseCard).join('');
 }
 
 function renderEmptyState(container) {
@@ -227,10 +276,17 @@ function createCourseCard(course) {
     const categoryName = course.Category?.ad || 'Genel';
     const sectionCount = course.Sections?.length || 0;
     const priceDisplay = course.fiyat > 0 ? `${parseFloat(course.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
+    const cover = course.kapak_fotografi
+        ? `<img src="${escapeHtml(course.kapak_fotografi)}" alt="${escapeHtml(course.baslik)}" class="course-card-cover-img">`
+        : `<div class="course-card-cover-placeholder"><i class="fas fa-graduation-cap"></i></div>`;
+
     return `
-        <div class="course-card-alt" data-course-id="${course.id}">
+        <div class="course-card-alt" data-course-id="${course.id}" data-status="${course.durum}">
+            <div class="course-card-cover">
+                ${cover}
+                <span class="course-badge ${statusClass} course-badge-overlay"><i class="${getStatusIcon(course.durum)}"></i> ${statusLabel}</span>
+            </div>
             <div class="course-card-body">
-                <span class="course-badge ${statusClass}"><i class="${getStatusIcon(course.durum)}"></i> ${statusLabel}</span>
                 <h3 class="course-card-title">${escapeHtml(course.baslik)}</h3>
                 <div class="course-card-info">
                     <span><i class="fas fa-folder-open"></i> ${sectionCount} bölüm</span>

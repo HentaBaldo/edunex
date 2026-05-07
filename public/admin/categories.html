@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kategori Yönetimi | EduNex Admin</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+
+    <style>
+        .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:20px; margin-bottom:25px; }
+        .kpi-card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:20px; display:flex; gap:15px; align-items:center; box-shadow:0 1px 3px rgba(15,23,42,0.04); }
+        .kpi-icon { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+        .kpi-icon.blue { background:#eff6ff; color:#2563eb; }
+        .kpi-icon.green { background:#f0fdf4; color:#16a34a; }
+        .kpi-icon.orange { background:#fff7ed; color:#ea580c; }
+        .kpi-icon.purple { background:#f5f3ff; color:#7c3aed; }
+        .kpi-info h3 { font-size:1.6rem; font-weight:800; color:#0f172a; margin:0 0 2px; line-height:1.1; }
+        .kpi-info p { font-size:0.8rem; color:#64748b; font-weight:500; margin:0; }
+        .kpi-info .kpi-sub { font-size:0.7rem; color:#94a3b8; margin-top:3px; }
+
+        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+        .toolbar input[type="search"] {
+            padding:9px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.9rem;
+            min-width:260px; outline:none; transition:0.2s;
+        }
+        .toolbar input[type="search"]:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+
+        .btn-primary {
+            background:#3b82f6; color:#fff; border:none; padding:10px 18px;
+            border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;
+            display:inline-flex; align-items:center; gap:8px; transition:0.2s;
+        }
+        .btn-primary:hover { background:#2563eb; transform:translateY(-1px); box-shadow:0 4px 10px rgba(59,130,246,0.3); }
+
+        .admin-table { width:100%; border-collapse:collapse; background:#fff; }
+        .admin-table th, .admin-table td { padding:14px; text-align:left; border-bottom:1px solid #f1f5f9; font-size:0.9rem; vertical-align:middle; }
+        .admin-table th { background:#f8fafc; font-weight:600; color:#334155; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.4px; }
+
+        .cat-cover { width:48px; height:48px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; background:#f1f5f9; }
+        .cat-cover-placeholder {
+            width:48px; height:48px; border-radius:8px; background:#f1f5f9;
+            display:flex; align-items:center; justify-content:center; color:#94a3b8;
+            border:1px dashed #cbd5e1;
+        }
+        .cat-name-cell { display:flex; align-items:center; gap:12px; }
+        .cat-name-cell .name { font-weight:600; color:#0f172a; }
+        .cat-name-cell .slug { font-size:0.72rem; color:#94a3b8; font-family:monospace; margin-top:2px; }
+        .cat-desc { color:#64748b; font-size:0.85rem; max-width:280px; }
+
+        .stars { color:#fbbf24; letter-spacing:1px; }
+        .stars .empty { color:#e2e8f0; }
+        .star-text { color:#475569; font-size:0.82rem; margin-left:4px; font-weight:600; }
+
+        .badge { display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; text-transform:uppercase; }
+        .badge-active { background:#dcfce7; color:#15803d; }
+        .badge-empty  { background:#fef3c7; color:#92400e; }
+
+        .row-actions { display:flex; justify-content:flex-end; gap:8px; }
+        .btn-icon {
+            border:1px solid #e2e8f0; background:#fff; color:#475569;
+            padding:7px 11px; border-radius:7px; cursor:pointer; font-size:0.82rem;
+            font-weight:600; display:inline-flex; align-items:center; gap:5px; transition:0.2s;
+        }
+        .btn-icon:hover { background:#f8fafc; border-color:#cbd5e1; }
+        .btn-icon.edit:hover  { color:#2563eb; border-color:#bfdbfe; background:#eff6ff; }
+        .btn-icon.delete:hover { color:#dc2626; border-color:#fca5a5; background:#fee2e2; }
+
+        /* === MODAL === */
+        .modal-overlay {
+            position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none;
+            align-items:center; justify-content:center; z-index:9999; padding:20px;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.show { display:flex; }
+        .modal-content {
+            background:#fff; border-radius:16px; max-width:560px; width:100%;
+            max-height:92vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);
+            border:1px solid #e2e8f0; animation:popIn 0.25s ease;
+        }
+        @keyframes popIn { from { opacity:0; transform:scale(0.95) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        .modal-head {
+            padding:20px 24px; border-bottom:1px solid #e2e8f0;
+            display:flex; justify-content:space-between; align-items:center; background:#f8fafc;
+        }
+        .modal-head h2 { margin:0; font-size:1.1rem; color:#0f172a; }
+        .modal-close { background:transparent; border:none; font-size:1.6rem; cursor:pointer; color:#64748b; line-height:1; }
+        .modal-body { padding:24px; }
+        .modal-foot {
+            padding:15px 24px; border-top:1px solid #e2e8f0; background:#f8fafc;
+            display:flex; justify-content:flex-end; gap:10px;
+        }
+
+        .form-group { margin-bottom:16px; }
+        .form-group label {
+            display:block; font-size:0.82rem; font-weight:600; color:#334155;
+            margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px;
+        }
+        .form-control {
+            width:100%; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px;
+            font-size:0.92rem; outline:none; transition:0.2s; font-family:inherit;
+            background:#fff; color:#0f172a;
+        }
+        .form-control:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+        textarea.form-control { resize:vertical; min-height:90px; }
+        .form-help { font-size:0.75rem; color:#94a3b8; margin-top:4px; }
+
+        .file-drop {
+            border:2px dashed #cbd5e1; border-radius:10px; padding:20px;
+            text-align:center; cursor:pointer; transition:0.2s; background:#f8fafc;
+        }
+        .file-drop:hover { border-color:#3b82f6; background:#eff6ff; }
+        .file-drop input[type="file"] { display:none; }
+        .file-drop-icon { font-size:1.6rem; color:#94a3b8; margin-bottom:6px; }
+        .file-drop-text { color:#64748b; font-size:0.85rem; }
+        .file-preview { margin-top:10px; display:none; }
+        .file-preview img { max-width:120px; max-height:120px; border-radius:8px; border:1px solid #e2e8f0; }
+
+        .btn-secondary {
+            padding:10px 18px; border:1px solid #cbd5e1; background:#fff; color:#475569;
+            border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;
+        }
+        .btn-secondary:hover { background:#f1f5f9; }
+
+        /* === TOAST === */
+        .toast {
+            position:fixed; top:20px; right:20px; padding:14px 22px; border-radius:10px;
+            color:#fff; font-weight:600; z-index:99999; animation:slideIn 0.3s; box-shadow:0 10px 25px rgba(0,0,0,0.15);
+            display:flex; align-items:center; gap:10px; min-width:240px;
+        }
+        .toast-success { background:#10b981; }
+        .toast-error   { background:#ef4444; }
+        .toast-info    { background:#3b82f6; }
+        @keyframes slideIn { from { transform:translateX(400px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    </style>
+</head>
+<body>
+
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard.html" class="nav-item"><i class="fas fa-chart-pie"></i> Özet Tablo</a>
+            <a href="/admin/courses.html" class="nav-item"><i class="fas fa-video"></i> Kurs Onayları</a>
+            <a href="/admin/published-courses.html" class="nav-item"><i class="fas fa-list-check"></i> Kurs Takibi</a>
+            <a href="/admin/users.html" class="nav-item"><i class="fas fa-users"></i> Kullanıcı Yönetimi</a>
+            <a href="/admin/orders.html" class="nav-item"><i class="fas fa-receipt"></i> Siparişler</a>
+            <a href="/admin/categories.html" class="nav-item active"><i class="fas fa-tags"></i> Kategoriler</a>
+            <a href="/admin/reviews.html" class="nav-item"><i class="fas fa-star"></i> Yorumlar</a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Güvenli Çıkış</button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h1>Kategori Yönetimi</h1>
+                <p class="subtitle">Sistemdeki tüm kategorileri buradan oluşturabilir, düzenleyebilir veya silebilirsiniz.</p>
+            </div>
+            <div class="header-user">
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yönetici</span>
+                    <small>Sistem Yöneticisi</small>
+                </div>
+                <div class="admin-avatar-circle"><i class="fas fa-user-shield"></i></div>
+            </div>
+        </header>
+
+        <section class="admin-content">
+
+            <!-- KPI KARTLARI -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon blue"><i class="fas fa-tags"></i></div>
+                    <div class="kpi-info">
+                        <h3 id="kpiToplam">0</h3>
+                        <p>Toplam Kategori</p>
+                        <div class="kpi-sub">Sistemdeki tüm kategoriler</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon green"><i class="fas fa-fire"></i></div>
+                    <div class="kpi-info">
+                        <h3 id="kpiPopuler" style="font-size:1.05rem;">—</h3>
+                        <p>En Popüler Kategori</p>
+                        <div class="kpi-sub" id="kpiPopulerSub">Öğrenci sayısına göre</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon orange"><i class="fas fa-folder-open"></i></div>
+                    <div class="kpi-info">
+                        <h3 id="kpiBos">0</h3>
+                        <p>Boş Kategoriler</p>
+                        <div class="kpi-sub">Henüz kursu olmayanlar</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon purple"><i class="fas fa-star"></i></div>
+                    <div class="kpi-info">
+                        <h3 id="kpiYildiz">0.00</h3>
+                        <p>Ortalama Yıldız</p>
+                        <div class="kpi-sub">Tüm kategorilerin ortalaması</div>
+                    </div>
+                </div>
+            </div>
+
+            <article class="admin-card" style="padding:20px;">
+
+                <div class="toolbar">
+                    <input type="search" id="searchInput" placeholder="Kategori adı veya slug ile ara..." oninput="filterTable()">
+                    <button class="btn-primary" onclick="openCreateModal()">
+                        <i class="fas fa-plus"></i> Yeni Kategori
+                    </button>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Kategori</th>
+                                <th>Açıklama</th>
+                                <th style="text-align:center;">Kurs</th>
+                                <th style="text-align:center;">Öğrenci</th>
+                                <th>Yıldız</th>
+                                <th style="text-align:center;">Durum</th>
+                                <th style="text-align:right;">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categoriesList">
+                            <tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <!-- MODAL: EKLE/DÜZENLE -->
+    <div id="categoryModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-head">
+                <h2 id="modalTitle"><i class="fas fa-tag" style="color:#3b82f6; margin-right:8px;"></i> Yeni Kategori</h2>
+                <button class="modal-close" onclick="closeModal()" aria-label="Kapat">&times;</button>
+            </div>
+            <form id="categoryForm" class="modal-body" onsubmit="submitForm(event)" novalidate>
+                <input type="hidden" id="categoryId" name="id">
+
+                <div class="form-group">
+                    <label for="ad">Kategori Adı *</label>
+                    <input type="text" id="ad" name="ad" class="form-control" required minlength="2" maxlength="255" placeholder="Örn: Yazılım Geliştirme">
+                </div>
+
+                <div class="form-group">
+                    <label for="aciklama">Kategori Açıklaması</label>
+                    <textarea id="aciklama" name="aciklama" class="form-control" maxlength="2000" placeholder="Bu kategori hakkında kısa bir açıklama..."></textarea>
+                    <div class="form-help">İsteğe bağlı – kullanıcılara kategori sayfalarında gösterilecektir.</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Kapak Fotoğrafı</label>
+                    <label class="file-drop" for="kapak_fotografi">
+                        <div class="file-drop-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                        <div class="file-drop-text"><strong>Dosya seç</strong> veya buraya bırak<br><span style="font-size:0.75rem;">JPG, PNG (önerilen: 600×400)</span></div>
+                        <input type="file" id="kapak_fotografi" name="kapak_fotografi" accept="image/jpeg,image/png,image/webp" onchange="previewFile(event)">
+                    </label>
+                    <div class="file-preview" id="filePreview">
+                        <img id="filePreviewImg" alt="Önizleme">
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:4px;" id="filePreviewName"></div>
+                    </div>
+                </div>
+            </form>
+            <div class="modal-foot">
+                <button type="button" class="btn-secondary" onclick="closeModal()">İptal</button>
+                <button type="button" class="btn-primary" id="submitBtn" onclick="submitForm()">
+                    <i class="fas fa-save"></i> <span id="submitBtnLabel">Kaydet</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/categories.js"></script>
+</body>
+</html>

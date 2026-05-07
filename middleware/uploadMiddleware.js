@@ -38,6 +38,15 @@ const fileFilter = (req, file, cb) => {
         return cb(new Error('Geçersiz format! Profil için sadece JPG, PNG veya WEBP yükleyebilirsiniz.'), false);
     }
 
+    // 1b. Kategori Kapak Fotoğrafı (admin) — sadece görsel formatları kabul et
+    if (file.fieldname === 'kapak_fotografi') {
+        const validImageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (validImageMimes.includes(file.mimetype)) {
+            return cb(null, true);
+        }
+        return cb(new Error('Geçersiz format! Kapak fotoğrafı için sadece JPG, PNG veya WEBP yükleyebilirsiniz.'), false);
+    }
+
     // 2. Ders İçeriği (Video, PDF, Word, Quiz Resmi vb.) İçin Kontrol
     const validLessonMimes = [
         // Videolar

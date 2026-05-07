@@ -3,6 +3,14 @@
  * Rol bazlı dinamik içerik, 3 Sütunlu İlgi Alanı Gezgini ve hesap yönetimi.
  */
 
+function profilToast(msg, type = 'success') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
 // ==========================================
 // 1. BAŞLANGIÇ VE PROFİL YÜKLEME
 // ==========================================
@@ -292,13 +300,17 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
 
         const result = await response.json();
         if (result.success) {
-            alert('Profiliniz başarıyla güncellendi.');
-            window.location.reload(); 
+            const mevcutKullanici = JSON.parse(localStorage.getItem('edunex_user') || '{}');
+            mevcutKullanici.ad     = formData.ad;
+            mevcutKullanici.soyad  = formData.soyad;
+            localStorage.setItem('edunex_user', JSON.stringify(mevcutKullanici));
+            profilToast('Profiliniz başarıyla güncellendi.');
+            setTimeout(() => window.location.reload(), 1200);
         } else {
-            alert('Güncelleme hatası: ' + result.message);
+            profilToast('Güncelleme hatası: ' + result.message, 'error');
         }
     } catch (error) {
-        alert('Sunucu ile bağlantı kurulamadı.');
+        profilToast('Sunucu ile bağlantı kurulamadı.', 'error');
     }
 });
 
@@ -329,10 +341,13 @@ document.getElementById('file_input').addEventListener('change', async (e) => {
         const result = await response.json();
         if (result.success) {
             imgElement.src = result.imageUrl;
-            alert('Fotoğraf güncellendi.');
+            const mevcutKullanici = JSON.parse(localStorage.getItem('edunex_user') || '{}');
+            mevcutKullanici.profil_fotografi = result.imageUrl;
+            localStorage.setItem('edunex_user', JSON.stringify(mevcutKullanici));
+            profilToast('Fotoğraf güncellendi.');
         }
     } catch (error) {
-        alert('Yükleme hatası.');
+        profilToast('Yükleme hatası.', 'error');
     } finally {
         imgElement.style.opacity = '1';
     }
@@ -351,12 +366,11 @@ async function deleteMyAccount() {
 
         const result = await response.json();
         if (result.success) {
-            alert('Hesabınız silindi. Elveda!');
             localStorage.clear();
             window.location.href = '/auth/index.html';
         }
     } catch (error) {
-        alert('Hesap silinirken hata oluştu.');
+        profilToast('Hesap silinirken hata oluştu.', 'error');
     }
 }
 

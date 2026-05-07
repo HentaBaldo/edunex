@@ -112,27 +112,28 @@
 
 /* ─── Hero Section (Logged Out) ─── */
 .hero {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f3460 100%);
-    color: white;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 100%);
+    color: #0f172a;
     padding: 80px 0 72px;
     text-align: center;
     position: relative;
     overflow: hidden;
+    border-bottom: 1px solid #e8edf5;
 }
 .hero::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at 60% 0%, rgba(0,86,179,0.18) 0%, transparent 70%);
+    background: radial-gradient(ellipse at 60% 0%, rgba(99,102,241,0.06) 0%, transparent 70%);
     pointer-events: none;
 }
 .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    background: rgba(96,165,250,0.15);
-    border: 1px solid rgba(96,165,250,0.3);
-    color: #93c5fd;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -141,33 +142,35 @@
     border-radius: 20px;
     margin-bottom: 20px;
 }
-.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin-bottom: 18px; font-weight: 800; line-height: 1.15; position: relative; }
-.hero p   { font-size: 1.15rem; color: #cbd5e1; margin-bottom: 32px; max-width: 580px; margin-left: auto; margin-right: auto; line-height: 1.7; position: relative; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin-bottom: 18px; font-weight: 800; line-height: 1.15; color: #0f172a; }
+.hero p   { font-size: 1.15rem; color: #64748b; margin-bottom: 32px; max-width: 580px; margin-left: auto; margin-right: auto; line-height: 1.7; }
 
-.hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 36px; position: relative; }
+.hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 36px; }
 .btn-hero-primary {
-    background: #0056b3;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     color: white;
-    padding: 13px 28px;
-    border-radius: 8px;
+    padding: 14px 32px;
+    border-radius: 10px;
     font-weight: 700;
     text-decoration: none;
     display: inline-flex; align-items: center; gap: 8px;
-    transition: background 0.2s, transform 0.15s;
+    box-shadow: 0 8px 24px -4px rgba(37,99,235,0.45);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.btn-hero-primary:hover { background: #004499; transform: translateY(-2px); }
+.btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 32px -4px rgba(37,99,235,0.6); }
 .btn-hero-secondary {
-    background: rgba(255,255,255,0.08);
-    border: 2px solid rgba(255,255,255,0.3);
-    color: white;
-    padding: 11px 28px;
-    border-radius: 8px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #374151;
+    padding: 12px 28px;
+    border-radius: 10px;
     font-weight: 700;
     text-decoration: none;
     display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.06);
     transition: background 0.2s, border-color 0.2s;
 }
-.btn-hero-secondary:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); }
+.btn-hero-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
 
 .hero-stats-row {
     display: flex;
@@ -176,16 +179,16 @@
     gap: 14px;
     color: #94a3b8;
     font-size: 0.92rem;
-    position: relative;
 }
-.hero-stat span { color: #fff; font-weight: 700; }
-.hero-stat-sep  { color: #334155; }
+.hero-stat span { color: #0f172a; font-weight: 700; }
+.hero-stat-sep  { color: #cbd5e1; }
 
 /* ─── Hero Section (Logged In — Kişisel) ─── */
 .hero-kisisel {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0056b3 100%);
-    color: white;
+    background: linear-gradient(180deg, #f0f4ff 0%, #eff6ff 100%);
+    color: #0f172a;
     padding: 56px 0;
+    border-bottom: 1px solid #e0e7ff;
 }
 .hero-kisisel-ic {
     display: grid;
@@ -195,9 +198,9 @@
 }
 .hosgeldin-badge {
     display: inline-block;
-    background: rgba(96,165,250,0.15);
-    border: 1px solid rgba(96,165,250,0.25);
-    color: #93c5fd;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
     font-size: 0.85rem;
     font-weight: 600;
     padding: 5px 14px;
@@ -210,40 +213,41 @@
     margin-bottom: 10px;
     line-height: 1.15;
 }
-.hosgeldin-baslik span { color: #60a5fa; }
-.hosgeldin-alt { color: #94a3b8; font-size: 1.05rem; margin-bottom: 28px; }
+.hosgeldin-baslik span { color: #2563eb; }
+.hosgeldin-alt { color: #64748b; font-size: 1.05rem; margin-bottom: 28px; }
 .hosgeldin-butonlar { display: flex; gap: 12px; flex-wrap: wrap; }
 .btn-hosgeldin-ana {
-    background: #fff;
-    color: #0056b3;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: 10px;
     font-weight: 700;
     text-decoration: none;
     display: inline-flex; align-items: center; gap: 8px;
-    transition: box-shadow 0.2s, transform 0.15s;
+    box-shadow: 0 8px 24px -4px rgba(37,99,235,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.btn-hosgeldin-ana:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.2); transform: translateY(-2px); }
+.btn-hosgeldin-ana:hover { transform: translateY(-2px); box-shadow: 0 14px 32px -4px rgba(37,99,235,0.55); }
 .btn-hosgeldin-ikincil {
-    background: rgba(255,255,255,0.1);
-    border: 1.5px solid rgba(255,255,255,0.3);
-    color: #fff;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #374151;
     padding: 10px 22px;
-    border-radius: 8px;
+    border-radius: 10px;
     font-weight: 700;
     text-decoration: none;
     display: inline-flex; align-items: center; gap: 8px;
-    transition: background 0.2s;
+    transition: background 0.2s, border-color 0.2s;
 }
-.btn-hosgeldin-ikincil:hover { background: rgba(255,255,255,0.18); }
+.btn-hosgeldin-ikincil:hover { background: #f8fafc; border-color: #cbd5e1; }
 
 .kisisel-ozet-kart {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: #ffffff;
+    border: 1px solid #e0e7ff;
     border-radius: 16px;
     padding: 28px;
     min-width: 240px;
-    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(99,102,241,0.1);
 }
 .kisisel-ozet-ust {
     display: flex;
@@ -251,14 +255,14 @@
     gap: 8px;
     font-size: 0.8rem;
     font-weight: 700;
-    color: #93c5fd;
+    color: #4338ca;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: 10px;
 }
-.kisisel-ozet-mesaj { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 16px; }
+.kisisel-ozet-mesaj { color: #374151; font-size: 0.95rem; line-height: 1.6; margin-bottom: 16px; }
 .kisisel-ozet-link {
-    color: #60a5fa;
+    color: #2563eb;
     font-size: 0.9rem;
     font-weight: 600;
     text-decoration: none;
@@ -326,7 +330,13 @@
 .courses-section { padding: 60px 0; background: #f8fafc; }
 .section-header { margin-bottom: 40px; text-align: center; }
 .section-header h2 { font-size: 2rem; color: #0f172a; }
-.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; }
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 28px;
+    justify-content: center;
+    align-items: stretch;
+}
 
 /* --- Features Section --- */
 .features { padding: 60px 0; background: white; }
@@ -754,16 +764,17 @@
 }
 .search-empty i { font-size: 1.3rem; color: #cbd5e1; }
 /* ════════════════════════════════════════════════════════
-   ADIM 2: Hero Modernizasyon (Glassmorphism + Animated Blobs)
+   ADIM 2: Hero Modernizasyon (Light Mode)
    ════════════════════════════════════════════════════════ */
 
 .hero {
-    background: var(--gradient-hero);
-    color: white;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 100%);
+    color: #0f172a;
     padding: 80px 0 72px;
     text-align: center;
     position: relative;
     overflow: hidden;
+    border-bottom: 1px solid #e8edf5;
 }
 
 /* Arka planda 3 yüzen blob orb */
@@ -783,14 +794,14 @@
     z-index: 2;
 }
 
-/* Marka badgesi cam efekti */
+/* Marka badgesi */
 .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    background: rgba(167, 139, 250, 0.25);
-    border: 1px solid rgba(167, 139, 250, 0.5);
-    color: #e9d5ff;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -798,15 +809,6 @@
     padding: 8px 18px;
     border-radius: 24px;
     margin-bottom: 20px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: all 0.3s ease;
-}
-
-.hero-badge:hover {
-    background: rgba(167, 139, 250, 0.35);
-    border-color: rgba(167, 139, 250, 0.7);
-    transform: translateY(-2px);
 }
 
 .hero h1 {
@@ -814,74 +816,25 @@
     margin-bottom: 18px;
     font-weight: 800;
     line-height: 1.15;
-    position: relative;
+    color: #0f172a;
 }
 
 .hero p {
     font-size: 1.15rem;
-    color: #cbd5e1;
+    color: #64748b;
     margin-bottom: 32px;
     max-width: 580px;
     margin-left: auto;
     margin-right: auto;
     line-height: 1.7;
-    position: relative;
 }
 
-/* Hero Butonları — Glassmorphism + Gradyan */
 .hero-actions {
     display: flex;
     gap: 14px;
     justify-content: center;
     flex-wrap: wrap;
     margin-bottom: 36px;
-    position: relative;
-    z-index: 2;
-}
-
-.btn-hero-primary {
-    background: var(--gradient-primary);
-    color: white;
-    padding: 14px 32px;
-    border-radius: 10px;
-    font-weight: 700;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: var(--shadow-glow);
-    transition: all 0.3s ease;
-    font-family: var(--font-ui);
-}
-
-.btn-hero-primary:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 36px rgba(99, 102, 241, 0.5);
-    filter: brightness(1.1);
-}
-
-.btn-hero-secondary {
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1.5px solid rgba(255, 255, 255, 0.4);
-    color: white;
-    padding: 12px 32px;
-    border-radius: 10px;
-    font-weight: 700;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-    font-family: var(--font-ui);
-}
-
-.btn-hero-secondary:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.7);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
 }
 
 .hero-stats-row {
@@ -891,33 +844,25 @@
     gap: 14px;
     color: #94a3b8;
     font-size: 0.92rem;
-    position: relative;
-    z-index: 2;
 }
 
 .hero-stat span {
-    color: #fff;
+    color: #0f172a;
     font-weight: 700;
 }
 
 .hero-stat-sep {
-    color: #334155;
+    color: #cbd5e1;
 }
 
 /* Kişisel Hero Bölümü */
 .hero-kisisel {
-    background: var(--gradient-hero);
-    color: white;
+    background: linear-gradient(180deg, #f0f4ff 0%, #eff6ff 100%);
+    color: #0f172a;
     padding: 56px 0;
     position: relative;
     overflow: hidden;
-}
-
-.hero-kisisel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
+    border-bottom: 1px solid #e0e7ff;
 }
 
 .hero-kisisel-ic {
@@ -931,16 +876,14 @@
 
 .hosgeldin-badge {
     display: inline-block;
-    background: rgba(167, 139, 250, 0.25);
-    border: 1px solid rgba(167, 139, 250, 0.5);
-    color: #e9d5ff;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
     font-size: 0.85rem;
     font-weight: 600;
     padding: 7px 16px;
     border-radius: 20px;
     margin-bottom: 12px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
 }
 
 .hosgeldin-baslik {
@@ -948,17 +891,18 @@
     font-weight: 800;
     margin-bottom: 10px;
     line-height: 1.15;
+    color: #0f172a;
 }
 
 .hosgeldin-baslik span {
-    background: var(--gradient-accent);
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
 .hosgeldin-alt {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 1.05rem;
     margin-bottom: 28px;
 }
@@ -970,8 +914,8 @@
 }
 
 .btn-hosgeldin-ana {
-    background: #fff;
-    color: var(--brand-indigo);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
     padding: 12px 28px;
     border-radius: 10px;
     font-weight: 700;
@@ -979,21 +923,19 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: var(--shadow-lg);
-    transition: all 0.3s ease;
+    box-shadow: 0 8px 24px -4px rgba(37,99,235,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .btn-hosgeldin-ana:hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 14px 32px -4px rgba(37,99,235,0.55);
 }
 
 .btn-hosgeldin-ikincil {
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1.5px solid rgba(255, 255, 255, 0.4);
-    color: #fff;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #374151;
     padding: 10px 28px;
     border-radius: 10px;
     font-weight: 700;
@@ -1001,30 +943,27 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.3s ease;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .btn-hosgeldin-ikincil:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.7);
-    transform: translateY(-3px);
+    background: #f8fafc;
+    border-color: #cbd5e1;
 }
 
 .kisisel-ozet-kart {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: #ffffff;
+    border: 1px solid #e0e7ff;
     border-radius: 16px;
     padding: 28px;
     min-width: 240px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 8px 32px rgba(67, 56, 202, 0.2);
-    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .kisisel-ozet-kart:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.35);
+    border-color: #c7d2fe;
+    box-shadow: 0 10px 32px rgba(99,102,241,0.18);
     transform: translateY(-2px);
 }
 
@@ -1034,21 +973,21 @@
     gap: 8px;
     font-size: 0.8rem;
     font-weight: 700;
-    color: #e9d5ff;
+    color: #4338ca;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: 10px;
 }
 
 .kisisel-ozet-mesaj {
-    color: #cbd5e1;
+    color: #374151;
     font-size: 0.95rem;
     line-height: 1.6;
     margin-bottom: 16px;
 }
 
 .kisisel-ozet-link {
-    color: #e9d5ff;
+    color: #2563eb;
     font-size: 0.9rem;
     font-weight: 600;
     text-decoration: none;
@@ -1091,29 +1030,29 @@
 
 .canli-kartlar-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
 }
 
 .canli-kart {
     background: white;
-    border-radius: 12px;
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+    transition: all 0.25s ease;
     border: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
 }
 
 .canli-kart:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.11);
+    transform: translateY(-3px);
     border-color: #cbd5e0;
 }
 
 .canli-kart-ust {
-    padding: 20px;
+    padding: 16px 18px;
     background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
     border-bottom: 1px solid #cbd5e0;
     position: relative;
@@ -1121,13 +1060,13 @@
 
 .canli-badge {
     display: inline-block;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .canli-badge-live {
@@ -1147,25 +1086,25 @@
 }
 
 .canli-kart-baslik {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: #1e293b;
-    margin-bottom: 12px;
-    line-height: 1.4;
+    margin-bottom: 10px;
+    line-height: 1.35;
 }
 
 .canli-kart-meta {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .canli-meta-item {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: #64748b;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
 }
 
 .canli-meta-item i {
@@ -1179,7 +1118,7 @@
 }
 
 .canli-kart-icerik {
-    padding: 20px;
+    padding: 14px 16px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1187,16 +1126,16 @@
 
 .canli-kart-buttons {
     display: flex;
-    gap: 10px;
-    margin-top: 16px;
+    gap: 8px;
+    margin-top: 12px;
 }
 
 .canli-btn {
-    padding: 10px 16px;
+    padding: 8px 14px;
     border-radius: 6px;
     border: none;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
@@ -1240,5 +1179,498 @@
     margin-bottom: 12px;
     opacity: 0.5;
     display: block;
+}
+
+/* ─── Öneri Merkezi — Sekmeli Yapı ──────────────────────── */
+.recommendation-center-bolumu {
+    padding: 72px 0 88px;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+}
+
+.tab-section-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+.tab-section-header h2 {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+}
+.tab-section-header p {
+    color: #64748b;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.tab-navigation {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 48px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.tab-navigation::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+    padding: 13px 22px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    font-family: var(--font-ui);
+}
+.tab-btn i { font-size: 0.82rem; }
+.tab-btn:hover { color: #4338ca; }
+.tab-btn.active {
+    color: #4338ca;
+    border-bottom-color: #4338ca;
+    font-weight: 700;
+}
+
+.tab-pane { display: none; }
+.tab-pane.active {
+    display: block;
+    animation: tabFadeIn 0.22s ease;
+}
+@keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.tab-alt-baslik {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 48px 0 24px;
+    padding-top: 32px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.tab-alt-baslik i { color: #7c3aed; font-size: 0.9rem; }
+
+@media (max-width: 640px) {
+    .tab-btn { padding: 10px 14px; font-size: 0.85rem; }
+}
+
+/* ─── Hero İki Sütunlu Grid ───────────────────────────────── */
+.hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 56px;
+    text-align: left;
+    position: relative;
+    z-index: 2;
+}
+.hero-grid .hero-actions   { justify-content: flex-start; }
+.hero-grid .hero-stats-row { justify-content: flex-start; }
+.hero-grid .hero p         { margin-left: 0; margin-right: 0; max-width: 520px; }
+.hero-grid .hero-badge     { margin-left: 0; }
+
+.hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.hero-stat-karti {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 32px;
+    box-shadow: 0 20px 60px rgba(67, 56, 202, 0.14), 0 0 0 1px rgba(99, 102, 241, 0.07);
+    width: 100%;
+    max-width: 310px;
+}
+.hero-stat-satirlar { display: flex; flex-direction: column; gap: 18px; }
+.hero-stat-satir    { display: flex; align-items: center; gap: 14px; }
+.hero-stat-satir-ikon {
+    width: 46px; height: 46px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+}
+.hero-stat-satir-sayi  { font-size: 1.2rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+.hero-stat-satir-label { font-size: 0.79rem; color: #64748b; margin-top: 2px; }
+
+@media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; text-align: center; gap: 0; }
+    .hero-visual { display: none; }
+    .hero-grid .hero-actions   { justify-content: center; }
+    .hero-grid .hero-stats-row { justify-content: center; }
+    .hero-grid .hero p         { margin-left: auto; margin-right: auto; }
+}
+
+/* ─── Güven Şeridi ────────────────────────────────────────── */
+.guven-seridi {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 18px 0;
+}
+.guven-seridi-ic {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.guven-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+.guven-markalar {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.guven-marka {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.guven-ayirici { color: #e2e8f0; }
+
+/* ─── Popüler Kategoriler (Standalone Bölüm) ──────────────── */
+.kategori-bolumu {
+    padding: 80px 0;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+}
+.kategori-grid-yeni {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, max-content));
+    gap: 16px;
+    justify-content: center;
+}
+/* === KATEGORİ KARTI — KAPAKLI (Udemy tarzı) ============================ */
+.kategori-karti-v2 {
+    position: relative;
+    display: block;
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    min-height: 240px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #1e293b;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    isolation: isolate;
+}
+.kategori-karti-v2:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+}
+
+/* Koyu overlay: arka planda foto da olsa metin okunabilsin */
+.kat-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+        rgba(15, 23, 42, 0.10) 0%,
+        rgba(15, 23, 42, 0.55) 55%,
+        rgba(15, 23, 42, 0.92) 100%);
+    z-index: 1;
+    transition: background 0.25s ease;
+}
+.kategori-karti-v2:hover .kat-overlay {
+    background: linear-gradient(180deg,
+        rgba(67, 56, 202, 0.15) 0%,
+        rgba(15, 23, 42, 0.65) 55%,
+        rgba(15, 23, 42, 0.95) 100%);
+}
+
+/* Görsel olmayan kategorilerde gösterilen büyük ikon */
+.kat-fallback-ikon {
+    position: absolute; top: 18px; right: 18px;
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.1rem;
+    z-index: 2;
+}
+
+.kat-icerik {
+    position: relative; z-index: 2;
+    padding: 18px 20px 20px;
+    color: #fff;
+    display: flex; flex-direction: column; gap: 8px;
+    height: 100%; justify-content: flex-end;
+    min-height: 240px;
+}
+
+.kat-meta {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.72rem; font-weight: 600;
+    color: #e0e7ff;
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(6px);
+    padding: 4px 10px; border-radius: 999px;
+    width: fit-content;
+    text-transform: uppercase; letter-spacing: 0.4px;
+}
+.kat-meta i { font-size: 0.7rem; }
+
+.kategori-karti-cover .kat-ad {
+    font-weight: 800;
+    font-size: 1.08rem;
+    color: #fff;
+    margin: 0;
+    line-height: 1.25;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.kat-aciklama {
+    font-size: 0.82rem;
+    color: #e2e8f0;
+    line-height: 1.4;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.kat-rating {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 4px;
+}
+.kat-stars { color: #fbbf24; font-size: 0.78rem; letter-spacing: 1px; }
+.kat-stars-num { color: #fde68a; font-weight: 700; font-size: 0.82rem; }
+.kat-stars-empty {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fde68a; padding: 3px 9px;
+    border-radius: 999px; font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Eski (ikon odaklı) varyant geriye uyumluluk için korunur */
+.kat-ikon-wrap {
+    width: 58px; height: 58px; border-radius: 14px;
+    background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px;
+    font-size: 1.4rem; color: #4338ca;
+    transition: background 0.22s ease, color 0.22s ease;
+}
+.kat-sayi { font-size: 0.76rem; color: #94a3b8; }
+
+/* ─── Canlı Dersler (Koyu Şerit) ─────────────────────────── */
+.canli-dersler-bolumu {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f1629 100%);
+    padding: 72px 0;
+    margin: 0;
+}
+.canli-dersler-bolumu .section-header h2 { color: white; }
+.canli-dersler-bolumu .section-header p  { color: #94a3b8; }
+.canli-dersler-bolumu .canli-baslik h2   { color: white; }
+.canli-dersler-bolumu .canli-alt-baslik  { color: #e2e8f0; }
+.canli-dersler-bolumu .oneri-etiket {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e9d5ff;
+}
+
+/* ─── Tab: Sade Metin Stili ───────────────────────────────── */
+.tab-btn {
+    gap: 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 14px 24px;
+    color: #64748b;
+}
+.tab-btn.active {
+    color: #0f172a;
+    font-weight: 700;
+    border-bottom-color: #4338ca;
+}
+
+/* ─── Öğrenci Yorumları ───────────────────────────────────── */
+.yorumlar-bolumu {
+    padding: 80px 0;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+}
+.review-car-wrap { position: relative; display: flex; align-items: center; gap: 16px; }
+.review-car-track {
+    display: flex; gap: 24px; overflow-x: auto;
+    scroll-behavior: smooth; scrollbar-width: none;
+    padding: 8px 2px 20px;
+}
+.review-car-track::-webkit-scrollbar { display: none; }
+.review-car-track > .review-card-home { flex: 0 0 calc((100% - 48px) / 3); min-width: 0; }
+
+.review-card-home {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex; flex-direction: column; gap: 14px;
+    height: 100%;
+}
+.review-card-home:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1); }
+
+.review-quote-icon { font-size: 1.6rem; color: #e0e7ff; line-height: 1; }
+.review-text {
+    font-size: 0.93rem; color: #374151; line-height: 1.7;
+    flex: 1; font-style: italic;
+    display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4;
+    -webkit-box-orient: vertical; overflow: hidden;
+}
+.review-stars   { color: #f59e0b; font-size: 0.9rem; letter-spacing: 1px; }
+.review-author  { display: flex; align-items: center; gap: 12px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
+.review-avatar  {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 0.95rem; flex-shrink: 0;
+}
+.review-author-name { font-weight: 700; font-size: 0.88rem; color: #0f172a; }
+.review-author-kurs { font-size: 0.76rem; color: #64748b; margin-top: 2px; }
+
+@media (max-width: 768px) {
+    .review-car-track > .review-card-home { flex: 0 0 85%; }
+    .guven-markalar { gap: 20px; }
+}
+
+/* ─── Kategori Carousel ───────────────────────────────────── */
+.kat-car-track { gap: 22px; }
+.kat-car-track > .kategori-karti-v2 {
+    flex: 0 0 calc((100% - 66px) / 4);
+    min-width: 220px;
+    max-width: none;
+}
+@media (max-width: 1100px) {
+    .kat-car-track > .kategori-karti-v2 { flex: 0 0 calc((100% - 44px) / 3); }
+}
+@media (max-width: 800px) {
+    .kat-car-track > .kategori-karti-v2 { flex: 0 0 calc((100% - 22px) / 2); }
+}
+@media (max-width: 540px) {
+    .kat-car-track > .kategori-karti-v2 { flex: 0 0 80%; }
+}
+
+/* ─── Eğitmen Carousel Ortalama ─────────────────────────────── */
+.car-track-centered {
+    justify-content: center;
+    overflow-x: hidden;
+}
+.car-track-centered > * {
+    flex: 0 0 calc((100% - 48px) / 3);
+    min-width: 0;
+}
+
+/* ─── Kategori Detay - Kapaklı Hero Banner ─────────────────── */
+.category-hero.category-hero-cover,
+.category-hero-cover {
+    position: relative;
+    min-height: 320px;
+    padding: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: #fff;
+    overflow: hidden;
+    isolation: isolate;
+}
+.category-hero-cover.has-cover { background-color: #0f172a; }
+.category-hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg,
+        rgba(15, 23, 42, 0.92) 0%,
+        rgba(30, 58, 95, 0.78) 45%,
+        rgba(0, 86, 179, 0.72) 100%);
+    z-index: 1;
+}
+.category-hero-cover:not(.has-cover) .category-hero-overlay {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 55%, #0056b3 100%);
+}
+.category-hero-inner {
+    position: relative; z-index: 2;
+    padding: 56px 0 48px;
+    max-width: 1200px;
+}
+.category-hero-cover .hero-breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.85rem; color: rgba(255, 255, 255, 0.65);
+    margin-bottom: 20px;
+}
+.category-hero-cover .hero-breadcrumb a {
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none; transition: color 0.2s;
+}
+.category-hero-cover .hero-breadcrumb a:hover { color: #fff; }
+.category-hero-cover .hero-breadcrumb i { font-size: 0.7rem; }
+.category-hero-cover h1 {
+    font-size: 2.6rem; font-weight: 800;
+    margin: 0 0 14px; color: #fff; line-height: 1.15;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    max-width: 760px;
+}
+.category-hero-desc {
+    font-size: 1.02rem;
+    color: rgba(255, 255, 255, 0.88);
+    line-height: 1.6;
+    max-width: 720px;
+    margin: 0 0 18px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+.category-hero-rating {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(251, 191, 36, 0.18);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    padding: 7px 14px; border-radius: 999px;
+    margin-bottom: 16px; backdrop-filter: blur(8px);
+}
+.hero-rating-stars { color: #fbbf24; font-size: 0.95rem; letter-spacing: 1.5px; }
+.hero-rating-num   { color: #fde68a; font-weight: 800; font-size: 1.05rem; }
+.hero-rating-label { color: rgba(255, 255, 255, 0.85); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.category-hero-cover .hero-meta {
+    display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px;
+}
+.category-hero-cover .hero-meta-item {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.92rem; color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 6px 14px; border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.category-hero-cover .hero-meta-item i { color: #93c5fd; }
+
+@media (max-width: 700px) {
+    .category-hero-cover h1 { font-size: 1.8rem; }
+    .category-hero-desc { font-size: 0.94rem; }
+    .category-hero-inner { padding: 40px 0 32px; }
 }
 

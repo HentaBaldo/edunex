@@ -12,7 +12,7 @@
 
     // ─── Entry ───────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', async function () {
-        const placeholder = document.getElementById('navbar-placeholder');
+        const placeholder = document.getElementById('navbar-placeholder') || document.getElementById('navbar-container');
         if (!placeholder) return;
 
         try {
