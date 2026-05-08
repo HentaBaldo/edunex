@@ -7,8 +7,16 @@ const bcrypt = require('bcrypt');
  */
 const seedProfiles = async () => {
   try {
-    // Şifreyi hash'le (Güvenlik için zorunlu)
-    const hashedPassword = await bcrypt.hash('123456', 10);
+    // Production'da otomatik test hesabi olusturulmasin (zayif sifreli admin
+    // hesabi sizdirma riski). Yeni admin'i SEED_ADMIN_PASSWORD env'i ile
+    // bilinçli olarak ekle.
+    if (process.env.NODE_ENV === 'production' && !process.env.SEED_ADMIN_PASSWORD) {
+      console.log('[SEEDER] Production ortaminda varsayilan profil seeder atlandi.');
+      return;
+    }
+
+    const seedPassword = process.env.SEED_ADMIN_PASSWORD || '123456';
+    const hashedPassword = await bcrypt.hash(seedPassword, 10);
 
     const users = [
       {

@@ -94,8 +94,13 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             basketItems,
         };
 
-        console.log('[IYZICO] CALLBACK URL:', callbackUrl);
-        console.log('--- IYZICO REQUEST PAYLOAD ---', JSON.stringify(request, null, 2));
+        // Hassas veri (alici email/telefon/adres) iceren tam payload sadece development'ta loglanir.
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[IYZICO] CALLBACK URL:', callbackUrl);
+            console.log('--- IYZICO REQUEST PAYLOAD ---', JSON.stringify(request, null, 2));
+        } else {
+            console.log(`[IYZICO] Checkout init basket=${order.id} total=${totalPrice}`);
+        }
         iyzipay.checkoutFormInitialize.create(request, (err, result) => {
             if (err) return reject(err);
             if (!result || result.status !== 'success') {
@@ -133,6 +138,10 @@ exports.retrieveCheckoutForm = (token, conversationId) => {
 };
 
 exports.buildAbsoluteUrl = (pathname) => {
-    const base = (APP_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const fallback = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
+    const base = (APP_BASE_URL || fallback).replace(/\/+$/, '');
+    if (!base) {
+        throw new Error('APP_BASE_URL ortam degiskeni production icin tanimlanmalidir.');
+    }
     return `${base}${pathname.startsWith('/') ? '' : '/'}${pathname}`;
 };

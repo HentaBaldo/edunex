@@ -193,8 +193,12 @@ exports.checkout = async (req, res, next) => {
  * @route POST /api/payments/callback
  */
 exports.callback = async (req, res) => {
-    console.log('--- IYZICO CALLBACK TETIKLENDI ---');
-    console.log('Gelen Body:', req.body);
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('--- IYZICO CALLBACK TETIKLENDI ---');
+        console.log('Gelen Body:', req.body);
+    } else {
+        console.log('[PAYMENT] iyzico callback alindi.');
+    }
     const token = req.body?.token || req.query?.token;
     const successUrl = '/student/dashboard.html?payment=success';
     const failureUrl = '/student/dashboard.html?payment=failed';

@@ -224,7 +224,7 @@ exports.createLesson = async (req, res, next) => {
 
         // 1. Harici Link Varsa (YouTube vb.) Doğrula ve Ata
         if (kaynak_url) {
-            const allowedDomains = ['youtube.com', 'youtu.be', 'vimeo.com', 'bunnycdn.com', 'cdn.example.com', 'localhost:3000'];
+            const allowedDomains = ['youtube.com', 'youtu.be', 'vimeo.com', 'bunnycdn.com', 'b-cdn.net', 'mediadelivery.net'];
             try {
                 const urlObj = new URL(kaynak_url);
                 const isAllowed = allowedDomains.some(d => urlObj.hostname === d || urlObj.hostname.endsWith('.' + d));
@@ -376,7 +376,7 @@ exports.updateLesson = async (req, res, next) => {
             
             const allowedDomains = [
                 'youtube.com', 'youtu.be', 'vimeo.com',
-                'bunnycdn.com', 'cdn.example.com', 'localhost:3000'
+                'bunnycdn.com', 'b-cdn.net', 'mediadelivery.net'
             ];
 
             try {
