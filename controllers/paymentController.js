@@ -82,7 +82,7 @@ exports.checkout = async (req, res, next) => {
         }
 
         const user = await Profile.findByPk(kullanici_id, {
-            attributes: ['id', 'ad', 'soyad', 'eposta', 'sehir'],
+            attributes: ['id', 'ad', 'soyad', 'eposta', 'sehir', 'phone', 'identity_number'],
         });
         if (!user) {
             const err = new Error('Kullanici bulunamadi.');
@@ -127,6 +127,8 @@ exports.checkout = async (req, res, next) => {
                     soyad: user.soyad,
                     email: user.eposta,
                     sehir: user.sehir,
+                    phone: user.phone,
+                    identity_number: user.identity_number,
                     ip: req.ip,
                 },
                 items: orderItems.map(({ orderItem, course }) => ({
@@ -138,6 +140,7 @@ exports.checkout = async (req, res, next) => {
                 callbackUrl,
             });
         } catch (iyzErr) {
+            console.error('[IYZICO HATA]', iyzErr.iyzicoResult?.errorMessage || iyzErr.message);
             // Siparisi basarisiz isaretle, log tut
             await order.update({
                 durum: 'basarisiz',

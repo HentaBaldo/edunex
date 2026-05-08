@@ -27,6 +27,11 @@ const formatPhone = (phone) => {
     return '+905000000000';
 };
 
+const formatIdentity = (id) => {
+    const d = String(id || '').replace(/\D/g, '');
+    return d.length === 11 ? d : '11111111111';
+};
+
 /**
  * Checkout Form başlatır.
  * Dönüş: { paymentPageUrl, token, conversationId } (başarı)
@@ -34,7 +39,7 @@ const formatPhone = (phone) => {
  *
  * @param {object} params
  * @param {object} params.order       - Order kaydı (id, toplam_tutar, para_birimi, conversation_id)
- * @param {object} params.user        - { id, ad, soyad, email, sehir?, telefon? }
+ * @param {object} params.user        - { id, ad, soyad, email, sehir?, phone?, identity_number? }
  * @param {Array}  params.items       - [{ id, baslik, kategori, fiyat }]
  * @param {string} params.callbackUrl - iyzico'nun sonucu POST edeceği URL
  */
@@ -63,14 +68,14 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             basketId: order.id,
             paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
             callbackUrl,
-            enabledInstallments: [2, 3, 6, 9],
+            enabledInstallments: [1, 2, 3, 6, 9],
             buyer: {
                 id: user.id,
                 name: sanitize(user.ad, 'EduNex'),
                 surname: sanitize(user.soyad, 'Kullanici'),
-                gsmNumber: formatPhone(user.telefon),
+                gsmNumber: formatPhone(user.phone || user.telefon),
                 email: user.email || 'kullanici@edunex.com',
-                identityNumber: '11111111111',
+                identityNumber: formatIdentity(user.identity_number),
                 registrationAddress: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
                 ip: user.ip || '85.34.78.112',
                 city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
@@ -143,5 +148,6 @@ exports.buildAbsoluteUrl = (pathname) => {
     if (!base) {
         throw new Error('APP_BASE_URL ortam degiskeni production icin tanimlanmalidir.');
     }
-    return `${base}${pathname.startsWith('/') ? '' : '/'}${pathname}`;
+    const path = '/' + String(pathname || '').replace(/^\/+/, '');
+    return `${base}${path}`;
 };
