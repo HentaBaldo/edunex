@@ -15,6 +15,12 @@ const seedProfiles = require('./seeders/profileSeeder');
 
 const app = express();
 
+// Render gibi reverse-proxy arkasinda calisirken X-Forwarded-* header'larina guvenmek
+// (HTTPS algilama, gercek client IP, rate-limit dogrulugu icin sart).
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
 // --- 1. File System Initialization ---
 // Multer transit klasoru (yukleme bitince temizlenir) + Bunny basarisiz olursa
 // yedek olarak kullanilan kalici klasorler.
@@ -31,9 +37,32 @@ uploadDirs.forEach(dir => {
 });
 
 // --- 2. Security & Core Middleware ---
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
-app.use(morgan('combined'));
+// CSP: Bunny iframe, YouTube, Vimeo, Jitsi ve sayfada satir-ici script kullanildigindan
+// gevsetilmis bir politika ile aciliyoruz; tamamen kapatmak yerine guvenlik katmaninin
+// onemli kismini koruyoruz.
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
+// CORS: izin verilen origin listesi env'den okunur. Bos birakilirsa ayni-origin
+// kullanim varsayilir (canli ortamda public/ statik servis edildigi icin yeterli).
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',').map(o => o.trim()).filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Same-origin / curl / Postman istekleri (origin = undefined) serbest
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.length === 0) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS engellendi: ${origin}`));
+    },
+    credentials: true
+}));
+
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // JSON ve URL-encoded parser
 app.use(express.json({ limit: '10mb' }));
@@ -127,17 +156,23 @@ app.all(/\/api\/.*/, (req, res) => {
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const environment = process.env.NODE_ENV || 'development';
+    const isProduction = environment === 'production';
 
-    console.error(`[ERROR] ${err.name}: ${err.message}`);
-    
-    if (environment === 'development') {
+    // Sunucu loguna her zaman tum detay yazilir (Render dashboard'undan izlenir).
+    console.error(`[ERROR] ${err.name || 'Error'}: ${err.message}`);
+    if (!isProduction) {
         console.error('[STACK]', err.stack);
     }
 
+    // 5xx hatalarinda istemciye teknik detay sizdirma (sadece development'ta stack).
+    const safeMessage = isProduction && statusCode >= 500
+        ? 'Sunucu tarafinda bir hata olustu. Lutfen daha sonra tekrar deneyin.'
+        : (err.message || 'Sunucu Ici Hata');
+
     return res.status(statusCode).json({
         success: false,
-        message: err.message || 'Sunucu Ici Hata',
-        ...(environment === 'development' && { stack: err.stack })
+        message: safeMessage,
+        ...(!isProduction && { stack: err.stack })
     });
 });
 
