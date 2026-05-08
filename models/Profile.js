@@ -35,6 +35,16 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      phone: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: '+905000000000',
+      },
+      identity_number: {
+        type: DataTypes.STRING(11),
+        allowNull: true,
+        defaultValue: '11111111111',
+      },
       profil_fotografi: {
         type: DataTypes.STRING(255),
         allowNull: true,
