@@ -24,7 +24,8 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   dialectOptions: sslEnabled
     ? {
         ssl: {
-          rejectUnauthorized: true,
+          // Eğer Env'den 'false' gelirse devre dışı bırak, yoksa güvenli (true) kalsın
+          rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
         },
       }
     : undefined,
