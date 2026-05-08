@@ -126,14 +126,29 @@ app.get('/canli-ders/:oda_adi', (req, res) => {
 sequelize.sync()
     .then(async () => {
         console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi.');
-        
+
+        // Odeme akisi icin gerekli kolonlarin fiziksel varligini dogrula.
+        // sequelize.sync() (alter parametresiz) mevcut tabloya kolon eklemez,
+        // bu yuzden production DB'de phone/identity_number eksik kalmis olabilir.
+        try {
+            const desc = await sequelize.getQueryInterface().describeTable('profiller');
+            const missing = ['phone', 'identity_number'].filter(c => !desc[c]);
+            if (missing.length > 0) {
+                console.error(`[DB CHECK] profiller tablosunda eksik kolonlar: ${missing.join(', ')}. Odeme akisi calismayacak. Manuel ALTER TABLE calistirin.`);
+            } else {
+                console.log('[DB CHECK] profiller.phone & profiller.identity_number mevcut.');
+            }
+        } catch (descErr) {
+            console.error('[DB CHECK] profiller tablosu sema kontrolu yapilamadi:', descErr.message);
+        }
+
         try {
             console.log('[SEEDER] Kategori hiyerarsisi kontrol ediliyor...');
             await seedCategories();
-            
+
             console.log('[SEEDER] Temel kullanıcı profilleri kontrol ediliyor...');
             await seedProfiles();
-            
+
             console.log('[SYSTEM] Baslangic verileri senkronizasyonu basariyla tamamlandi.');
         } catch (seederError) {
             console.error('[SEEDER ERROR] Veri yukleme sirasinda hata olustu:', seederError.message);

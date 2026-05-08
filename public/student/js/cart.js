@@ -10,6 +10,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     loadCart();
+
+    // iyzico inline overlay kapatma
+    const closeBtn = document.getElementById('iyzicoCloseBtn');
+    const overlay = document.getElementById('iyzicoOverlay');
+    if (closeBtn) closeBtn.addEventListener('click', closeIyzicoOverlay);
+    if (overlay) overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeIyzicoOverlay();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay && overlay.style.display === 'block') {
+            closeIyzicoOverlay();
+        }
+    });
 });
 
 async function loadCart() {
@@ -94,18 +107,61 @@ async function handleClear() {
 async function handleCheckout() {
     const btn = document.getElementById('checkoutBtn');
     btn.disabled = true;
-    btn.textContent = 'Ödeme sayfasına yönlendiriliyor...';
+    btn.textContent = 'Ödeme formu hazırlanıyor...';
     try {
         const result = await ApiService.post('/payments/checkout', {});
-        if (result.data?.paymentPageUrl) {
-            window.location.href = result.data.paymentPageUrl;
-            return;
+        console.log('[CHECKOUT] Backend response keys:', Object.keys(result?.data || {}));
+
+        const content = result?.data?.checkoutFormContent;
+        const paymentPageUrl = result?.data?.paymentPageUrl;
+
+        if (!content) {
+            // Inline content yoksa redirect mode'a dus (eski davranis korunur).
+            if (paymentPageUrl) {
+                console.warn('[CHECKOUT] checkoutFormContent yok, redirect fallback:', paymentPageUrl);
+                window.location.assign(paymentPageUrl);
+                return;
+            }
+            throw new Error('iyzico ödeme formu içeriği alınamadı. Sunucu loglarını kontrol edin.');
         }
-        throw new Error('Ödeme sayfası adresi alınamadı.');
+
+        const container = document.getElementById('iyzipay-checkout-form');
+        const overlay = document.getElementById('iyzicoOverlay');
+        if (!container || !overlay) {
+            throw new Error('Sayfada ödeme alanı (iyzipay-checkout-form) bulunamadı.');
+        }
+
+        // Onceki form kalintisini temizle (cift checkout durumu)
+        container.innerHTML = '';
+
+        // checkoutFormContent <script> tagi iceriyor; innerHTML script'leri calistirmaz.
+        // createContextualFragment, parse edilen script tag'lerini DOM'a baglarken executable yapar.
+        const fragment = document.createRange().createContextualFragment(content);
+        container.appendChild(fragment);
+
+        overlay.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        btn.disabled = false;
+        btn.textContent = 'Ödemeye Geç';
+        console.log('[CHECKOUT] Inline iyzico formu enjekte edildi.');
     } catch (err) {
+        console.error('[CHECKOUT] Hata:', err);
         btn.disabled = false;
         btn.textContent = 'Ödemeye Geç';
         await showPaymentError(err.message);
+    }
+}
+
+function closeIyzicoOverlay() {
+    const overlay = document.getElementById('iyzicoOverlay');
+    const container = document.getElementById('iyzipay-checkout-form');
+    if (overlay) {
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    if (container) {
+        container.innerHTML = '';
     }
 }
 

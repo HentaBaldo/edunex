@@ -35,7 +35,12 @@
         const params = new URLSearchParams(window.location.search);
         const reason = params.get('reason');
         if (reason) {
-            document.getElementById('reason').innerHTML = 'Hata: <span class="reason">' + decodeURIComponent(reason) + '</span>';
+            const p = document.getElementById('reason');
+            p.appendChild(document.createTextNode('Hata: '));
+            const span = document.createElement('span');
+            span.className = 'reason';
+            span.textContent = reason;
+            p.appendChild(span);
         }
     </script>
 </body>

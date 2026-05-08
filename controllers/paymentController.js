@@ -90,6 +90,19 @@ exports.checkout = async (req, res, next) => {
             throw err;
         }
 
+        // SANITY CHECK: Kolonlar DB'de mevcut mu? undefined => kolon eksik (migration gerekli)
+        if (user.phone === undefined || user.identity_number === undefined) {
+            console.error('[PAYMENT SANITY] profiller tablosunda phone/identity_number kolonu eksik. ALTER TABLE gerekli.');
+            const err = new Error('Profil semasi guncel degil: phone/identity_number kolonu eksik. Yoneticinin migration calistirmasi gerekli.');
+            err.statusCode = 500;
+            throw err;
+        }
+        if (!user.phone || !user.identity_number) {
+            console.warn('[PAYMENT] Kullanici PII bos, fallback kullanilacak:', {
+                kullanici_id, hasPhone: !!user.phone, hasIdentity: !!user.identity_number,
+            });
+        }
+
         // Siparis + kalemler transaction ile
         const conversationId = uuidv4();
         const { order, orderItems } = await sequelize.transaction(async (t) => {
@@ -175,6 +188,14 @@ exports.checkout = async (req, res, next) => {
             ham_yanit: initResult.raw,
         });
 
+        console.log('[PAYMENT OK]', {
+            order_id: order.id,
+            token_present: !!initResult.token,
+            paymentPageUrl_present: !!initResult.paymentPageUrl,
+            checkoutFormContent_present: !!initResult.checkoutFormContent,
+            checkoutFormContent_len: initResult.checkoutFormContent?.length || 0,
+        });
+
         return res.status(200).json({
             status: 'success',
             data: {
@@ -182,10 +203,17 @@ exports.checkout = async (req, res, next) => {
                 conversation_id: conversationId,
                 token: initResult.token,
                 paymentPageUrl: initResult.paymentPageUrl,
+                checkoutFormContent: initResult.checkoutFormContent,
             },
         });
     } catch (error) {
-        console.error('ODEME HATASI DETAYI:', error);
+        console.error('[PAYMENT FATAL]', {
+            name: error.name,
+            message: error.message,
+            statusCode: error.statusCode,
+            iyzicoResult: error.iyzicoResult || null,
+            stack: error.stack,
+        });
         next(error);
     }
 };
@@ -196,38 +224,39 @@ exports.checkout = async (req, res, next) => {
  * @route POST /api/payments/callback
  */
 exports.callback = async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('--- IYZICO CALLBACK TETIKLENDI ---');
-        console.log('Gelen Body:', req.body);
-    } else {
-        console.log('[PAYMENT] iyzico callback alindi.');
-    }
+    console.log('[CALLBACK INIT] iyzico post datasi geldi:', {
+        body: req.body,
+        query: req.query,
+        contentType: req.headers['content-type'],
+    });
+
     const token = req.body?.token || req.query?.token;
     const successUrl = '/student/dashboard.html?payment=success';
-    const failureUrl = '/student/dashboard.html?payment=failed';
+    const failureUrl = '/student/payment-failure.html';
+    const failWith = (reason) => res.redirect(`${failureUrl}?reason=${encodeURIComponent(reason)}`);
 
     if (!token) {
-        return res.redirect(`${failureUrl}?reason=token_yok`);
+        console.error('[CALLBACK ERROR] Token eksik. body:', req.body);
+        return failWith('Odeme dogrulama bilgisi (token) alinamadi.');
     }
 
     try {
-        // Token ile Order bul
         const order = await Order.findOne({ where: { odeme_token: token } });
         if (!order) {
-            return res.redirect(`${failureUrl}?reason=siparis_bulunamadi`);
+            console.error('[CALLBACK ERROR] Token icin siparis bulunamadi. token:', token);
+            return failWith('Bu odemeye ait siparis bulunamadi.');
         }
 
-        // Idempotency: zaten tamamlanmissa tekrar isleme
         if (order.durum === 'tamamlandi') {
+            console.log('[CALLBACK] Siparis zaten tamamlanmis, success sayfasina yonlendiriliyor:', order.id);
             return res.redirect(successUrl);
         }
         if (order.durum === 'basarisiz' || order.durum === 'iade_edildi') {
-            return res.redirect(`${failureUrl}?reason=siparis_iptal`);
+            return failWith('Bu siparis daha once iptal edilmis veya iade alinmis.');
         }
 
-        // iyzico'dan dogrulama al
         const retrieveResult = await iyzicoService.retrieveCheckoutForm(token, order.conversation_id);
-        console.log('[IYZICO] RETRIEVE SONUCU:', retrieveResult?.status, '| paymentStatus:', retrieveResult?.paymentStatus, '| errorMessage:', retrieveResult?.errorMessage);
+        console.log('[CALLBACK RETRIEVE] iyzico dogrulama sonucu:', JSON.stringify(retrieveResult, null, 2));
 
         await PaymentTransaction.create({
             siparis_id: order.id,
@@ -251,12 +280,12 @@ exports.callback = async (req, res) => {
                 durum: 'basarisiz',
                 gateway_response: retrieveResult || null,
             });
-            const reason = encodeURIComponent(retrieveResult?.errorMessage || 'odeme_basarisiz');
-            return res.redirect(`${failureUrl}?reason=${reason}`);
+            return failWith(retrieveResult?.errorMessage || 'Odeme iyzico tarafinda basarisiz.');
         }
 
         // Basarili: Enrollment + Earning olustur + sepeti bosalt (transaction)
-        await sequelize.transaction(async (t) => {
+        try {
+            await sequelize.transaction(async (t) => {
             await order.update({
                 durum: 'tamamlandi',
                 islem_id: retrieveResult.paymentId || null,
@@ -313,13 +342,31 @@ exports.callback = async (req, res) => {
             if (cart) {
                 await CartItem.destroy({ where: { sepet_id: cart.id }, transaction: t });
             }
-        });
+            });
+        } catch (dbError) {
+            // KRITIK: iyzico tahsilati YAPTI ama bizim DB islemimiz patladi.
+            // Order durumunu 'basarisiz' isaretlemiyoruz cunku para alinmis durumda.
+            // Manuel mudahale gerekir; loga siparis_id + paymentId yaziyoruz ki destek bulsun.
+            console.error('[CALLBACK DB ERROR] Odeme alindi ancak kayit/enrollment olusturulamadi.', {
+                order_id: order.id,
+                conversation_id: order.conversation_id,
+                iyzico_payment_id: retrieveResult?.paymentId,
+                kullanici_id: order.kullanici_id,
+                error_name: dbError.name,
+                error_message: dbError.message,
+                stack: dbError.stack,
+            });
+            return failWith(`Odemeniz alindi ancak kayit olusturulamadi. Destek ile iletisime gecin. Siparis No: ${order.id}`);
+        }
 
         return res.redirect(successUrl);
     } catch (error) {
-        console.error('[PAYMENT CALLBACK ERROR]', error);
-        console.error('ODEME HATASI DETAYI:', error);
-        return res.redirect(`${failureUrl}?reason=sunucu_hatasi`);
+        console.error('[CALLBACK FATAL]', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+        });
+        return failWith(`Sunucu hatasi: ${error.message || 'Bilinmeyen hata'}`);
     }
 };
 
