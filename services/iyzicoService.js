@@ -99,6 +99,28 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             basketItems,
         };
 
+        // iyzico format dogrulamasi (SDK'ya gitmeden once kati kontrol)
+        const violations = [];
+        if (!/^\+90\d{10}$/.test(request.buyer.gsmNumber)) {
+            violations.push(`gsmNumber gecersiz format: ${request.buyer.gsmNumber}`);
+        }
+        if (!/^\d{11}$/.test(request.buyer.identityNumber)) {
+            violations.push(`identityNumber 11 hane olmali: ${request.buyer.identityNumber}`);
+        }
+        if (!request.buyer.email || !/.+@.+\..+/.test(request.buyer.email)) {
+            violations.push(`email gecersiz: ${request.buyer.email}`);
+        }
+        if (request.buyer.name.length > 60 || request.buyer.surname.length > 60) {
+            violations.push(`isim/soyisim 60 karakteri asiyor`);
+        }
+        if (!callbackUrl || !/^https?:\/\//.test(callbackUrl)) {
+            violations.push(`callbackUrl gecersiz: ${callbackUrl}`);
+        }
+        if (violations.length > 0) {
+            console.error('[IYZICO PRE-VALIDATION FAIL]', violations);
+            return reject(new Error('iyzico veri dogrulamasi basarisiz: ' + violations.join('; ')));
+        }
+
         // Hassas veri (alici email/telefon/adres) iceren tam payload sadece development'ta loglanir.
         if (process.env.NODE_ENV !== 'production') {
             console.log('[IYZICO] CALLBACK URL:', callbackUrl);
@@ -107,14 +129,26 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             console.log(`[IYZICO] Checkout init basket=${order.id} total=${totalPrice}`);
         }
         iyzipay.checkoutFormInitialize.create(request, (err, result) => {
-            if (err) return reject(err);
+            console.log('[DEBUG] IYZICO FULL RESPONSE:', JSON.stringify(result, null, 2));
+            if (err) {
+                console.error('[IYZICO SDK ERROR]', err.message, err.stack);
+                return reject(err);
+            }
             if (!result || result.status !== 'success') {
+                console.error('[IYZICO HATA]', {
+                    status: result?.status,
+                    errorCode: result?.errorCode,
+                    errorMessage: result?.errorMessage,
+                    errorGroup: result?.errorGroup,
+                    conversationId: result?.conversationId,
+                });
                 const error = new Error(result?.errorMessage || 'iyzico Checkout Form baslatilamadi.');
                 error.iyzicoResult = result;
                 return reject(error);
             }
             resolve({
                 paymentPageUrl: result.paymentPageUrl,
+                checkoutFormContent: result.checkoutFormContent,
                 token: result.token,
                 conversationId: result.conversationId,
                 raw: result,
