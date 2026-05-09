@@ -13,6 +13,8 @@ const {
     Course,
     CourseEnrollment,
     Profile,
+    InstructorFollower,
+    Notification,
 } = require('../models');
 
 /**
@@ -127,6 +129,27 @@ exports.createSession = async (req, res, next) => {
             yayin_tipi: tip,
             kayit_alinsin_mi: !!kayit_alinsin_mi,
         });
+
+        // Tetikleyici: egitmenin takipcilerine canli yayin bildirimi.
+        // Bildirim hatasi oturum yaratmayi bozmamali.
+        try {
+            const followers = await InstructorFollower.findAll({
+                where: { egitmen_id: req.user.id },
+                attributes: ['ogrenci_id'],
+            });
+            if (followers.length > 0) {
+                await Notification.bulkCreate(followers.map(f => ({
+                    kullanici_id: f.ogrenci_id,
+                    baslik: 'Yeni Canlı Yayın!',
+                    icerik: `Takip ettiğiniz eğitmen yeni bir canlı yayın planladı: "${baslik}".`,
+                    tip: 'canli_yayin',
+                    hedef_url: `/canli-ders/${odaAdi}`,
+                })));
+                console.log(`[NOTIFY] canli_yayin bildirimi: ${followers.length} takipciye gonderildi (oturum ${session.id}).`);
+            }
+        } catch (notifyErr) {
+            console.error('[NOTIFY ERROR] canli_yayin bildirimi olusturulamadi:', notifyErr.message);
+        }
 
         return res.status(201).json({ success: true, data: session });
     } catch (error) {

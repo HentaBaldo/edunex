@@ -68,6 +68,7 @@ async function tumOnerileriYukle() {
         renderKategoriCarpraz(veri.kategoriBazliCarpraz  || []);
         renderEnCokBegenilen(veri.enCokBegenilen         || []);
         renderPopulerEgitmenler(veri.populerEgitmenler   || []);
+        renderTakipEdilen(veri.followedInstructorsCourses || []);
     } catch (hata) {
         console.error('[ÖNERİLER] Ana sayfa yüklenemedi:', hata.message);
         ['enPopulerGrid', 'birlikteAlinanGrid', 'enCokBegenilenGrid'].forEach(id => {
@@ -75,6 +76,22 @@ async function tumOnerileriYukle() {
             if (el) el.innerHTML = '<div class="hata-mesaji"><p>Öneriler yüklenemedi.</p></div>';
         });
     }
+}
+
+// ── MODÜL: Takip Edilen Egitmenlerden Kurslar ─────────────────
+// Backend yalnizca giris yapmis ogrenci icin bu listeyi doldurur;
+// dizi bos gelirse sekmeyi sessizce gizleriz (gereksiz cikis tab degmesin).
+function renderTakipEdilen(kurslar) {
+    const buton = document.getElementById('tab-btn-takip');
+    const grid  = document.getElementById('takipEdilenGrid');
+    if (!buton || !grid) return;
+
+    if (!kurslar.length) {
+        buton.style.display = 'none';
+        return;
+    }
+    buton.style.display = 'inline-block';
+    grid.innerHTML = kurslar.map(kursKartiOlustur).join('');
 }
 
 // ── MODÜL 1: En Popüler Kurslar ──────────────────────────────

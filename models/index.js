@@ -27,6 +27,8 @@ const QuizQuestion = require('./QuizQuestion')(sequelize, DataTypes);
 const QuizChoice = require('./QuizChoice')(sequelize, DataTypes);
 const QuizAttempt = require('./QuizAttempt')(sequelize, DataTypes);
 const QuizAnswer = require('./QuizAnswer')(sequelize, DataTypes);
+const InstructorFollower = require('./InstructorFollower')(sequelize, DataTypes);
+const Notification = require('./Notification')(sequelize, DataTypes);
 
 // --- PROFİL İLİŞKİLERİ ---
 Profile.hasOne(StudentDetail, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -174,6 +176,20 @@ LiveSessionAttendance.belongsTo(LiveSession, { foreignKey: 'canli_oturum_id', on
 Profile.hasMany(LiveSessionAttendance, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 LiveSessionAttendance.belongsTo(Profile, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+// --- TAKIP SISTEMI ILISKILERI ---
+// Ogrenci (Profile) -> InstructorFollower (1-N): bir ogrencinin birden cok egitmen takibi olabilir.
+Profile.hasMany(InstructorFollower, { foreignKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+InstructorFollower.belongsTo(Profile, { foreignKey: 'ogrenci_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// Egitmen (InstructorDetail) -> InstructorFollower (1-N): bir egitmenin birden cok takipcisi olabilir.
+InstructorDetail.hasMany(InstructorFollower, { foreignKey: 'egitmen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+InstructorFollower.belongsTo(InstructorDetail, { foreignKey: 'egitmen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// --- BILDIRIM ILISKILERI ---
+// Profile -> Notification (1-N): bir kullanicinin birden cok bildirimi olabilir.
+Profile.hasMany(Notification, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Notification.belongsTo(Profile, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 module.exports = {
   sequelize,
   Profile,
@@ -202,4 +218,6 @@ module.exports = {
   QuizChoice,
   QuizAttempt,
   QuizAnswer,
+  InstructorFollower,
+  Notification,
 };

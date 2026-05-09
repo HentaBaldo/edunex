@@ -1,4 +1,4 @@
-const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, InstructorEarning, LiveSession, sequelize } = require('../models');
+const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, InstructorEarning, LiveSession, InstructorFollower, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -64,11 +64,16 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
         const gecenAySon = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
         const altiAyOnce = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
+        // Takipci sayisi kursdan bagimsizdir; kurs yokken bile dogru deger doner.
+        const followerCount = await InstructorFollower.count({ where: { egitmen_id: egitmenId } });
+
         const emptyKpi = {
             toplam_ogrenci: 0, toplam_net_kazanc: 0, bu_ay_kazanc: 0,
             kazanc_trendi: null, ortalama_puan: 0, toplam_yorum: 0,
             yayinda_kurs: courses.filter(c => c.durum === 'yayinda').length,
-            diger_kurs: courses.filter(c => c.durum !== 'yayinda').length
+            diger_kurs: courses.filter(c => c.durum !== 'yayinda').length,
+            followerCount: followerCount,
+            toplam_takipci: followerCount
         };
 
         if (kursIdleri.length === 0) {
@@ -158,7 +163,9 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
                     ortalama_puan: parseFloat(parseFloat(yorumSonuc?.ort || 0).toFixed(1)),
                     toplam_yorum: parseInt(yorumSonuc?.sayi || 0),
                     yayinda_kurs: courses.filter(c => c.durum === 'yayinda').length,
-                    diger_kurs: courses.filter(c => c.durum !== 'yayinda').length
+                    diger_kurs: courses.filter(c => c.durum !== 'yayinda').length,
+                    followerCount: followerCount,
+                    toplam_takipci: followerCount
                 },
                 grafik: {
                     aylik_kazanc: aylikKazancGrafik,
@@ -250,6 +257,11 @@ exports.getPublicProfile = async (req, res, next) => {
             });
         }
 
+        // Toplam takipci sayisi (public profilde gosterilir).
+        const followerCount = await InstructorFollower.count({
+            where: { egitmen_id: instructorId }
+        });
+
         const webinarlar = await LiveSession.findAll({
             where: {
                 egitmen_id: instructorId,
@@ -288,6 +300,8 @@ exports.getPublicProfile = async (req, res, next) => {
                     toplam_yorum: toplamYorum,
                     ortalama_puan: ortalamaPuan,
                     puan_dagilimi: paunDagilimi,
+                    followerCount: followerCount,
+                    toplam_takipci: followerCount,
                 }
             }
         });

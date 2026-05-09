@@ -27,7 +27,50 @@
         kimlikKontrol();
         menuIcinKategorileriYukle();
         globalAramaMotorBaslat();
+        mobilHamburgerKur();
     });
+
+    // ─── Mobil Hamburger ──────────────────────────────────────────────────
+    function mobilHamburgerKur() {
+        const buton    = document.getElementById('navHamburger');
+        const drawer   = document.getElementById('mobileNavDrawer');
+        const backdrop = document.getElementById('mobileNavBackdrop');
+        const kapat    = document.getElementById('mobileNavClose');
+        if (!buton || !drawer) return;
+
+        const ac = () => {
+            drawer.classList.add('open');
+            drawer.setAttribute('aria-hidden', 'false');
+            buton.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        };
+        const kapatFn = () => {
+            drawer.classList.remove('open');
+            drawer.setAttribute('aria-hidden', 'true');
+            buton.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        };
+
+        buton.addEventListener('click', ac);
+        if (kapat)    kapat.addEventListener('click', kapatFn);
+        if (backdrop) backdrop.addEventListener('click', kapatFn);
+        // Drawer linkine tiklayinca otomatik kapansin
+        drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', kapatFn));
+        // Esc ile kapat
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && drawer.classList.contains('open')) kapatFn();
+        });
+
+        // Mobil arama: enter ile arama sayfasina yonlendir
+        const mAra = document.getElementById('mobileGlobalSearchInput');
+        if (mAra) {
+            mAra.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && mAra.value.trim()) {
+                    window.location.href = `/main/courses.html?q=${encodeURIComponent(mAra.value.trim())}`;
+                }
+            });
+        }
+    }
 
     // ─── Auth ─────────────────────────────────────────────────────────────
     function kimlikKontrol() {
@@ -53,6 +96,24 @@
                     <span id="cartCountBadge" class="sepet-rozet" style="display:none;"></span>
                 </a>` : '';
 
+            // Bildirim cani: hem ogrenci hem egitmen icin acik (her ikisi de bildirim alabiliyor).
+            const bildirimHtml = `
+                <div class="nav-bildirim-wrap" style="position:relative;">
+                    <button id="bildirimZilButton" class="nav-sepet-link" title="Bildirimler" type="button" aria-haspopup="true" aria-expanded="false" style="background:transparent;border:0;cursor:pointer;color:inherit;font:inherit;">
+                        <i class="fas fa-bell"></i>
+                        <span id="bildirimCountBadge" class="sepet-rozet" style="display:none;"></span>
+                    </button>
+                    <div id="bildirimDropdown" class="bildirim-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:420px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,0.18);z-index:1000;">
+                        <div style="padding:12px 16px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+                            <strong style="color:#0f172a;">Bildirimler</strong>
+                            <span id="bildirimCountText" style="font-size:0.78rem;color:#64748b;"></span>
+                        </div>
+                        <div id="bildirimListe">
+                            <p style="padding:18px;color:#64748b;text-align:center;font-size:0.9rem;">Yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>`;
+
             const ogrenciMenusu = ogrenciMi ? `
                 <a href="/student/cart.html"><i class="fas fa-shopping-cart" style="width:20px;"></i> Sepetim</a>
                 <a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>` : '';
@@ -62,6 +123,7 @@
 
             authEl.innerHTML = `
                 ${sepetHtml}
+                ${bildirimHtml}
                 <div class="user-dropdown">
                     <button class="dropdown-trigger">
                         <i class="fas fa-user-circle" style="font-size:1.2rem;"></i>
@@ -81,9 +143,106 @@
                 </div>`;
 
             if (ogrenciMi) _sepetRozetiniGuncelle();
+            _bildirimleriBaslat();
         } else {
             authEl.innerHTML = `<a href="/auth/index.html" class="btn-auth-blue">Giriş Yap / Kayıt Ol</a>`;
         }
+    }
+
+    // ─── Bildirim Sistemi ─────────────────────────────────────────────────
+    let _bildirimCache = [];
+
+    async function _bildirimleriBaslat() {
+        const buton    = document.getElementById('bildirimZilButton');
+        const dropdown = document.getElementById('bildirimDropdown');
+        if (!buton || !dropdown) return;
+
+        // Acilis -> kapanis toggle
+        buton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const acik = dropdown.style.display === 'block';
+            dropdown.style.display = acik ? 'none' : 'block';
+            buton.setAttribute('aria-expanded', String(!acik));
+        });
+        // Disari tikla -> kapat
+        document.addEventListener('click', (e) => {
+            if (!buton.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+                buton.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        await _bildirimleriCek();
+    }
+
+    async function _bildirimleriCek() {
+        const rozet      = document.getElementById('bildirimCountBadge');
+        const sayiText   = document.getElementById('bildirimCountText');
+        const listeEl    = document.getElementById('bildirimListe');
+        if (!rozet || !listeEl) return;
+
+        try {
+            const sonuc = await ApiService.get('/notifications/unread');
+            const liste = sonuc?.data?.bildirimler || [];
+            const sayi  = sonuc?.data?.okunmamis_sayisi || 0;
+            _bildirimCache = liste;
+
+            rozet.textContent   = sayi > 99 ? '99+' : String(sayi);
+            rozet.style.display = sayi > 0 ? 'inline-block' : 'none';
+            if (sayiText) sayiText.textContent = sayi > 0 ? `${sayi} okunmamış` : 'Tümü okundu';
+
+            if (liste.length === 0) {
+                listeEl.innerHTML = `
+                    <p style="padding:24px 18px;color:#94a3b8;text-align:center;font-size:0.9rem;">
+                        <i class="fas fa-bell-slash" style="display:block;font-size:1.6rem;margin-bottom:8px;"></i>
+                        Yeni bildirim yok.
+                    </p>`;
+                return;
+            }
+
+            listeEl.innerHTML = liste.map(b => {
+                const ikon = b.tip === 'yeni_kurs'    ? 'fa-graduation-cap'
+                           : b.tip === 'canli_yayin' ? 'fa-video'
+                           : 'fa-info-circle';
+                const renk = b.tip === 'canli_yayin' ? '#ef4444' : '#2563eb';
+                const url  = b.hedef_url || '#';
+                return `
+                    <a href="${_escAttr(url)}" data-bid="${_escAttr(b.id)}" class="bildirim-item"
+                       style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f1f5f9;text-decoration:none;color:#0f172a;">
+                        <i class="fas ${ikon}" style="color:${renk};font-size:1.1rem;margin-top:3px;"></i>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;font-size:0.9rem;margin-bottom:2px;">${_escHtml(b.baslik)}</div>
+                            <div style="font-size:0.82rem;color:#475569;line-height:1.35;">${_escHtml(b.icerik || '')}</div>
+                        </div>
+                    </a>`;
+            }).join('');
+
+            // Bildirime tiklayinca: read isaretle + yonlendir.
+            listeEl.querySelectorAll('.bildirim-item').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    const bid = el.dataset.bid;
+                    if (!bid) return;
+                    try {
+                        await fetch(`/api/notifications/${bid}/read`, {
+                            method: 'PATCH',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('edunex_token') || localStorage.getItem('edunex_admin_token') || ''}` }
+                        });
+                    } catch {}
+                    // Default link davranisi yonlendirmeyi yapar; rozet azalt.
+                    const yeniSayi = Math.max(0, _bildirimCache.length - 1);
+                    rozet.textContent   = String(yeniSayi);
+                    rozet.style.display = yeniSayi > 0 ? 'inline-block' : 'none';
+                });
+            });
+        } catch (err) {
+            listeEl.innerHTML = `<p style="padding:18px;color:#ef4444;text-align:center;font-size:0.85rem;">Bildirimler yüklenemedi.</p>`;
+        }
+    }
+
+    function _escAttr(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
     }
 
     async function _sepetRozetiniGuncelle() {

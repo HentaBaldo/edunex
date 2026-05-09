@@ -45,7 +45,7 @@ window.changeRoleFilter = (role) => {
 async function fetchUsers(page = 1, role = '') {
     try {
         const tbody = document.getElementById('usersList');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</td></tr>';
 
         let queryUrl = `${API_URL}?page=${page}&limit=10`;
         if (role) {
@@ -57,17 +57,17 @@ async function fetchUsers(page = 1, role = '') {
 
         if (result.success) {
             if (result.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#64748b;">Eşleşen kullanıcı bulunamadı.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color:#64748b;">Eşleşen kullanıcı bulunamadı.</td></tr>';
             } else {
                 renderTable(result.data);
             }
             renderPagination(result.pagination.totalPages, result.pagination.currentPage);
         } else {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444;">Hata: ${result.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#ef4444;">Hata: ${result.message}</td></tr>`;
         }
     } catch (error) {
         console.error('Veriler çekilirken hata oluştu:', error);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444;">Sunucu bağlantı hatası!</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ef4444;">Sunucu bağlantı hatası!</td></tr>';
     }
 }
 
@@ -89,19 +89,26 @@ function renderTable(users) {
         };
         const color = roleColors[user.rol] || { bg: '#f1f5f9', text: '#475569' };
 
+        // Takipci sayisi backend'den her satir icin geliyor; sadece egitmenlerde anlamli.
+        const takipciSayisi = Number(user.takipci_sayisi || 0);
+        const takipciHucresi = user.rol === 'egitmen'
+            ? `<span style="display:inline-flex; align-items:center; gap:6px; background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:6px; font-weight:700; font-size:0.85rem;"><i class="fas fa-user-friends"></i> ${takipciSayisi.toLocaleString('tr-TR')}</span>`
+            : '<span style="color:#cbd5e1;">—</span>';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: 500; color: #1e293b;">
-                ${user.ad} ${user.soyad} 
+                ${user.ad} ${user.soyad}
                 ${isMe ? '<span style="font-size:0.6rem; background:#3b82f6; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align:middle;">SEN</span>' : ''}
             </td>
             <td style="color: #64748b;">${user.eposta}</td>
-            <td style="color: #64748b; font-size: 0.85rem;">-</td> 
+            <td style="color: #64748b; font-size: 0.85rem;">-</td>
             <td>
                 <span style="background: ${color.bg}; color: ${color.text}; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
                     ${user.rol}
                 </span>
             </td>
+            <td style="text-align:center;">${takipciHucresi}</td>
             <td style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
                 ${isAdmin ? '' : `<button class="btn-view" onclick="viewUser('${user.id}')" style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s;"><i class="fas fa-eye"></i> İncele</button>`}
                 

@@ -1,6 +1,10 @@
 <header class="navbar">
     <div class="container navbar-content">
 
+        <button id="navHamburger" class="nav-hamburger" type="button" aria-label="Menüyü aç" aria-expanded="false">
+            <i class="fas fa-bars"></i>
+        </button>
+
         <div class="nav-left">
             <a href="/main/index.html" class="logo">EduNex</a>
 
@@ -36,9 +40,31 @@
         </div>
 
         <div class="nav-right">
-            <a href="/main/courses.html" class="nav-text-link">Tüm Kurslar</a>
+            <a href="/main/courses.html" class="nav-text-link nav-link-desktop">Tüm Kurslar</a>
             <div id="authNavContainer"></div>
         </div>
 
+    </div>
+
+    <!-- Mobile drawer: hamburger ile acilir/kapanir -->
+    <div id="mobileNavDrawer" class="mobile-nav-drawer" aria-hidden="true">
+        <div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
+        <aside class="mobile-nav-panel">
+            <div class="mobile-nav-header">
+                <span class="logo">EduNex</span>
+                <button id="mobileNavClose" type="button" aria-label="Kapat" class="mobile-nav-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="mobile-nav-search">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input id="mobileGlobalSearchInput" type="text" placeholder="Ara..." autocomplete="off">
+                </div>
+            </div>
+            <nav class="mobile-nav-links">
+                <a href="/main/index.html"><i class="fas fa-home"></i> Anasayfa</a>
+                <a href="/main/courses.html"><i class="fas fa-book"></i> Tüm Kurslar</a>
+                <a href="/main/courses.html#kategoriler"><i class="fas fa-th-large"></i> Kategoriler</a>
+            </nav>
+        </aside>
     </div>
 </header>

@@ -7,9 +7,26 @@ const {
     Profile,
     Category,
     StudentInterest,
+    InstructorFollower,
     sequelize
 } = require('../models');
 const { Op, literal, QueryTypes } = require('sequelize');
+const jwt = require('jsonwebtoken');
+
+/**
+ * Opsiyonel JWT decode: ana sayfa endpoint'i public, ancak token gelirse
+ * giris yapmis kullaniciya ozel veri (takip edilen egitmen kurslari) eklenir.
+ * Gecersiz token sessizce yok sayilir; endpoint yanit vermeye devam eder.
+ */
+function _opsiyonelKullaniciCozumle(req) {
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) return null;
+    try {
+        return jwt.verify(header.split(' ')[1], process.env.JWT_SECRET);
+    } catch {
+        return null;
+    }
+}
 
 // ============================================================
 // YARDIMCI: Sequelize kurs nesnesini frontend formatına çevir
@@ -499,6 +516,11 @@ exports.getRecommendations = async (req, res, next) => {
             tohumKategoriId = await _enPopulerTohumKategorisiniBul();
         }
 
+        // Opsiyonel kullanici: giris yapmis ogrenci ise takip edilen
+        // egitmenlerin kurslarini ek bir dizi olarak doneriz.
+        const aktifKullanici = _opsiyonelKullaniciCozumle(req);
+        const ogrenciMi = aktifKullanici?.rol === 'ogrenci';
+
         // Tüm modüller paralel çalışır — N+1 sorgu riski sıfır
         const [
             enPopulerKurslar,
@@ -506,14 +528,16 @@ exports.getRecommendations = async (req, res, next) => {
             birlikteAlinanKurslar,
             kategoriBazliCarpraz,
             enCokBegenilen,
-            populerEgitmenler
+            populerEgitmenler,
+            followedInstructorsCourses
         ] = await Promise.all([
             _enPopulerKurslariGetir(9),
             _populerKategorileriGetir(9),
             tohumKursId     ? _birlikteAlinanKurslariGetir(tohumKursId, 9)     : Promise.resolve([]),
             tohumKategoriId ? _kategoriCarprazGetir(tohumKategoriId, 9)        : Promise.resolve([]),
             _enCokBegenilenGetir(9, 1),
-            _populerEgitmenleriGetir(9)
+            _populerEgitmenleriGetir(9),
+            ogrenciMi ? _takipEdilenEgitmenKurslariniGetir(aktifKullanici.id, 12) : Promise.resolve([])
         ]);
 
         return res.status(200).json({
@@ -521,7 +545,8 @@ exports.getRecommendations = async (req, res, next) => {
             mesaj:  'Ana sayfa öneri modülleri hazırlandı.',
             meta: {
                 tohum_kurs_id:     tohumKursId,
-                tohum_kategori_id: tohumKategoriId
+                tohum_kategori_id: tohumKategoriId,
+                kullanici_giris_yapti: !!aktifKullanici
             },
             veri: {
                 enPopulerKurslar,
@@ -529,7 +554,8 @@ exports.getRecommendations = async (req, res, next) => {
                 birlikteAlinanKurslar,
                 kategoriBazliCarpraz,
                 enCokBegenilen,
-                populerEgitmenler
+                populerEgitmenler,
+                followedInstructorsCourses
             }
         });
     } catch (hata) {
@@ -537,6 +563,43 @@ exports.getRecommendations = async (req, res, next) => {
         next(hata);
     }
 };
+
+/**
+ * Ogrencinin takip ettigi egitmenlerin yayindaki kurslarini cek.
+ * Tek sorguda InstructorFollower -> Course (egitmen_id eslesmesi) join'i yapilir.
+ */
+async function _takipEdilenEgitmenKurslariniGetir(ogrenciId, sinir = 12) {
+    const takipler = await InstructorFollower.findAll({
+        where: { ogrenci_id: ogrenciId },
+        attributes: ['egitmen_id'],
+        raw: true
+    });
+    if (takipler.length === 0) return [];
+    const egitmenIdleri = takipler.map(t => t.egitmen_id);
+
+    const kurslar = await Course.findAll({
+        where: {
+            egitmen_id: { [Op.in]: egitmenIdleri },
+            durum: 'yayinda',
+            silindi_mi: false
+        },
+        attributes: [
+            'id', 'baslik', 'alt_baslik', 'kapak_fotografi', 'fiyat', 'seviye',
+            'egitmen_id', 'kategori_id', 'olusturulma_tarihi',
+            [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci'],
+            [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan']
+        ],
+        include: [
+            { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad', 'profil_fotografi'] },
+            { model: Category, attributes: ['id', 'ad'] }
+        ],
+        order: [['olusturulma_tarihi', 'DESC']],
+        limit: sinir,
+        subQuery: false
+    });
+
+    return kurslar.map(kursBicimlendir);
+}
 
 // ============================================================
 // GERİYE DÖNÜK UYUMLULUK — Eski frontend çağrıları için

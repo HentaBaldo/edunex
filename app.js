@@ -90,6 +90,8 @@ const liveSessionRoutes = require('./routes/liveSessionRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const quizRoutes = require('./routes/quizRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
+const followRoutes = require('./routes/followRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
@@ -107,6 +109,8 @@ app.use('/api/live-sessions', liveSessionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/follows', followRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {
@@ -123,7 +127,7 @@ app.get('/canli-ders/:oda_adi', (req, res) => {
  * Veritabani semasini modellerle esitler ve baslangic verilerini yukler.
  * alter: true yapilandirmasi mevcut verileri koruyarak tablo yapisini gunceller.
  */
-sequelize.sync()
+sequelize.sync({ alter: true })
     .then(async () => {
         console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi.');
 

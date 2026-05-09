@@ -2,7 +2,7 @@ import { UIHelper } from './modules/ui-helper.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (!UIHelper.checkInstructorAccess()) return;
-    await Promise.all([loadDashboardStats(), loadMyCourses()]);
+    await Promise.all([loadDashboardStats(), loadMyCourses(), loadFollowers()]);
 });
 
 async function loadDashboardStats() {
@@ -19,6 +19,48 @@ async function loadDashboardStats() {
     }
 }
 
+// Takipci listesi (isim/avatar) icin /follows/my-followers cagrisi.
+// KPI degerini dashboard/stats endpointi zaten dondurdugu icin burada KPI'yi tekrar yazmiyoruz.
+async function loadFollowers() {
+    try {
+        const result = await ApiService.get('/follows/my-followers');
+        const liste  = result?.data?.ogrenciler || [];
+        const sayi   = result?.data?.followerCount ?? result?.data?.toplam ?? liste.length;
+        renderFollowersList(liste, sayi);
+    } catch (err) {
+        console.warn('[DASHBOARD] Takipci listesi yuklenemedi:', err.message);
+        const liste = document.getElementById('followersList');
+        if (liste) liste.innerHTML = '<p style="color:#ef4444;padding:14px 0;text-align:center;">Takipçi listesi yüklenemedi.</p>';
+    }
+}
+
+function renderFollowersList(ogrenciler, sayi) {
+    const text  = document.getElementById('followersCountText');
+    const liste = document.getElementById('followersList');
+    if (text)  text.textContent = `${sayi} takipçi`;
+    if (!liste) return;
+
+    if (!ogrenciler.length) {
+        liste.innerHTML = '<p style="color:#94a3b8;padding:18px 0;text-align:center;">Henüz takipçiniz yok. Kurslarınızı yayınladıkça takipçi sayınız artacak.</p>';
+        return;
+    }
+    liste.innerHTML = ogrenciler.slice(0, 12).map(t => {
+        const o = t.ogrenci || {};
+        const tam = `${o.ad || ''} ${o.soyad || ''}`.trim() || 'İsimsiz Öğrenci';
+        const avatar = o.profil_fotografi
+            ? `<img src="${escapeHtml(o.profil_fotografi)}" alt="${escapeHtml(tam)}" class="review-avatar">`
+            : `<div class="review-avatar-placeholder">${(tam[0] || '?').toUpperCase()}</div>`;
+        return `
+            <div class="review-item" style="display:flex;align-items:center;gap:12px;">
+                ${avatar}
+                <div style="flex:1;min-width:0;">
+                    <strong>${escapeHtml(tam)}</strong>
+                    <div style="font-size:0.8rem;color:#64748b;">${escapeHtml(o.eposta || '')}</div>
+                </div>
+            </div>`;
+    }).join('');
+}
+
 function renderKpi(kpi) {
     const trend = kpi.kazanc_trendi;
     const trendHtml = trend !== null
@@ -27,11 +69,15 @@ function renderKpi(kpi) {
            </span>`
         : '';
 
+    const takipci = Number(kpi.followerCount ?? kpi.toplam_takipci ?? 0);
     const cards = [
         { icon: 'fas fa-users', color: 'blue', label: 'Toplam Öğrenci', value: kpi.toplam_ogrenci.toLocaleString('tr-TR'), sub: `${kpi.yayinda_kurs} yayında kurs` },
         { icon: 'fas fa-wallet', color: 'green', label: 'Toplam Net Kazanç', value: `₺${kpi.toplam_net_kazanc.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, sub: '' },
         { icon: 'fas fa-chart-bar', color: 'purple', label: 'Bu Ayki Gelir', value: `₺${kpi.bu_ay_kazanc.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, sub: trendHtml },
-        { icon: 'fas fa-star', color: 'orange', label: 'Ortalama Puan', value: kpi.ortalama_puan > 0 ? `${kpi.ortalama_puan} / 5` : '—', sub: `${kpi.toplam_yorum} değerlendirme` }
+        { icon: 'fas fa-star', color: 'orange', label: 'Ortalama Puan', value: kpi.ortalama_puan > 0 ? `${kpi.ortalama_puan} / 5` : '—', sub: `${kpi.toplam_yorum} değerlendirme` },
+        // 5. kart artik dashboard/stats endpointi tek seferde donuyor; loadFollowers
+        // sadece alttaki listeyi doldurmak icin kalir.
+        { icon: 'fas fa-user-friends', color: 'blue', label: 'Toplam Takipçi', value: takipci.toLocaleString('tr-TR'), sub: 'Eğitmen profili takipçileri' }
     ];
 
     document.getElementById('kpiGrid').innerHTML = cards.map(c => `

@@ -1,11 +1,12 @@
-const { 
-    Profile, 
-    StudentDetail, 
-    InstructorDetail, 
-    Category, 
-    Course, 
-    CourseEnrollment 
+const {
+    Profile,
+    StudentDetail,
+    InstructorDetail,
+    Category,
+    Course,
+    CourseEnrollment
 } = require('../models');
+const { literal } = require('sequelize');
 
 /**
  * Tüm Kullanıcıları Listele (Sayfalı)
@@ -24,8 +25,12 @@ exports.getAllUsers = async (req, res, next) => {
 
         const { count, rows } = await Profile.findAndCountAll({
             where,
-            // Liste ekranı için temel bilgiler yeterli
-            attributes: ['id', 'ad', 'soyad', 'eposta', 'rol'],
+            // Liste ekranı için temel bilgiler + egitmenler icin takipci sayisi
+            // (subquery; ogrenci/admin satirlarinda da hesaplanir ama sonuc 0 olur).
+            attributes: [
+                'id', 'ad', 'soyad', 'eposta', 'rol',
+                [literal('(SELECT COUNT(*) FROM egitmen_takipcileri WHERE egitmen_takipcileri.egitmen_id = Profile.id)'), 'takipci_sayisi']
+            ],
             order: [['ad', 'ASC']],
             limit,
             offset

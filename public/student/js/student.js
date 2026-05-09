@@ -9,7 +9,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadDashboardData();
     loadDashboardCartBadge();
     checkPaymentNotification();
+    loadFollowedInstructors();
 });
+
+// ─── Takip Edilen Egitmenler ─────────────────────────────────────
+async function loadFollowedInstructors() {
+    const liste = document.getElementById('followedInstructorsList');
+    const sayi  = document.getElementById('followedCountText');
+    if (!liste) return;
+
+    try {
+        const sonuc    = await ApiService.get('/follows/my-instructors');
+        const toplam   = sonuc?.data?.toplam ?? 0;
+        const egitmenler = sonuc?.data?.egitmenler || [];
+
+        if (sayi) sayi.textContent = `${toplam} eğitmen`;
+
+        if (!egitmenler.length) {
+            liste.innerHTML = `
+                <div class="lh-empty-filter" style="grid-column:1/-1;">
+                    <i class="fas fa-user-plus"></i>
+                    <p>Henüz hiçbir eğitmeni takip etmiyorsunuz. Bir eğitmenin profilinden "Takip Et" butonuna basabilirsiniz.</p>
+                </div>`;
+            return;
+        }
+
+        liste.innerHTML = egitmenler.map(item => {
+            const eg     = item.egitmen || {};
+            const profil = eg.Profile  || {};
+            const tam    = `${profil.ad || ''} ${profil.soyad || ''}`.trim() || 'Eğitmen';
+            const baslik = eg.baslik || eg.unvan || '';
+            const linkId = profil.id || eg.kullanici_id;
+            const avatar = profil.profil_fotografi
+                ? `<img src="${_escAttr(profil.profil_fotografi)}" alt="${_escHtml(tam)}">`
+                : `<i class="fas fa-user"></i>`;
+            return `
+                <a href="/main/instructor-profile.html?id=${_escAttr(linkId)}" class="followed-card">
+                    <div class="followed-avatar">${avatar}</div>
+                    <div class="followed-body">
+                        <div class="followed-name">${_escHtml(tam)}</div>
+                        ${baslik ? `<div class="followed-title">${_escHtml(baslik)}</div>` : ''}
+                    </div>
+                </a>`;
+        }).join('');
+    } catch (err) {
+        console.error('[FOLLOWED] Yuklenemedi:', err.message);
+        liste.innerHTML = `<p style="color:#ef4444;padding:16px;text-align:center;">Takip listesi yüklenemedi.</p>`;
+    }
+}
+
+function _escHtml(s) {
+    if (s == null) return '';
+    const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML;
+}
+function _escAttr(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 function checkStudentAccess() {
     const token = localStorage.getItem('edunex_token');
