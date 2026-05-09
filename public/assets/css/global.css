@@ -45,7 +45,54 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    flex-wrap: nowrap;
+    gap: 16px;
 }
+
+/* ─── Navbar bolumleri (tum sayfalarda tutarli hizalama) ─────────
+   .nav-left, .nav-middle, .nav-right ortak navbar component'inde
+   kullanildigi icin kurali global.css'te tutuyoruz; sayfa-spesifik
+   CSS'lerde tekrar tanim olmasa da dogru hizalama saglanir. */
+.navbar .nav-left,
+.navbar .nav-middle,
+.navbar .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: nowrap;
+}
+.navbar .nav-left  { justify-content: flex-start; flex-shrink: 0; }
+.navbar .nav-middle{ justify-content: center; flex: 1 1 auto; min-width: 0; }
+.navbar .nav-right { justify-content: flex-end; flex-shrink: 0; }
+
+/* User dropdown sarmalayicisini flex'e cevir ki bildirim cani ve
+   diger nav-right elemanlariyla ayni dikey hizada otursun. */
+.navbar .user-dropdown {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+}
+.navbar .dropdown-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: #1e293b;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 8px 10px;
+}
+.navbar .nav-sepet-link,
+.navbar .nav-bildirim-wrap > button {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+.navbar .nav-bildirim-wrap { display: inline-flex; align-items: center; }
 
 /* ─── Marka Logosu ────────────────────────────────────── */
 .logo, .brand-logo {
@@ -188,4 +235,189 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
     .bg-blob, .bg-particles { animation: none; }
     .animate-fade-up, .animate-scale-in { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE / MOBILE LAYER
+   Tum projeyi etkileyen mobil uyumluluk kurallari (navbar, modal, grid).
+   Bu blok global.css'in sonunda kalmali; daha spesifik sayfa CSS'leri
+   bu kurallari override edebilir.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Hamburger butonu (mobil) ── */
+.nav-hamburger {
+    display: none;
+    background: transparent;
+    border: 0;
+    color: #0f172a;
+    font-size: 1.4rem;
+    padding: 6px 10px;
+    cursor: pointer;
+    align-items: center;
+}
+
+/* ── Mobil drawer (paneli) ── */
+.mobile-nav-drawer {
+    position: fixed; inset: 0;
+    display: none;
+    z-index: 2000;
+}
+.mobile-nav-drawer.open { display: block; }
+.mobile-nav-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(15,23,42,0.5);
+    backdrop-filter: blur(2px);
+}
+.mobile-nav-panel {
+    position: absolute; top: 0; left: 0;
+    width: min(82vw, 320px); height: 100vh;
+    background: #ffffff;
+    box-shadow: 2px 0 20px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+}
+.mobile-nav-drawer.open .mobile-nav-panel { transform: translateX(0); }
+.mobile-nav-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.mobile-nav-close {
+    background: transparent; border: 0; font-size: 1.3rem;
+    color: #64748b; cursor: pointer; padding: 6px 10px;
+}
+.mobile-nav-search { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; }
+.mobile-nav-search .search-container {
+    display: flex; align-items: center; gap: 8px;
+    background: #f1f5f9; border-radius: 10px; padding: 8px 12px;
+}
+.mobile-nav-search input { border: 0; background: transparent; flex: 1; outline: 0; font-size: 0.95rem; }
+.mobile-nav-links { display: flex; flex-direction: column; padding: 8px 0; }
+.mobile-nav-links a {
+    padding: 13px 20px;
+    color: #0f172a; text-decoration: none;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid #f8fafc;
+    font-weight: 500;
+}
+.mobile-nav-links a:hover { background: #f8fafc; }
+.mobile-nav-links a i { width: 20px; color: #64748b; }
+
+/* ═════ <= 768px : tablet ve mobil ═════ */
+@media (max-width: 768px) {
+    /* Navbar mobilde sadelesir */
+    .navbar { height: 60px; }
+    .navbar .container.navbar-content {
+        gap: 8px;
+        padding-left: 12px; padding-right: 12px;
+    }
+    .nav-hamburger { display: inline-flex; }
+    .nav-left .mega-menu-trigger { display: none; }
+    .nav-middle { display: none; }
+    .nav-link-desktop { display: none !important; }
+    .nav-right { gap: 8px; }
+
+    /* Bildirim cani dropdown'i mobile sigsin */
+    .bildirim-dropdown {
+        width: min(92vw, 340px) !important;
+        right: 0 !important; left: auto !important;
+    }
+
+    /* Auth dropdown content da overflow'u olsun */
+    .user-dropdown .dropdown-content {
+        max-width: 92vw;
+    }
+}
+
+/* ═════ <= 640px : sadece telefon ═════ */
+@media (max-width: 640px) {
+    /* Konteyner padding'leri */
+    .container { padding-left: 14px; padding-right: 14px; }
+
+    /* Tipik kurs grid'leri tek sutuna inecek */
+    .courses-grid,
+    .car-track,
+    .lh-course-grid,
+    .kpi-grid,
+    .charts-grid,
+    .bottom-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* car-track yatay slider modunda kalsin (yan kaydirma) */
+    .car-track {
+        display: flex !important;
+        grid-template-columns: none !important;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        gap: 12px;
+        padding-bottom: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .car-track > * {
+        flex: 0 0 84%;
+        scroll-snap-align: start;
+    }
+    /* car-btn'leri kucuk ekranda gizleyebiliriz (parmak ile kaydirma yeterli) */
+    .car-btn { display: none !important; }
+
+    /* Tablolar kapsayicida yatay scroll */
+    .table-responsive,
+    .admin-table-wrap,
+    .perf-table,
+    .admin-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+    }
+
+    /* Hero buyuk basliklar */
+    h1, .hero h1, .lh-hero h1 { font-size: 1.5rem !important; }
+    h2 { font-size: 1.2rem !important; }
+}
+
+/* ═════ Tum tablolar icin guvenli wrapper ═════ */
+.table-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+
+/* ═════ Modal'lar icin mobile-safe taban ═════ */
+/* Mevcut .modal-overlay, .iyzico-overlay, vb. icin asagidaki kurallar
+   maksimum genislik ve dikey scroll garantisi verir. Bu, sayfa-spesifik
+   modal CSS'lerini override etmek yerine eksik olanlari tamamlar. */
+.modal-overlay,
+.iyzico-overlay {
+    align-items: flex-start !important;
+}
+.modal-content,
+.modal-box,
+.iyzico-modal {
+    max-width: min(92vw, 760px) !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .modal-content,
+    .modal-box,
+    .iyzico-modal {
+        max-width: 96vw !important;
+        max-height: 92vh !important;
+        margin: 12px auto !important;
+        border-radius: 12px !important;
+        padding: 18px !important;
+    }
+    /* Modal icindeki form/grid kolonlari tek sutuna insin */
+    .modal-content .form-row,
+    .modal-box .form-row,
+    .modal-content .grid-2,
+    .modal-box .grid-2 {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+    }
 }

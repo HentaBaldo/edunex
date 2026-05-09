@@ -175,10 +175,22 @@
 
                 <div class="tab-navigation" id="tabNavigation">
                     <button class="tab-btn" id="tab-btn-sizin-icin" onclick="switchTab('tab-sizin-icin', this)" style="display:none;">Sizin İçin</button>
+                    <button class="tab-btn" id="tab-btn-takip" onclick="switchTab('tab-takip', this)" style="display:none;">Takip Ettiğiniz Eğitmenlerden</button>
                     <button class="tab-btn active" id="tab-btn-populer" onclick="switchTab('tab-populer', this)">En Popüler</button>
                     <button class="tab-btn" onclick="switchTab('tab-begenilen', this)">En Çok Beğenilen</button>
                     <button class="tab-btn" onclick="switchTab('tab-egitmenler', this)">Eğitmenler</button>
                     <button class="tab-btn" onclick="switchTab('tab-kesfet', this)">Keşfet</button>
+                </div>
+
+                <!-- Sekme: Takip Edilen Egitmenlerden (ogrenci giris yapmissa) -->
+                <div id="tab-takip" class="tab-pane">
+                    <div class="car-wrap">
+                        <button class="car-btn car-btn-l" onclick="carScroll(this,-1)" aria-label="Önceki"><i class="fas fa-chevron-left"></i></button>
+                        <div id="takipEdilenGrid" class="car-track">
+                            <div class="loading-state"><p>Takip ettiğiniz eğitmenlerin kursları yükleniyor...</p></div>
+                        </div>
+                        <button class="car-btn car-btn-r" onclick="carScroll(this,1)" aria-label="Sonraki"><i class="fas fa-chevron-right"></i></button>
+                    </div>
                 </div>
 
                 <!-- Sekme: Sizin İçin -->

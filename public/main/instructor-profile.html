@@ -22,7 +22,12 @@
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="hero-info">
-                    <h1 id="heroName">Yükleniyor...</h1>
+                    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <h1 id="heroName" style="margin:0;">Yükleniyor...</h1>
+                        <button id="followBtn" type="button" style="display:none;align-items:center;gap:8px;padding:8px 18px;border-radius:24px;border:2px solid #fff;background:transparent;color:#fff;cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.18s;">
+                            <i class="fas fa-user-plus"></i><span id="followBtnText">Takip Et</span>
+                        </button>
+                    </div>
                     <p class="hero-title" id="heroTitle"></p>
                     <div class="hero-stats" id="heroStats"></div>
                     <div class="hero-social" id="heroSocial"></div>
@@ -97,6 +102,13 @@
                         <div>
                             <div class="stat-value" id="statReviews">—</div>
                             <div class="stat-label">Değerlendirme</div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-icon"><i class="fas fa-user-friends"></i></div>
+                        <div>
+                            <div class="stat-value" id="statFollowers">—</div>
+                            <div class="stat-label">Takipçi</div>
                         </div>
                     </div>
                 </div>

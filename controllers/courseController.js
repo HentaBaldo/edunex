@@ -8,7 +8,9 @@ const {
     Category,
     InstructorDetail,
     Review,
-    LiveSession
+    LiveSession,
+    InstructorFollower,
+    Notification
 } = require('../models');
 const path = require('path');
 const fs = require('fs');
@@ -390,14 +392,38 @@ exports.updateCourseStatus = async (req, res, next) => {
             updates.iade_sebebi = null;
         }
 
+        const eskiDurum = course.durum;
         await course.update(updates);
+
+        // Tetikleyici: yayinda'ya yeni gecis ise takipcilere bildirim gonder.
+        // Bildirim hatasi ana akisi bozmamali (publish basarili sayilir).
+        if (durum === 'yayinda' && eskiDurum !== 'yayinda') {
+            try {
+                const followers = await InstructorFollower.findAll({
+                    where: { egitmen_id: course.egitmen_id },
+                    attributes: ['ogrenci_id'],
+                });
+                if (followers.length > 0) {
+                    await Notification.bulkCreate(followers.map(f => ({
+                        kullanici_id: f.ogrenci_id,
+                        baslik: 'Yeni Kurs Yayınlandı!',
+                        icerik: 'Takip ettiğiniz eğitmen yeni bir kurs yayınladı.',
+                        tip: 'yeni_kurs',
+                        hedef_url: `/main/course-detail.html?id=${course.id}`,
+                    })));
+                    console.log(`[NOTIFY] yeni_kurs bildirimi: ${followers.length} takipciye gonderildi (kurs ${course.id}).`);
+                }
+            } catch (notifyErr) {
+                console.error('[NOTIFY ERROR] yeni_kurs bildirimi olusturulamadi:', notifyErr.message);
+            }
+        }
 
         return res.status(200).json({
             status: 'success',
             message: `Kurs durumu "${durum}" olarak güncellendi.`,
-            data: { 
-                id: course.id, 
-                durum: course.durum 
+            data: {
+                id: course.id,
+                durum: course.durum
             }
         });
     } catch (error) {

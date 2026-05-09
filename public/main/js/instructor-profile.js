@@ -16,9 +16,68 @@
             kurslarDoldur(data.kurslar || []);
             webinarlarDoldur(data.webinarlar || []);
             istatistiklerDoldur(data.istatistikler || {});
+            takipButonunuKur();
         } catch (err) {
             console.error('[EGITMEN_PROFIL]', err);
             hataMesaji('Eğitmen profili yüklenirken bir hata oluştu.');
+        }
+    }
+
+    // ─── Takip Et / Takipten Cik ──────────────────────────────
+    async function takipButonunuKur() {
+        const buton = document.getElementById('followBtn');
+        if (!buton) return;
+
+        const token = localStorage.getItem('edunex_token');
+        const userJson = localStorage.getItem('edunex_user');
+        if (!token || !userJson) return; // anonim kullanici -> buton gizli kalir
+
+        let kullanici;
+        try { kullanici = JSON.parse(userJson); } catch { return; }
+        if (kullanici.rol !== 'ogrenci') return; // sadece ogrenci takip edebilir
+        if (kullanici.id === egitmenId) return;  // kendini takip edemez
+
+        // Mevcut durumu cek: takip edilenler listesinde mi?
+        let takipEdiyor = false;
+        try {
+            const sonuc = await ApiService.get('/follows/my-instructors');
+            const liste = sonuc?.data?.egitmenler || [];
+            takipEdiyor = liste.some(e => e.egitmen?.kullanici_id === egitmenId);
+        } catch (err) {
+            console.warn('[TAKIP] Mevcut durum okunamadi:', err.message);
+        }
+
+        buton.style.display = 'inline-flex';
+        butonGorunumunuAyarla(buton, takipEdiyor);
+
+        buton.addEventListener('click', async () => {
+            buton.disabled = true;
+            try {
+                const sonuc = await ApiService.post(`/follows/${egitmenId}`, {});
+                const yeniDurum = !!sonuc?.data?.takip_ediyor;
+                butonGorunumunuAyarla(buton, yeniDurum);
+            } catch (err) {
+                console.error('[TAKIP] Toggle hatasi:', err);
+                alert('İşlem başarısız: ' + (err.message || 'Bilinmeyen hata'));
+            } finally {
+                buton.disabled = false;
+            }
+        });
+    }
+
+    function butonGorunumunuAyarla(buton, takipEdiyor) {
+        const text = document.getElementById('followBtnText');
+        const ikon = buton.querySelector('i');
+        if (takipEdiyor) {
+            if (text) text.textContent = 'Takip Ediliyor';
+            if (ikon) ikon.className = 'fas fa-user-check';
+            buton.style.background = '#fff';
+            buton.style.color = '#0f172a';
+        } else {
+            if (text) text.textContent = 'Takip Et';
+            if (ikon) ikon.className = 'fas fa-user-plus';
+            buton.style.background = 'transparent';
+            buton.style.color = '#fff';
         }
     }
 
@@ -134,6 +193,8 @@
         _setText('statCourses',  ist.toplam_kurs    != null ? ist.toplam_kurs    : '0');
         _setText('statRating',   ist.ortalama_puan  > 0    ? ist.ortalama_puan.toFixed(1) : '—');
         _setText('statReviews',  ist.toplam_yorum   != null ? ist.toplam_yorum.toLocaleString('tr-TR') : '0');
+        const takipci = ist.followerCount ?? ist.toplam_takipci ?? 0;
+        _setText('statFollowers', Number(takipci).toLocaleString('tr-TR'));
 
         if (ist.toplam_yorum > 0) {
             const ratingCard = document.getElementById('ratingCard');
