@@ -4,6 +4,7 @@
  */
 
 const { InstructorFollower, InstructorDetail, Profile } = require('../models');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Takip et / Takipten cik (toggle).
@@ -55,6 +56,25 @@ exports.toggleFollow = async (req, res, next) => {
         }
 
         const created = await InstructorFollower.create({ ogrenci_id, egitmen_id });
+
+        // --- TAKIPCI BILDIRIMI (yalniz YENI takipte; takipten cikinca spam yok) ---
+        // Non-blocking: bildirim hatasi takip kaydini geri almamali.
+        try {
+            const ogrenci = await Profile.findByPk(ogrenci_id, { attributes: ['ad', 'soyad'] });
+            const ogrenciAd = ogrenci ? `${ogrenci.ad || ''} ${ogrenci.soyad || ''}`.trim() || 'Yeni bir ogrenci' : 'Yeni bir ogrenci';
+            await sendNotification({
+                kullanici_id: egitmen_id,
+                baslik: 'Yeni Takipçi',
+                mesaj: `${ogrenciAd} sizi takip etmeye başladı.`,
+                tip: 'sistem',
+                baglanti_linki: `/instructor/dashboard.html`,
+            });
+        } catch (notifyErr) {
+            console.error('[NOTIFY ERROR] Takipci bildirimi olusturulamadi:', {
+                ogrenci_id, egitmen_id, message: notifyErr.message,
+            });
+        }
+
         return res.status(201).json({
             status: 'success',
             message: 'Egitmen takip edildi.',
