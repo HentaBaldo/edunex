@@ -55,6 +55,13 @@ app.use(cors({
     origin: (origin, callback) => {
         // Same-origin / curl / Postman istekleri (origin = undefined) serbest
         if (!origin) return callback(null, true);
+        
+        // --- IYZICO BYPASS ---
+        // İyzico'nun sandbox ve canlı domainlerinden gelen isteklere her zaman izin ver
+        if (origin.includes('iyzipay.com') || origin.includes('iyzico.com')) {
+            return callback(null, true);
+        }
+
         if (allowedOrigins.length === 0) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         return callback(new Error(`CORS engellendi: ${origin}`));
