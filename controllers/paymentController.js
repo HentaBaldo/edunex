@@ -20,6 +20,7 @@ const {
     Category,
 } = require('../models');
 const iyzicoService = require('../services/iyzicoService');
+const { sendNotification } = require('../services/notificationService');
 
 // Platform komisyon orani: %30 (env ile override edilebilir)
 const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
@@ -319,6 +320,10 @@ exports.callback = async (req, res) => {
             console.warn('[CALLBACK] iyzico itemTransactions bos doner; iade/approval bu siparisten yapilamaz.', { order_id: order.id });
         }
 
+        // Transaction sonrasi bildirim icin gerekli minimum bilgileri yakalayacagimiz scope.
+        // Burada doluyor; transaction commit edildikten sonra non-blocking bildirim atilir.
+        const satisBildirimDataset = [];
+
         try {
             await sequelize.transaction(async (t) => {
                 await order.update({
@@ -331,7 +336,7 @@ exports.callback = async (req, res) => {
                     where: { siparis_id: order.id },
                     include: [{
                         model: Course,
-                        attributes: ['id', 'fiyat', 'egitmen_id'],
+                        attributes: ['id', 'baslik', 'fiyat', 'egitmen_id'],
                     }],
                     transaction: t,
                 });
@@ -376,6 +381,16 @@ exports.callback = async (req, res) => {
                         },
                         transaction: t,
                     });
+
+                    // Bildirim dataset: transaction icinde sadece veri YAKALIYORUZ, IO yok.
+                    if (oi.Course?.egitmen_id) {
+                        satisBildirimDataset.push({
+                            egitmen_id: oi.Course.egitmen_id,
+                            kurs_id: oi.kurs_id,
+                            kurs_baslik: oi.Course?.baslik || 'Kurs',
+                            net_tutar: fromKurus(netKurus),
+                        });
+                    }
                 }
 
                 // 4) Sepeti bosalt
@@ -398,6 +413,37 @@ exports.callback = async (req, res) => {
                 stack: dbError.stack,
             });
             return failWith(`Odemeniz alindi ancak kayit olusturulamadi. Destek ile iletisime gecin. Siparis No: ${order.id}`);
+        }
+
+        // --- SATIS BILDIRIMI (transaction COMMIT sonrasi, non-blocking) ---
+        // KRITIK: Bu blok transaction'in DISINDA durur. Bildirim hatasi:
+        //   1) order'i 'tamamlandi'dan 'basarisiz'a dusurmemeli,
+        //   2) ogrencinin enrollment'ini iptal etmemeli,
+        //   3) iyzico'dan iade tetiklememeli.
+        // Bu yuzden hatayi sadece logluyoruz, basarili sayfasina yonlendirmeye devam ediyoruz.
+        try {
+            // Ogrenci adi tek bir Profile sorgusuyla cekiliyor (N+1 yok).
+            const ogrenci = await Profile.findByPk(order.kullanici_id, {
+                attributes: ['id', 'ad', 'soyad'],
+            });
+            const ogrenciAd = ogrenci ? `${ogrenci.ad || ''} ${ogrenci.soyad || ''}`.trim() : 'Bir öğrenci';
+
+            // Her satilan kalem icin kursun sahibi egitmene ayri bildirim.
+            // Promise.allSettled: bir bildirimin hatasi digerlerini durdurmasin.
+            await Promise.allSettled(satisBildirimDataset.map(d =>
+                sendNotification({
+                    kullanici_id: d.egitmen_id,
+                    baslik: 'Tebrikler! Yeni Bir Satış',
+                    mesaj: `"${d.kurs_baslik}" kursunuz ${ogrenciAd} tarafından satın alındı. Net hakediş: ${d.net_tutar} TRY.`,
+                    tip: 'sistem',
+                    baglanti_linki: `/instructor/dashboard.html`,
+                })
+            ));
+        } catch (notifyErr) {
+            console.error('[NOTIFY ERROR] Satis bildirimleri olusturulamadi:', {
+                order_id: order.id,
+                message: notifyErr.message,
+            });
         }
 
         return res.redirect(successUrl);

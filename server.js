@@ -8,6 +8,7 @@ require('dotenv').config();
 const app = require('./app');
 const { sequelize } = require('./models');
 const payoutCron = require('./cron/payoutCron');
+const liveSessionCron = require('./cron/liveSessionCron');
 
 const PORT = process.env.PORT || 3000;
 
@@ -29,6 +30,15 @@ async function startServer() {
             payoutCron.start();
         } else {
             console.log('[PAYOUT CRON] PAYOUT_CRON_DISABLED=true oldugu icin baslatilmadi.');
+        }
+
+        // --- Canli Ders Otomatik Kapanma Cron Job ---
+        // Acik unutulan canli oturumlari otomatik 'tamamlandi'ya ceker.
+        // LIVE_SESSION_CRON_DISABLED=true ile devre disi birakilabilir.
+        if (process.env.LIVE_SESSION_CRON_DISABLED !== 'true') {
+            liveSessionCron.start();
+        } else {
+            console.log('[LIVE SESSION CRON] LIVE_SESSION_CRON_DISABLED=true oldugu icin baslatilmadi.');
         }
 
         // Istemci zaman asimi (Timeout) yapilandirmasi:

@@ -17,6 +17,7 @@ const fs = require('fs');
 const { fn, col, Op } = require('sequelize');
 const { recalculateCourseProgress } = require('../services/progressService');
 const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
+const { sendNotification, notifyMultipleUsers } = require('../services/notificationService');
 
 /**
  * Tüm Kursları Getir (Sayfalama ile)
@@ -403,16 +404,13 @@ exports.updateCourseStatus = async (req, res, next) => {
                     where: { egitmen_id: course.egitmen_id },
                     attributes: ['ogrenci_id'],
                 });
-                if (followers.length > 0) {
-                    await Notification.bulkCreate(followers.map(f => ({
-                        kullanici_id: f.ogrenci_id,
-                        baslik: 'Yeni Kurs Yayınlandı!',
-                        icerik: 'Takip ettiğiniz eğitmen yeni bir kurs yayınladı.',
-                        tip: 'yeni_kurs',
-                        hedef_url: `/main/course-detail.html?id=${course.id}`,
-                    })));
-                    console.log(`[NOTIFY] yeni_kurs bildirimi: ${followers.length} takipciye gonderildi (kurs ${course.id}).`);
-                }
+                const aliciIds = followers.map(f => f.ogrenci_id);
+                await notifyMultipleUsers(aliciIds, {
+                    baslik: 'Yeni Kurs Yayınlandı!',
+                    mesaj: `Takip ettiğiniz eğitmen yeni bir kurs yayınladı: "${course.baslik}".`,
+                    tip: 'yeni_kurs',
+                    baglanti_linki: `/main/course-detail.html?id=${course.id}`,
+                });
             } catch (notifyErr) {
                 console.error('[NOTIFY ERROR] yeni_kurs bildirimi olusturulamadi:', notifyErr.message);
             }

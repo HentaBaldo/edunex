@@ -88,7 +88,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         renderCurriculum(course.Sections || []);
-        renderRecordings(course.LiveSessions || []);
+        initCourseTabs();
+        loadLiveSessionsTab();
         loadReviews();
     } catch (error) {
         console.error("[HATA] Kurs detayları çekilemedi:", error.message);
@@ -925,30 +926,152 @@ function updateStarUI(rating) {
     });
 }
 
-function renderRecordings(recordings) {
-    const section = document.getElementById('recordingsSection');
-    const list = document.getElementById('recordingsList');
+// =============================================
+// CANLI DERSLER VE KAYITLAR — Tab + Render
+// =============================================
 
-    if (!recordings || recordings.length === 0) {
-        section.style.display = 'none';
+function initCourseTabs() {
+    const buttons = document.querySelectorAll('.course-tab-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.tab;
+            buttons.forEach(b => {
+                const isActive = b === btn;
+                b.classList.toggle('active', isActive);
+                b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                b.style.borderBottomColor = isActive ? '#4f46e5' : 'transparent';
+                b.style.color = isActive ? '#0f172a' : '#64748b';
+            });
+            document.querySelectorAll('.course-tab-panel').forEach(p => {
+                p.style.display = (p.id === `tab-${target}`) ? '' : 'none';
+            });
+        });
+    });
+}
+
+/**
+ * /api/live-sessions/course/:courseId çağrılır.
+ *   - 200 → kullanıcı kursa kayıtlı veya eğitmen; oturumları say + render et.
+ *   - 403 → kayıtsız öğrenci; yine de listeyi kapalı butonlarla göster ki kullanıcı görsün.
+ *   - 401 → guest; sadece bilgilendirme mesajı.
+ */
+async function loadLiveSessionsTab() {
+    const upcomingEl = document.getElementById('upcomingLiveList');
+    const pastEl = document.getElementById('pastLiveList');
+    const hintEl = document.getElementById('liveAccessHint');
+    const badgeEl = document.getElementById('liveTabBadge');
+
+    // Guest (token yok) → erişim mesajıyla göster, API çağırma.
+    if (!currentUserToken) {
+        if (hintEl) {
+            hintEl.style.display = 'block';
+            hintEl.innerHTML = '<i class="fas fa-lock"></i> Canlı dersleri ve geçmiş kayıtları görmek için giriş yapın.';
+        }
+        upcomingEl.innerHTML = '<p style="grid-column:1/-1; color:#94a3b8;">Giriş yapılmadı.</p>';
+        pastEl.innerHTML = '<p style="grid-column:1/-1; color:#94a3b8;">Giriş yapılmadı.</p>';
         return;
     }
 
-    section.style.display = 'block';
-    list.innerHTML = recordings.map(r => {
-        const date = new Date(r.baslangic_tarihi);
-        const dateStr = date.toLocaleString('tr-TR', { dateStyle: 'medium' });
-        return `
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';" onmouseout="this.style.transform=''; this.style.boxShadow='';'">
-                <div style="position:relative; background:#0f172a; height:160px; display:flex; align-items:center; justify-content:center;">
-                    <i class="fas fa-play-circle" style="font-size:3rem; color:#fff; opacity:0.8;"></i>
-                </div>
-                <div style="padding:16px;">
-                    <h4 style="margin:0 0 8px 0; color:#1e293b; font-weight:600;">${escapeHtml(r.baslik)}</h4>
-                    <p style="margin:0 0 12px 0; color:#64748b; font-size:0.85rem; line-height:1.4;">${r.aciklama ? escapeHtml(r.aciklama).substring(0, 80) + '...' : 'Açıklama yok'}</p>
-                    <p style="margin:0 0 12px 0; color:#94a3b8; font-size:0.8rem;"><i class="fas fa-calendar"></i> ${dateStr}</p>
-                    <a href="${r.kayit_video_url}" target="_blank" class="btn-primary-lg-alt" style="display:inline-block; padding:8px 16px; font-size:0.85rem; text-decoration:none; border-radius:6px; color:#fff; background:var(--primary-color); text-align:center;"><i class="fas fa-play"></i> İzle</a>
-                </div>
-            </div>`;
-    }).join('');
+    let sessions = [];
+    let hasAccess = false;
+    try {
+        const result = await ApiService.get(`/live-sessions/course/${currentCourseId}`);
+        sessions = result.data || [];
+        hasAccess = true;
+    } catch (err) {
+        // 403 → kayıtsız öğrenci. Yine de oturum listesini göstermek istiyoruz ki kayıt motivasyonu olsun.
+        // Bu durumda backend liste vermiyor; sadece bilgilendirme yapacağız.
+        if (hintEl) hintEl.style.display = 'block';
+        upcomingEl.innerHTML = '<p style="grid-column:1/-1; color:#94a3b8;">Kayıt olunca canlı dersler burada görünecek.</p>';
+        pastEl.innerHTML = '<p style="grid-column:1/-1; color:#94a3b8;">Kayıt olunca geçmiş kayıtlar burada görünecek.</p>';
+        return;
+    }
+
+    const now = new Date();
+    // "Aktif/Yaklasan": devam_ediyor (her tarih) VEYA planlandi+gelecek tarihli.
+    const upcoming = sessions.filter(s => {
+        if (s.durum === 'devam_ediyor') return true;
+        if (s.durum === 'planlandi' && new Date(s.baslangic_tarihi) >= now) return true;
+        return false;
+    });
+
+    // "Kayitlar": tamamlandi + kayit_video_url dolu.
+    const past = sessions
+        .filter(s => s.durum === 'tamamlandi' && s.kayit_video_url)
+        .sort((a, b) => new Date(b.baslangic_tarihi) - new Date(a.baslangic_tarihi));
+
+    // Sekme rozeti (aktif ders sayisi)
+    if (badgeEl) {
+        if (upcoming.length > 0) {
+            badgeEl.textContent = upcoming.length;
+            badgeEl.style.display = 'inline-block';
+        } else {
+            badgeEl.style.display = 'none';
+        }
+    }
+
+    upcomingEl.innerHTML = upcoming.length === 0
+        ? '<p style="grid-column:1/-1; color:#94a3b8;">Şu an aktif veya yaklaşan canlı ders yok.</p>'
+        : upcoming.map(s => renderLiveCard(s, isEnrolledStudent || hasAccess)).join('');
+
+    pastEl.innerHTML = past.length === 0
+        ? '<p style="grid-column:1/-1; color:#94a3b8;">Henüz yüklenmiş bir ders kaydı yok.</p>'
+        : past.map(s => renderRecordingCard(s)).join('');
 }
+
+function renderLiveCard(s, canJoin) {
+    const date = new Date(s.baslangic_tarihi);
+    const dateStr = date.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
+    const isLive = s.durum === 'devam_ediyor';
+    const badge = isLive
+        ? '<span style="background:#ef4444; color:#fff; padding:3px 10px; border-radius:999px; font-size:0.7rem; font-weight:700;"><i class="fas fa-circle" style="font-size:0.6em;"></i> CANLI</span>'
+        : '<span style="background:#dbeafe; color:#1e40af; padding:3px 10px; border-radius:999px; font-size:0.7rem; font-weight:600;">Planlandı</span>';
+
+    const joinBtn = canJoin
+        ? `<button onclick="joinLiveSession('${s.id}')" class="btn-primary-full" style="margin:0; padding:10px; font-size:0.9rem; background:${isLive ? '#ef4444' : '#4f46e5'};"><i class="fas fa-sign-in-alt"></i> ${isLive ? 'Şimdi Katıl' : 'Katıl'}</button>`
+        : `<button disabled class="btn-primary-full" style="margin:0; padding:10px; font-size:0.9rem; background:#cbd5e1; color:#64748b; cursor:not-allowed;" title="Önce kursa kayıt olun"><i class="fas fa-lock"></i> Kursa kayıt olun</button>`;
+
+    return `
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed); height:100px; display:flex; align-items:center; justify-content:center; position:relative;">
+                <i class="fas fa-broadcast-tower" style="font-size:2.5rem; color:#fff; opacity:0.9;"></i>
+                <div style="position:absolute; top:10px; right:10px;">${badge}</div>
+            </div>
+            <div style="padding:16px;">
+                <h4 style="margin:0 0 8px 0; color:#1e293b; font-weight:600;">${escapeHtml(s.baslik)}</h4>
+                <p style="margin:0 0 12px 0; color:#94a3b8; font-size:0.8rem;"><i class="fas fa-calendar"></i> ${dateStr} · ${s.sure_dakika} dk</p>
+                ${joinBtn}
+            </div>
+        </div>`;
+}
+
+function renderRecordingCard(s) {
+    const date = new Date(s.baslangic_tarihi);
+    const dateStr = date.toLocaleString('tr-TR', { dateStyle: 'medium' });
+    return `
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+            <div style="background:#0f172a; height:100px; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-play-circle" style="font-size:2.5rem; color:#fff; opacity:0.85;"></i>
+            </div>
+            <div style="padding:16px;">
+                <h4 style="margin:0 0 8px 0; color:#1e293b; font-weight:600;">${escapeHtml(s.baslik)}</h4>
+                <p style="margin:0 0 12px 0; color:#94a3b8; font-size:0.8rem;"><i class="fas fa-calendar"></i> ${dateStr}</p>
+                <a href="${s.kayit_video_url}" target="_blank" rel="noopener" class="btn-primary-full" style="display:inline-block; text-align:center; margin:0; padding:10px; font-size:0.9rem; text-decoration:none; color:#fff; background:var(--primary-color);"><i class="fas fa-play"></i> Kaydı İzle</a>
+            </div>
+        </div>`;
+}
+
+/**
+ * Canli derse katil: /join endpoint'inden oda bilgisi al, /canli-ders/:oda_adi sayfasina yonlendir.
+ */
+async function joinLiveSession(sessionId) {
+    try {
+        const result = await ApiService.post(`/live-sessions/${sessionId}/join`, {});
+        const odaAdi = result?.data?.room?.oda_adi;
+        if (!odaAdi) throw new Error('Oda bilgisi alınamadı.');
+        window.location.href = `/canli-ders/${odaAdi}`;
+    } catch (err) {
+        alert(err?.message || 'Canlı derse katılım sağlanamadı. Lütfen tekrar deneyin.');
+    }
+}
+window.joinLiveSession = joinLiveSession;

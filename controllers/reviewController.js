@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { Review, CourseEnrollment, StudentDetail, Profile, Course } = require('../models');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Öğrencinin kursa puan ve yorum bırakması (veya güncellemesi)
@@ -33,6 +34,29 @@ exports.addOrUpdateReview = async (req, res) => {
             yorum: yorum ? String(yorum).slice(0, 2000) : null,
             olusturulma_tarihi: new Date()
         });
+
+        // --- YORUM BILDIRIMI (sadece YENI yorumda; update'de spam yapmayalim) ---
+        // Non-blocking: bildirim hatasi yorumu kaybetmemeli.
+        if (created) {
+            try {
+                const course = await Course.findByPk(kurs_id, {
+                    attributes: ['id', 'baslik', 'egitmen_id'],
+                });
+                if (course?.egitmen_id) {
+                    await sendNotification({
+                        kullanici_id: course.egitmen_id,
+                        baslik: 'Kursunuza Yeni Yorum',
+                        mesaj: `"${course.baslik}" kursunuza ${puan} yildizli yeni bir yorum yapildi.`,
+                        tip: 'sistem',
+                        baglanti_linki: `/main/course-detail.html?id=${course.id}#reviews`,
+                    });
+                }
+            } catch (notifyErr) {
+                console.error('[NOTIFY ERROR] Yorum bildirimi olusturulamadi:', {
+                    kurs_id, ogrenci_id: ogrenciId, message: notifyErr.message,
+                });
+            }
+        }
 
         return res.status(200).json({
             success: true,

@@ -25,9 +25,10 @@ if (process.env.NODE_ENV === 'production') {
 // Multer transit klasoru (yukleme bitince temizlenir) + Bunny basarisiz olursa
 // yedek olarak kullanilan kalici klasorler.
 const uploadDirs = [
-    path.join(__dirname, 'uploads/temp'),     // Multer transit
-    path.join(__dirname, 'uploads/lessons'),  // Bunny fallback - ders belgeleri
-    path.join(__dirname, 'uploads/avatars')   // Bunny fallback - profil fotograflari
+    path.join(__dirname, 'uploads/temp'),       // Multer transit
+    path.join(__dirname, 'uploads/lessons'),    // Bunny fallback - ders belgeleri
+    path.join(__dirname, 'uploads/avatars'),    // Bunny fallback - profil fotograflari
+    path.join(__dirname, 'uploads/recordings')  // Canli ders kaydi (Bunny'e yuklenmeden once gecici)
 ];
 uploadDirs.forEach(dir => {
     if (!fs.existsSync(dir)) {

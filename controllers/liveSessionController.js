@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { uploadVideoToBunny } = require('../services/bunnyService');
+const { notifyMultipleUsers } = require('../services/notificationService');
 const {
     sequelize,
     LiveSession,
@@ -14,7 +15,6 @@ const {
     CourseEnrollment,
     Profile,
     InstructorFollower,
-    Notification,
 } = require('../models');
 
 /**
@@ -109,13 +109,17 @@ exports.createSession = async (req, res, next) => {
         if (tip === 'kursa_ozel') {
             await assertInstructorOwnsCourse(kurs_id, req.user.id);
             finalKursId = kurs_id;
-            odaPrefix = kurs_id.slice(0, 8);
+            odaPrefix = 'kurs';
         } else {
             finalKursId = null;
-            odaPrefix = `genel-${req.user.id.slice(0, 6)}`;
+            odaPrefix = 'genel';
         }
 
-        const odaAdi = `edunex-${odaPrefix}-${crypto.randomBytes(8).toString('hex')}`;
+        // Jitsi oda adi: tip etiketi + tam UUID (122-bit entropy).
+        // crypto.randomUUID() Node 14.17+ standardidir; tirelerini cikariyoruz cunki
+        // bazi Jitsi deploy'lari URL'de tireyi yorumluyor (guvenli karakter seti: [a-z0-9]).
+        const odaUuid = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex')).replace(/-/g, '');
+        const odaAdi = `edunex-${odaPrefix}-${odaUuid}`;
 
         const session = await LiveSession.create({
             kurs_id: finalKursId,
@@ -130,23 +134,43 @@ exports.createSession = async (req, res, next) => {
             kayit_alinsin_mi: !!kayit_alinsin_mi,
         });
 
-        // Tetikleyici: egitmenin takipcilerine canli yayin bildirimi.
-        // Bildirim hatasi oturum yaratmayi bozmamali.
+        // --- TIP-BAZLI BILDIRIM DAGITIMI (notificationService uzerinden) ---
+        // Kural:
+        //   - kursa_ozel: SADECE bu kursa kayitli ogrencilere (kurs_kayitlari)
+        //   - genel:      egitmenin TUM takipcilerine (egitmen_takipcileri)
+        // NON-BLOCKING: bildirim hatasi oturum olusturmayi bozmamali.
         try {
-            const followers = await InstructorFollower.findAll({
-                where: { egitmen_id: req.user.id },
-                attributes: ['ogrenci_id'],
-            });
-            if (followers.length > 0) {
-                await Notification.bulkCreate(followers.map(f => ({
-                    kullanici_id: f.ogrenci_id,
-                    baslik: 'Yeni Canlı Yayın!',
-                    icerik: `Takip ettiğiniz eğitmen yeni bir canlı yayın planladı: "${baslik}".`,
+            let aliciIdList = [];
+            let payload;
+
+            if (tip === 'kursa_ozel') {
+                const enrolls = await CourseEnrollment.findAll({
+                    where: { kurs_id: finalKursId },
+                    attributes: ['ogrenci_id'],
+                });
+                aliciIdList = enrolls.map(e => e.ogrenci_id);
+                payload = {
+                    baslik: 'Yeni Canlı Ders Planlandı',
+                    mesaj: `Kursunuza yeni bir canlı ders eklendi: "${baslik}".`,
                     tip: 'canli_yayin',
-                    hedef_url: `/canli-ders/${odaAdi}`,
-                })));
-                console.log(`[NOTIFY] canli_yayin bildirimi: ${followers.length} takipciye gonderildi (oturum ${session.id}).`);
+                    baglanti_linki: `/main/course-detail.html?id=${finalKursId}`,
+                };
+            } else {
+                // 'genel' (webinar)
+                const followers = await InstructorFollower.findAll({
+                    where: { egitmen_id: req.user.id },
+                    attributes: ['ogrenci_id'],
+                });
+                aliciIdList = followers.map(f => f.ogrenci_id);
+                payload = {
+                    baslik: 'Yeni Canlı Yayın!',
+                    mesaj: `Takip ettiğiniz eğitmen yeni bir canlı yayın planladı: "${baslik}".`,
+                    tip: 'canli_yayin',
+                    baglanti_linki: `/main/live-sessions.html`,
+                };
             }
+
+            await notifyMultipleUsers(aliciIdList, payload);
         } catch (notifyErr) {
             console.error('[NOTIFY ERROR] canli_yayin bildirimi olusturulamadi:', notifyErr.message);
         }
@@ -326,17 +350,38 @@ exports.joinSession = async (req, res, next) => {
             err.statusCode = 410;
             throw err;
         }
+        if (session.durum === 'tamamlandi') {
+            const err = new Error('Bu oturum sona ermiştir.');
+            err.statusCode = 410;
+            throw err;
+        }
 
-        // Genel yayınlar herkese açık; sadece kursa_ozel oturumlarda kurs erişimi kontrol edilir.
-        if (session.yayin_tipi === 'kursa_ozel' && session.kurs_id) {
-            await resolveCourseAccess(session.kurs_id, req.user);
+        const isOwner = session.egitmen_id === req.user.id;
+
+        // ENTERPRISE ACCESS CONTROL
+        // Sahibi olmayan herkes icin tip-bazli yetki dogrulamasi yapilir:
+        //   - kursa_ozel: kurs_id zorunlu + kurs_kayitlari tablosunda kayit zorunlu
+        //   - genel:      tum giris yapmis kullanicilara acik (webinar)
+        // kurs_id null olan kursa_ozel oturum corrupt durumdur; 403 ile kapatiyoruz.
+        if (!isOwner) {
+            if (session.yayin_tipi === 'kursa_ozel') {
+                if (!session.kurs_id) {
+                    const err = new Error('Oturum yapilandirmasi hatali (kurs_id eksik). Egitmenle iletisime gecin.');
+                    err.statusCode = 403;
+                    throw err;
+                }
+                // KESIN KONTROL: ogrenci/baska egitmen kursa kayitli mi?
+                // resolveCourseAccess: rol === egitmen + course owner -> izin; degilse CourseEnrollment kontrol; ikisi de yoksa 403.
+                await resolveCourseAccess(session.kurs_id, req.user);
+            }
+            // 'genel' yayinlarda ek kontrole gerek yok — token sahibi her kullanici girebilir.
         }
 
         const profile = await Profile.findByPk(req.user.id, {
             attributes: ['id', 'ad', 'soyad', 'eposta'],
         });
 
-        const isInstructor = session.egitmen_id === req.user.id;
+        const isInstructor = isOwner;
 
         return res.status(200).json({
             success: true,
@@ -640,7 +685,14 @@ exports.uploadSessionRecording = async (req, res, next) => {
             `live-recording-${session.id}-${session.baslik}`
         );
 
-        session.kayit_video_url = `https://video.bunnycdn.com/${bunnyResult.guid}`;
+        // Bunny Stream izlenebilir embed URL formati:
+        //   https://iframe.mediadelivery.net/embed/<LIBRARY_ID>/<VIDEO_GUID>
+        // Eski "https://video.bunnycdn.com/<guid>" yapisi cdn root'una gider, oynatilamaz.
+        // BUNNY_LIBRARY_ID env'i bunny servisi tarafindan zaten dogrulaniyor.
+        const libraryId = process.env.BUNNY_LIBRARY_ID;
+        session.kayit_video_url = libraryId
+            ? `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyResult.guid}`
+            : `https://video.bunnycdn.com/${bunnyResult.guid}`; // defansif fallback
         await session.save();
 
         return res.status(200).json({
