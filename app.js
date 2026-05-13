@@ -64,6 +64,13 @@ app.use(cors({
         if (isLoopbackOrigin(origin)) return callback(null, true);
         // Env hic ayarlanmadiysa (production'da yanlislikla bos kalirsa)
         // tamamen acmak yerine sadece loopback'e izin verdik, bu durumda diger origin'leri reddet
+        
+        // --- IYZICO BYPASS ---
+        // İyzico'nun sandbox ve canlı domainlerinden gelen isteklere her zaman izin ver
+        if (origin.includes('iyzipay.com') || origin.includes('iyzico.com')) {
+            return callback(null, true);
+        }
+
         if (allowedOrigins.length === 0) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         return callback(new Error(`CORS engellendi: ${origin}`));
@@ -153,6 +160,38 @@ sequelize.sync({ alter: true })
             }
         } catch (descErr) {
             console.error('[DB CHECK] profiller tablosu sema kontrolu yapilamadi:', descErr.message);
+        }
+
+        // --- Payout/Hakedis: T+14 Backfill ---
+        // sequelize.sync({alter:true}) yeni 'durum' kolonunu ENUM olarak ekledi.
+        // Mevcut kayitlarin durumu NULL (default uygulanmadi) veya MySQL bagli olarak
+        // bos string olabilir. Idempotent backfill: NULL/empty olanlari tarihe gore set et.
+        try {
+            const earningsDesc = await sequelize.getQueryInterface().describeTable('egitmen_hakedisleri');
+            if (earningsDesc.durum) {
+                const [, availMeta] = await sequelize.query(`
+                    UPDATE egitmen_hakedisleri
+                       SET durum = 'available'
+                     WHERE (durum IS NULL OR durum = '')
+                       AND olusturulma_tarihi < (NOW() - INTERVAL 14 DAY)
+                `);
+                const [, pendingMeta] = await sequelize.query(`
+                    UPDATE egitmen_hakedisleri
+                       SET durum = 'pending'
+                     WHERE (durum IS NULL OR durum = '')
+                `);
+                const availCount = availMeta?.affectedRows ?? 0;
+                const pendingCount = pendingMeta?.affectedRows ?? 0;
+                if (availCount > 0 || pendingCount > 0) {
+                    console.log(`[PAYOUT BACKFILL] T+14 backfill: ${availCount} kayit -> available, ${pendingCount} kayit -> pending.`);
+                } else {
+                    console.log('[PAYOUT BACKFILL] Tum kayitlarin durumu zaten set, backfill atlandi.');
+                }
+            } else {
+                console.warn('[PAYOUT BACKFILL] egitmen_hakedisleri.durum kolonu bulunamadi, backfill yapilamadi.');
+            }
+        } catch (payoutErr) {
+            console.error('[PAYOUT BACKFILL] Hata:', payoutErr.message);
         }
 
         try {
