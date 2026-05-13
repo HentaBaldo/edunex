@@ -42,10 +42,36 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: DataTypes.NOW,
       },
+      // --- Odeme yasam dongusu (T+14 iade kurali ile) ---
+      // pending     : yeni olustu, 14 gunluk iade penceresi devam ediyor
+      // available   : iade penceresi kapandi, odemeye uygun
+      // processing  : admin toplu odeme akisina aldi, bankaya transfer bekleniyor
+      // paid        : transfer tamamlandi, dekont no kaydedildi
+      // cancelled   : iptal (iade vb. nedenle hakedis dustu)
+      durum: {
+        type: DataTypes.ENUM('pending', 'available', 'processing', 'paid', 'cancelled'),
+        allowNull: false,
+        defaultValue: 'pending',
+      },
+      odeme_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Banka transferi tamamlandi olarak isaretlendigi an.',
+      },
+      islem_dekont_no: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        comment: 'Banka dekont / referans numarasi (manuel girilir).',
+      },
     },
     {
       tableName: 'egitmen_hakedisleri',
-      indexes: [{ fields: ['egitmen_id'] }, { fields: ['siparis_kalemi_id'] }],
+      indexes: [
+        { fields: ['egitmen_id'] },
+        { fields: ['siparis_kalemi_id'] },
+        { fields: ['durum'] },
+        { fields: ['durum', 'egitmen_id'] },
+      ],
     }
   );
 

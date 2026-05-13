@@ -17,31 +17,27 @@ const sanitize = (value, fallback = 'EduNex') => {
     if (!value) return fallback;
     return String(value).replace(/[=&?#<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || fallback;
 };
-
 const formatPhone = (phone) => {
-    if (!phone) return '+905000000000';
+    // Veritabanından gelen geçersiz varsayılan numarayı yakala
+    if (!phone || phone === '+905000000000' || phone === '905000000000') return '+905321111111';
+    
     const d = String(phone).replace(/\D/g, '');
     if (d.startsWith('90') && d.length === 12) return '+' + d;
     if (d.startsWith('0') && d.length === 11) return '+9' + d;
     if (d.length === 10) return '+90' + d;
-    return '+905000000000';
+    
+    // Uymayan her şey için geçerli bir test numarası dön
+    return '+905321111111';
 };
-
 const formatIdentity = (id) => {
     const d = String(id || '').replace(/\D/g, '');
-    return d.length === 11 ? d : '11111111111';
+    // Veritabanından gelen 11111111111 test verisini yakala
+    if (d === '11111111111') return '74300864791';
+    return d.length === 11 ? d : '74300864791';
 };
 
 /**
  * Checkout Form başlatır.
- * Dönüş: { paymentPageUrl, token, conversationId } (başarı)
- * veya throw Error (iyzico hatasi).
- *
- * @param {object} params
- * @param {object} params.order       - Order kaydı (id, toplam_tutar, para_birimi, conversation_id)
- * @param {object} params.user        - { id, ad, soyad, email, sehir?, phone?, identity_number? }
- * @param {Array}  params.items       - [{ id, baslik, kategori, fiyat }]
- * @param {string} params.callbackUrl - iyzico'nun sonucu POST edeceği URL
  */
 exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
     return new Promise((resolve, reject) => {
@@ -93,6 +89,12 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             return reject(new Error('Odeme tutari sifir veya negatif olamaz.'));
         }
 
+        // --- IP GÜVENLİK DUVARI (Localhost IP'lerini canlı IPv4 ile değiştirir) ---
+        let safeIp = user.ip || '85.34.78.112';
+        if (safeIp === '::1' || safeIp === '127.0.0.1' || safeIp === 'localhost') {
+            safeIp = '85.34.78.112';
+        }
+
         const request = {
             locale: Iyzipay.LOCALE.TR,
             conversationId: order.conversation_id,
@@ -111,7 +113,7 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
                 email: user.email || 'kullanici@edunex.com',
                 identityNumber: formatIdentity(user.identity_number),
                 registrationAddress: sanitize(user.sehir || 'Turkiye', 'Turkiye'),
-                ip: user.ip || '85.34.78.112',
+                ip: safeIp, // GÜNCELLENDİ
                 city: sanitize(user.sehir || 'Istanbul', 'Istanbul'),
                 country: 'Turkey',
                 zipCode: '34000',
