@@ -15,4 +15,7 @@ router.post('/callback', paymentController.callback);
 router.get('/callback', paymentController.callback); // bazi test akislarinda GET gelebilir
 router.get('/orders/my', verifyToken, paymentController.myOrders);
 
+// Akilli iade: 14 gun + %20 ilerleme sartlari ile musterinin kendi kalemi
+router.post('/refund/:orderItemId', verifyToken, paymentController.refundItem);
+
 module.exports = router;

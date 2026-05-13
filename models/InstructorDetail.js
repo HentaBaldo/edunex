@@ -28,6 +28,12 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      submerchant_key: {
+        // iyzico Pazaryeri (Marketplace) modelinde eğitmenin Alt Üye İşyeri kimliği.
+        // Ödeme sırasında basket item üzerinde gönderilir; havuzdaki para bu key ile eğitmene yansıtılır.
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
     },
     {
       tableName: 'egitmen_detaylari',

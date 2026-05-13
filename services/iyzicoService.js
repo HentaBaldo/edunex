@@ -41,15 +41,49 @@ const formatIdentity = (id) => {
  */
 exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
     return new Promise((resolve, reject) => {
-        const totalPrice = Number(order.toplam_tutar).toFixed(2);
+        // ----------------------------------------------------------------
+        // Pazaryeri (Marketplace) toplam dogrulamasi
+        // iyzico bir paranin tum decimal toplam basket item'larin toplaminin
+        // ana price ile birebir esit olmasini sart kosar. Tek bir kurus sapma
+        // tum cagrinin basarisiz olmasina yol acar. Bu yuzden:
+        //   1) Tutarlari kurusa (integer) cevirip topluyoruz.
+        //   2) Total'i basket toplamindan turetiyoruz (sepetten degil).
+        // ----------------------------------------------------------------
+        const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
+        const toKurus = (v) => Math.round(Number(v) * 100);
 
-        const basketItems = items.map(item => ({
-            id: item.id,
-            name: sanitize(item.baslik, 'Kurs'),
-            category1:'Egitim',
-            itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
-            price: Number(item.fiyat).toFixed(2),
-        }));
+        const basketItems = items.map(item => {
+            const itemKurus = toKurus(item.fiyat);
+            const platformKesintiKurus = Math.round(itemKurus * PLATFORM_KOMISYON_ORANI / 100);
+            const subMerchantKurus = itemKurus - platformKesintiKurus;
+
+            const base = {
+                id: item.id, // OrderItem.id - callback'te itemTransactions ile eslemek icin
+                name: sanitize(item.baslik, 'Kurs'),
+                category1: sanitize(item.kategori || 'Egitim', 'Egitim'),
+                itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
+                price: (itemKurus / 100).toFixed(2),
+            };
+            // Marketplace alanlari sadece subMerchantKey varsa eklenir.
+            // Yoksa "klasik" tahsilata duser (geriye uyumluluk: eski egitmenler).
+            if (item.subMerchantKey) {
+                base.subMerchantKey = item.subMerchantKey;
+                base.subMerchantPrice = (subMerchantKurus / 100).toFixed(2);
+            }
+            return base;
+        });
+
+        const totalKurus = basketItems.reduce((s, b) => s + toKurus(b.price), 0);
+        const totalPrice = (totalKurus / 100).toFixed(2);
+
+        // Order'da kayitli toplamla esleme: 1 kurustan fazla sapma kabul edilemez.
+        // Esit degilse Order kaydini guncelliyoruz cunku iyzico kesin esitlik bekler.
+        const orderToplamKurus = toKurus(order.toplam_tutar);
+        if (Math.abs(orderToplamKurus - totalKurus) > 0) {
+            console.warn('[IYZICO] Order toplam ile basket toplam farkli, basket toplama uyduruluyor.', {
+                order_kurus: orderToplamKurus, basket_kurus: totalKurus,
+            });
+        }
 
         if (Number(totalPrice) <= 0) {
             return reject(new Error('Odeme tutari sifir veya negatif olamaz.'));
@@ -175,6 +209,162 @@ exports.retrieveCheckoutForm = (token, conversationId) => {
                 resolve(result);
             }
         );
+    });
+};
+
+/**
+ * iyzico Alt Uye Isyeri (SubMerchant) olusturur.
+ * Pazaryeri (Marketplace) modelinde her egitmen kendi tuzel kimligiyle
+ * iyzico nezdinde tanimlanir; tahsilat sonrasi para dogrudan onun IBAN'ina
+ * (havuz hesabindan) aktarilir. Boylece platform vergi ve yasal yukumluluklerden
+ * arinmis olur.
+ *
+ * @param {object} egitmenData
+ * @param {string} egitmenData.id              - Egitmen UUID (Profile.id) - subMerchantExternalId olarak kullanilir
+ * @param {string} egitmenData.ad              - Ad
+ * @param {string} egitmenData.soyad           - Soyad
+ * @param {string} egitmenData.eposta          - E-posta
+ * @param {string} egitmenData.phone           - GSM
+ * @param {string} egitmenData.identity_number - 11 haneli TCKN
+ * @param {string} egitmenData.iban_no         - TR ile baslayan IBAN
+ * @param {string} [egitmenData.sehir]         - Sehir (adres icin)
+ * @param {string} [egitmenData.subMerchantType] - PERSONAL | PRIVATE_COMPANY | LIMITED_OR_JOINT_STOCK_COMPANY
+ * @returns {Promise<{ subMerchantKey: string, raw: object }>}
+ */
+exports.createSubMerchant = (egitmenData) => {
+    return new Promise((resolve, reject) => {
+        // --- Pre-validation: iyzico'ya gitmeden once kati kontrol ---
+        // iyzico cok katidir: bos isim/soyad/eposta/TCKN ya da bosluklu IBAN HATA verir.
+        // Burada erkenden 400 dondurursek hem iyzico kotamizi bos yere kullanmayiz,
+        // hem de kullaniciya net mesaj veririz.
+        const errors = [];
+        if (!egitmenData?.id) errors.push('id zorunlu');
+        if (!egitmenData?.ad || !String(egitmenData.ad).trim()) errors.push('ad zorunlu');
+        if (!egitmenData?.soyad || !String(egitmenData.soyad).trim()) errors.push('soyad zorunlu');
+        if (!egitmenData?.eposta || !/.+@.+\..+/.test(egitmenData.eposta)) errors.push('eposta gecersiz');
+
+        // IBAN: bosluklari temizle, buyuk harfe cevir, sonra format kontrolu (TR + 24 hane)
+        const ibanRaw = egitmenData?.iban_no ? String(egitmenData.iban_no) : '';
+        const ibanClean = ibanRaw.replace(/\s+/g, '').toUpperCase();
+        if (!ibanClean || !/^TR\d{24}$/.test(ibanClean)) {
+            errors.push('iban_no TR + 24 hane formatinda olmali (bosluksuz)');
+        }
+
+        const tckn = String(egitmenData?.identity_number || '').replace(/\D/g, '');
+        if (tckn.length !== 11) errors.push('identity_number 11 hane olmali');
+
+        if (errors.length > 0) {
+            const error = new Error('SubMerchant veri dogrulamasi basarisiz: ' + errors.join('; '));
+            error.statusCode = 400; // Controller 400 olarak kullaniciya yansitabilsin
+            return reject(error);
+        }
+
+        const gsm = formatPhone(egitmenData.phone);
+        const sehir = sanitize(egitmenData.sehir || 'Istanbul', 'Istanbul');
+        const request = {
+            locale: Iyzipay.LOCALE.TR,
+            conversationId: `submerchant-${egitmenData.id}`,
+            subMerchantExternalId: egitmenData.id,
+            subMerchantType: egitmenData.subMerchantType || Iyzipay.SUB_MERCHANT_TYPE?.PERSONAL || 'PERSONAL',
+            address: sanitize(`${sehir} - Egitmen Adresi`, 'Turkiye'),
+            contactName: sanitize(egitmenData.ad, 'Egitmen'),
+            contactSurname: sanitize(egitmenData.soyad, 'EduNex'),
+            email: egitmenData.eposta,
+            gsmNumber: gsm,
+            name: sanitize(egitmenData.ad, 'Egitmen'),
+            iban: ibanClean,
+            identityNumber: tckn,
+            currency: Iyzipay.CURRENCY.TRY,
+        };
+
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[IYZICO SUBMERCHANT REQUEST]', { ...request, iban: '***MASKED***', identityNumber: '***MASKED***' });
+        }
+        iyzipay.subMerchant.create(request, (err, result) => {
+            if (err) {
+                console.error('[IYZICO SUBMERCHANT SDK ERROR]', err.message);
+                err.statusCode = err.statusCode || 502; // dis servis hatasi
+                return reject(err);
+            }
+            if (!result || result.status !== 'success' || !result.subMerchantKey) {
+                console.error('[IYZICO SUBMERCHANT HATA]', {
+                    status: result?.status,
+                    errorCode: result?.errorCode,
+                    errorMessage: result?.errorMessage,
+                });
+                const error = new Error(result?.errorMessage || 'iyzico SubMerchant olusturulamadi.');
+                error.iyzicoResult = result;
+                error.statusCode = 400; // iyzico failure -> kullanici yonlendirilebilir hata
+                return reject(error);
+            }
+            resolve({ subMerchantKey: result.subMerchantKey, raw: result });
+        });
+    });
+};
+
+/**
+ * Tek bir basket item icin iyzico iadesi (refund) tetikler.
+ * @param {object} params
+ * @param {string} params.paymentTransactionId - siparis_kalemleri.iyzico_item_transaction_id
+ * @param {number|string} params.price         - Iade edilecek tutar (TRY)
+ * @param {string} params.ip                   - Istek IP'si (iyzico bunu zorunlu kosar)
+ * @param {string} [params.conversationId]     - Iz takibi icin
+ */
+exports.refundItem = ({ paymentTransactionId, price, ip, conversationId }) => {
+    return new Promise((resolve, reject) => {
+        if (!paymentTransactionId) {
+            return reject(new Error('refundItem: paymentTransactionId zorunlu.'));
+        }
+        const priceStr = Number(price).toFixed(2);
+        if (Number(priceStr) <= 0) {
+            return reject(new Error('refundItem: price pozitif olmalidir.'));
+        }
+        const request = {
+            locale: Iyzipay.LOCALE.TR,
+            conversationId: conversationId || `refund-${paymentTransactionId}`,
+            paymentTransactionId,
+            price: priceStr,
+            ip: ip || '85.34.78.112',
+            currency: Iyzipay.CURRENCY.TRY,
+        };
+        iyzipay.refund.create(request, (err, result) => {
+            if (err) return reject(err);
+            if (!result || result.status !== 'success') {
+                const error = new Error(result?.errorMessage || 'iyzico iade hatasi.');
+                error.iyzicoResult = result;
+                return reject(error);
+            }
+            resolve(result);
+        });
+    });
+};
+
+/**
+ * Bir basket item'in hakedisini onaylar (Approval).
+ * Iyzico bu cagri ile parayi havuzdan SubMerchant'in (egitmenin) hesabina aktarir.
+ * @param {object} params
+ * @param {string} params.paymentTransactionId - siparis_kalemleri.iyzico_item_transaction_id
+ * @param {string} [params.conversationId]
+ */
+exports.approveItem = ({ paymentTransactionId, conversationId }) => {
+    return new Promise((resolve, reject) => {
+        if (!paymentTransactionId) {
+            return reject(new Error('approveItem: paymentTransactionId zorunlu.'));
+        }
+        const request = {
+            locale: Iyzipay.LOCALE.TR,
+            conversationId: conversationId || `approve-${paymentTransactionId}`,
+            paymentTransactionId,
+        };
+        iyzipay.approval.create(request, (err, result) => {
+            if (err) return reject(err);
+            if (!result || result.status !== 'success') {
+                const error = new Error(result?.errorMessage || 'iyzico approval hatasi.');
+                error.iyzicoResult = result;
+                return reject(error);
+            }
+            resolve(result);
+        });
     });
 };
 
