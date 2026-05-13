@@ -153,6 +153,38 @@ sequelize.sync({ alter: true })
             console.error('[DB CHECK] profiller tablosu sema kontrolu yapilamadi:', descErr.message);
         }
 
+        // --- Payout/Hakedis: T+14 Backfill ---
+        // sequelize.sync({alter:true}) yeni 'durum' kolonunu ENUM olarak ekledi.
+        // Mevcut kayitlarin durumu NULL (default uygulanmadi) veya MySQL bagli olarak
+        // bos string olabilir. Idempotent backfill: NULL/empty olanlari tarihe gore set et.
+        try {
+            const earningsDesc = await sequelize.getQueryInterface().describeTable('egitmen_hakedisleri');
+            if (earningsDesc.durum) {
+                const [, availMeta] = await sequelize.query(`
+                    UPDATE egitmen_hakedisleri
+                       SET durum = 'available'
+                     WHERE (durum IS NULL OR durum = '')
+                       AND olusturulma_tarihi < (NOW() - INTERVAL 14 DAY)
+                `);
+                const [, pendingMeta] = await sequelize.query(`
+                    UPDATE egitmen_hakedisleri
+                       SET durum = 'pending'
+                     WHERE (durum IS NULL OR durum = '')
+                `);
+                const availCount = availMeta?.affectedRows ?? 0;
+                const pendingCount = pendingMeta?.affectedRows ?? 0;
+                if (availCount > 0 || pendingCount > 0) {
+                    console.log(`[PAYOUT BACKFILL] T+14 backfill: ${availCount} kayit -> available, ${pendingCount} kayit -> pending.`);
+                } else {
+                    console.log('[PAYOUT BACKFILL] Tum kayitlarin durumu zaten set, backfill atlandi.');
+                }
+            } else {
+                console.warn('[PAYOUT BACKFILL] egitmen_hakedisleri.durum kolonu bulunamadi, backfill yapilamadi.');
+            }
+        } catch (payoutErr) {
+            console.error('[PAYOUT BACKFILL] Hata:', payoutErr.message);
+        }
+
         try {
             console.log('[SEEDER] Kategori hiyerarsisi kontrol ediliyor...');
             await seedCategories();

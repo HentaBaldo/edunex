@@ -14,8 +14,20 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
     wireUi();
     loadSummary();
-    loadOrders();
+    loadOrders().then(handleFocusFromUrl);
 });
+
+// Komuta Merkezi'nden ?focus=<order_id> ile gelindiyse detay overlay'ini otomatik ac.
+async function handleFocusFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const focusId = params.get('focus');
+    if (!focusId) return;
+    try {
+        await openDetail(focusId);
+    } catch (e) {
+        console.warn('[ORDERS] focus auto-open hatasi:', e.message);
+    }
+}
 
 function wireUi() {
     document.getElementById('applyBtn').addEventListener('click', () => {

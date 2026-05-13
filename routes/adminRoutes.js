@@ -8,8 +8,9 @@ const adminController = require('../controllers/adminController');
 const adminUserController = require('../controllers/adminUserController');
 const adminOrderController = require('../controllers/adminOrderController');
 const adminCourseController = require('../controllers/adminCourseController');
-const reviewController = require('../controllers/reviewController');
-const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
+const adminReviewController = require('../controllers/adminReviewController');
+const adminPayoutController = require('../controllers/adminPayoutController');
+const { verifyToken, isAdmin, isFinanceAdmin } = require('../middleware/authMiddleware');
 const { loginLimiter } = require('../middleware/rateLimitMiddleware');
 
 /**
@@ -22,8 +23,10 @@ router.post('/login', loginLimiter, adminController.adminLogin);
  */
 router.use(verifyToken, isAdmin);
 
-// --- İstatistikler ---
+// --- İstatistikler & Komuta Merkezi ---
 router.get('/stats', adminController.getDashboardStats);
+router.get('/activity-feed', adminController.getActivityFeed);
+router.get('/sales-trend', adminController.getSalesTrend);
 
 // --- Siparişler (Orders) ---
 // Not: /summary her zaman /:id'den önce gelmeli
@@ -57,8 +60,17 @@ router.get('/users/:id', adminUserController.getUserDetail);
 router.put('/users/:id', adminUserController.updateUser);
 router.delete('/users/:id', adminUserController.deleteUser);
 
-// --- Yorum Moderasyonu ---
-router.get('/reviews', reviewController.adminListReviews);
-router.delete('/reviews/:kurs_id/:ogrenci_id', reviewController.adminDeleteReview);
+// --- Yorum Moderasyonu (yeni controller) ---
+router.get('/reviews', adminReviewController.listReviews);
+router.delete('/reviews/:kurs_id/:ogrenci_id', adminReviewController.deleteReview);
+
+// --- Hakedis & Odeme Yonetimi (ek yetki: isFinanceAdmin) ---
+// Bu route'lar sadece rol='admin' VE profil.finans_yetkili=true olan yoneticilerce erisilir.
+// CSV export'u en spesifik path oldugu icin parametreli route'lardan once gelmeli.
+router.get('/payouts/summary', isFinanceAdmin, adminPayoutController.getSummary);
+router.get('/payouts/export.csv', isFinanceAdmin, adminPayoutController.exportCSV);
+router.get('/payouts/:egitmen_id/items', isFinanceAdmin, adminPayoutController.getInstructorItems);
+router.get('/payouts', isFinanceAdmin, adminPayoutController.listEarnings);
+router.post('/payouts/bulk-approve', isFinanceAdmin, adminPayoutController.bulkApprove);
 
 module.exports = router;

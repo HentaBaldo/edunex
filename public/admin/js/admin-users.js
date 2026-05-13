@@ -16,8 +16,20 @@ function getHeaders() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchUsers(currentPage, currentRoleFilter);
+    fetchUsers(currentPage, currentRoleFilter).then(handleFocusFromUrl);
 });
+
+// Komuta Merkezi'nden ?focus=<user_id> ile gelindiyse kullanici detayini otomatik ac.
+async function handleFocusFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const focusId = params.get('focus');
+    if (!focusId || typeof window.viewUser !== 'function') return;
+    try {
+        await window.viewUser(focusId);
+    } catch (e) {
+        console.warn('[USERS] focus auto-open hatasi:', e.message);
+    }
+}
 
 // URL'nin başına protokol ekleyerek dış bağlantı olmasını sağlayan yardımcı fonksiyon
 const ensureAbsoluteUrl = (url) => {

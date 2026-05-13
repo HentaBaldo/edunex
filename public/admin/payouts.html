@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hakedis & Odemeler | EduNex Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+    <link rel="stylesheet" href="/admin/css/payouts.css">
+</head>
+<body>
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
+            <a href="/admin/dashboard.html" class="nav-item"><i class="fas fa-satellite-dish"></i> Komuta Merkezi</a>
+            <a href="/admin/courses.html" class="nav-item"><i class="fas fa-video"></i> Kurs Onaylari</a>
+            <a href="/admin/published-courses.html" class="nav-item"><i class="fas fa-list-check"></i> Kurs Takibi</a>
+            <a href="/admin/users.html" class="nav-item"><i class="fas fa-users"></i> Kullanici Yonetimi</a>
+            <a href="/admin/orders.html" class="nav-item"><i class="fas fa-receipt"></i> Siparisler</a>
+            <a href="/admin/payouts.html" class="nav-item active"><i class="fas fa-money-bill-wave"></i> Hakedis & Odemeler</a>
+            <a href="/admin/categories.html" class="nav-item"><i class="fas fa-tags"></i> Kategoriler</a>
+            <a href="/admin/reviews.html" class="nav-item"><i class="fas fa-star"></i> Yorumlar</a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h1><i class="fas fa-money-bill-wave"></i> Hakedis & Odeme Yonetimi</h1>
+                <p class="subtitle">Egitmen hakedislerini denetleyin, T+14 iade penceresi sonrasi toplu odeme yapin.</p>
+            </div>
+            <div class="header-user">
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yonetici Yukleniyor...</span>
+                    <small>Finans Yetkilisi</small>
+                </div>
+                <div class="admin-avatar-circle">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content">
+
+            <!-- Finansal Ozet Widget'lari -->
+            <div class="widget-grid finance-grid">
+                <div class="widget-card finance-card revenue-monthly">
+                    <div class="widget-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Toplam Borc (Available)</p>
+                        <h3 class="widget-value" id="sumToplamBorc">--</h3>
+                        <small class="widget-sub"><span id="sumToplamBorcAdet">--</span> kalem odemeye hazir</small>
+                    </div>
+                </div>
+
+                <div class="widget-card finance-card">
+                    <div class="widget-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Iade Penceresinde</p>
+                        <h3 class="widget-value" id="sumBekleyen">--</h3>
+                        <small class="widget-sub">T+14 dolmadi (<span id="sumBekleyenAdet">--</span> kalem)</small>
+                    </div>
+                </div>
+
+                <div class="widget-card finance-card revenue-total">
+                    <div class="widget-icon"><i class="fas fa-circle-check"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Bu Ay Odenen</p>
+                        <h3 class="widget-value" id="sumBuAyOdenen">--</h3>
+                        <small class="widget-sub" id="sumTumZamanlar">--</small>
+                    </div>
+                </div>
+
+                <div class="widget-card finance-card">
+                    <div class="widget-icon icon-red"><i class="fas fa-circle-exclamation"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Acil Odeme</p>
+                        <h3 class="widget-value" id="sumAcil">--</h3>
+                        <small class="widget-sub"><span id="sumAcilEsigi">200 TL</span> ustu &amp; T+14 dolmus</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar / Filtre Bari -->
+            <article class="admin-card payouts-toolbar-card">
+                <div class="payouts-toolbar">
+                    <div class="reviews-search">
+                        <i class="fas fa-search"></i>
+                        <input
+                            type="search"
+                            id="payoutSearchInput"
+                            placeholder="Egitmen ad / soyad / eposta ara..."
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="payouts-status-filters" role="tablist" aria-label="Durum filtresi">
+                        <button class="rating-chip active" data-status="available" type="button"><i class="fas fa-hand-holding-usd"></i> Odenebilir</button>
+                        <button class="rating-chip" data-status="pending" type="button"><i class="fas fa-hourglass-half"></i> Bekleyen</button>
+                        <button class="rating-chip" data-status="paid" type="button"><i class="fas fa-circle-check"></i> Odendi</button>
+                        <button class="rating-chip" data-status="cancelled" type="button"><i class="fas fa-ban"></i> Iptal</button>
+                    </div>
+                </div>
+
+                <details class="payouts-advanced-filter">
+                    <summary><i class="fas fa-filter"></i> Gelismis Filtreler</summary>
+                    <div class="advanced-filter-grid">
+                        <label>
+                            <span>Min. Tutar (TL)</span>
+                            <input type="number" id="filterMinTutar" min="0" step="10" placeholder="orn. 200">
+                        </label>
+                        <label>
+                            <span>Bas. Tarih</span>
+                            <input type="date" id="filterFrom">
+                        </label>
+                        <label>
+                            <span>Bit. Tarih</span>
+                            <input type="date" id="filterTo">
+                        </label>
+                        <label>
+                            <span>IBAN Durumu</span>
+                            <select id="filterIban">
+                                <option value="">Hepsi</option>
+                                <option value="true">Sadece IBAN'i olanlar</option>
+                                <option value="false">Sadece IBAN'i olmayanlar</option>
+                            </select>
+                        </label>
+                        <div class="advanced-filter-actions">
+                            <button type="button" id="applyFiltersBtn" class="btn-primary">
+                                <i class="fas fa-check"></i> Uygula
+                            </button>
+                            <button type="button" id="resetFiltersBtn" class="btn-secondary">
+                                <i class="fas fa-rotate"></i> Sifirla
+                            </button>
+                        </div>
+                    </div>
+                </details>
+            </article>
+
+            <!-- Toplu Aksiyonlar -->
+            <div class="bulk-actions-bar" id="bulkActionsBar" hidden>
+                <div class="bulk-summary">
+                    <span><strong id="bulkCount">0</strong> egitmen secildi</span>
+                    <span class="bulk-total">Toplam: <strong id="bulkTotal">0,00 TL</strong></span>
+                </div>
+                <div class="bulk-buttons">
+                    <button type="button" id="bulkApproveBtn" class="btn-primary">
+                        <i class="fas fa-circle-check"></i> Secilenleri Odeme Onayina Gonder
+                    </button>
+                    <button type="button" id="bulkClearBtn" class="btn-secondary">
+                        <i class="fas fa-times"></i> Secimi Temizle
+                    </button>
+                </div>
+            </div>
+
+            <!-- Banka Modu Tablosu -->
+            <article class="admin-card payouts-table-card">
+                <div class="card-header-flex">
+                    <h2><i class="fas fa-money-check-dollar"></i> Hakedis Listesi</h2>
+                    <div class="payouts-table-actions">
+                        <span class="reviews-count" id="payoutCountInfo">Yukleniyor...</span>
+                        <button type="button" id="exportCsvBtn" class="btn-secondary">
+                            <i class="fas fa-file-csv"></i> CSV Indir
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="payouts-table" id="payoutsTable">
+                        <thead>
+                            <tr>
+                                <th class="col-check">
+                                    <input type="checkbox" id="selectAllCheckbox" aria-label="Tumunu sec">
+                                </th>
+                                <th>Egitmen &amp; Hesap</th>
+                                <th>Kazanc Detayi</th>
+                                <th>Zamanlama</th>
+                                <th class="col-status">Durum</th>
+                                <th class="col-action">Aksiyon</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payoutsTableBody">
+                            <tr>
+                                <td colspan="6" class="table-empty-state">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>Veriler yukleniyor...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="reviews-pagination" id="payoutsPagination"></div>
+            </article>
+        </section>
+    </main>
+
+    <!-- Odeme Onay Modal'i -->
+    <div class="modal-overlay" id="approveModal" hidden>
+        <div class="modal-box modal-box-wide">
+            <div class="modal-icon" style="background:#dcfce7;color:#15803d;">
+                <i class="fas fa-money-check-dollar"></i>
+            </div>
+            <h2>Odemeyi Onayla</h2>
+            <p id="approveModalSummary">
+                <strong id="approveModalCount">0</strong> egitmene toplam
+                <strong id="approveModalTotal">0,00 TL</strong> odeme yapilacak.
+            </p>
+
+            <div class="approve-iban-list" id="approveIbanList">
+                <!-- JS ile doldurulur -->
+            </div>
+
+            <div class="modal-form-row">
+                <label for="dekontInput"><strong>Banka Dekont / Referans No</strong></label>
+                <input
+                    type="text"
+                    id="dekontInput"
+                    maxlength="100"
+                    placeholder="Orn: TRF-20260513-001"
+                    autocomplete="off"
+                >
+                <small id="dekontHint" class="hint">
+                    Bu numara tum bu islemde odenen kayitlara kaydedilecek. Bankadan aldiginiz transfer referansini girin.
+                </small>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="cancelApproveBtn" class="btn-secondary">Vazgec</button>
+                <button type="button" id="confirmApproveBtn" class="btn-primary">
+                    <i class="fas fa-check"></i> Evet, Odendi Olarak Isaretle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IBAN Yok Uyari Modal'i -->
+    <div class="modal-overlay" id="ibanWarningModal" hidden>
+        <div class="modal-box">
+            <div class="modal-icon">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <h2>IBAN Eksik</h2>
+            <p>Secilen egitmenlerden bazilarinda IBAN bilgisi bulunmuyor. Bu egitmenlere odeme yapilamaz.</p>
+            <ul id="ibanWarningList" class="iban-warning-list"></ul>
+            <div class="modal-actions">
+                <button type="button" id="cancelIbanWarnBtn" class="btn-secondary">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/admin/js/payouts.js" defer></script>
+</body>
+</html>

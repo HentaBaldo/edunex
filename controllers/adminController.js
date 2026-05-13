@@ -1,6 +1,20 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Profile, Course, InstructorDetail, CourseSection, Lesson, Category } = require('../models');
+const { Op, fn, col, literal } = require('sequelize');
+const {
+    Profile,
+    Course,
+    InstructorDetail,
+    CourseSection,
+    Lesson,
+    Category,
+    Order,
+    OrderItem,
+    CourseEnrollment,
+    Review,
+    Certificate,
+    LiveSession,
+} = require('../models');
 
 /**
  * Yönetici Girişi (Admin Login)
@@ -75,31 +89,109 @@ exports.adminLogin = async (req, res, next) => {
 };
 
 /**
- * Admin Panel Özet İstatistikleri
+ * Admin Panel Ozet Istatistikleri (Komuta Merkezi)
+ *
+ * Geriye uyumlu: eski alanlar (totalUsers/activeCourses/pendingCourses) korunur.
+ * Yeni alanlar: finansal + ogrenci/egitmen ayrimi + sertifika/canli ders sayilari.
+ *
  * @route GET /api/admin/stats
  */
 exports.getDashboardStats = async (req, res, next) => {
     try {
         console.log(`[ADMIN] Dashboard istatistikleri istendi`);
 
-        // Promise.all ile paralel sorgular çalıştırılarak performans artırılır
-        const [totalUsers, activeCourses, pendingCourses] = await Promise.all([
+        // Bu ayin baslangici (yerel saat). Order.olusturulma_tarihi DATE tipinde.
+        const now = new Date();
+        const ayBaslangici = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        const son24Saat = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const son15Dakika = new Date(now.getTime() - 15 * 60 * 1000);
+
+        const [
+            totalUsers,
+            totalStudents,
+            totalInstructors,
+            activeCourses,
+            pendingCourses,
+            totalEnrollments,
+            totalCertificates,
+            upcomingLiveSessions,
+            revenueRow,
+            monthlyRevenueRow,
+            yeniKayitlar24h,
+            onlineKullanicilar,
+        ] = await Promise.all([
             Profile.count(),
+            Profile.count({ where: { rol: 'ogrenci' } }),
+            Profile.count({ where: { rol: 'egitmen' } }),
             Course.count({ where: { durum: 'yayinda', silindi_mi: false } }),
-            Course.count({ where: { durum: 'onay_bekliyor', silindi_mi: false } })
+            Course.count({ where: { durum: 'onay_bekliyor', silindi_mi: false } }),
+            CourseEnrollment.count(),
+            Certificate.count(),
+            LiveSession.count({
+                where: {
+                    durum: { [Op.in]: ['planlandi', 'devam_ediyor'] },
+                    baslangic_tarihi: { [Op.gte]: now },
+                },
+            }),
+            // Toplam ciro (tum zamanlar)
+            Order.findOne({
+                attributes: [[fn('COALESCE', fn('SUM', col('toplam_tutar')), 0), 'toplam']],
+                where: { durum: 'tamamlandi' },
+                raw: true,
+            }),
+            // Bu ayki ciro
+            Order.findOne({
+                attributes: [[fn('COALESCE', fn('SUM', col('toplam_tutar')), 0), 'toplam']],
+                where: {
+                    durum: 'tamamlandi',
+                    olusturulma_tarihi: { [Op.gte]: ayBaslangici },
+                },
+                raw: true,
+            }),
+            // Son 24 saatte kayit olan kullanici sayisi (yeni feature - Profile.olusturulma_tarihi)
+            // Kolon henuz sync ile eklenmemisse hata firlatabilir; catch icinde guvenliyiz.
+            Profile.count({
+                where: { olusturulma_tarihi: { [Op.gte]: son24Saat } },
+            }).catch(() => 0),
+            // Son 15 dakikada aktif olan kullanici (Online sayci - Profile.son_aktivite_tarihi)
+            Profile.count({
+                where: { son_aktivite_tarihi: { [Op.gte]: son15Dakika } },
+            }).catch(() => 0),
         ]);
+
+        const toplamCiro = Number(revenueRow?.toplam || 0);
+        const aylikCiro = Number(monthlyRevenueRow?.toplam || 0);
 
         return res.status(200).json({
             success: true,
             data: {
+                // --- Geriye uyumlu (eski alanlar) ---
                 totalUsers,
                 activeCourses,
-                pendingCourses
-            }
+                pendingCourses,
+
+                // --- Yeni: kullanici dagilimi ---
+                totalStudents,
+                totalInstructors,
+
+                // --- Yeni: kurs/etkinlik sayimlari ---
+                totalEnrollments,
+                totalCertificates,
+                upcomingLiveSessions,
+
+                // --- Yeni: finansal ---
+                toplamCiro,
+                aylikCiro,
+                paraBirimi: 'TRY',
+
+                // --- Yeni: yeni kayit & online takip ---
+                yeniKayitlar24h,
+                onlineKullanicilar,
+            },
         });
     } catch (error) {
-        console.error(`[ADMIN] Dashboard istatistikleri hatası: ${error.message}`);
-        error.message = 'İstatistikler alınırken sunucu hatası oluştu.';
+        console.error(`[ADMIN] Dashboard istatistikleri hatasi: ${error.message}`);
+        error.message = 'Istatistikler alinirken sunucu hatasi olustu.';
         error.statusCode = 500;
         next(error);
     }
@@ -430,19 +522,427 @@ exports.getUserDetail = async (req, res, next) => {
     }
 };
 
-// Modül export listesinde getUserDetail'in olduğundan emin ol:
-// 
+/**
+ * Komuta Merkezi - Birlesik Aktivite Akisi (Live Activity Feed)
+ *
+ * 6 farkli kaynaktan paralel olarak en son N kaydi cekip, JS tarafinda
+ * tarih sirasiyla birlestirir. Cikti normalize edilmis tek bir listedir.
+ *
+ * Kaynaklar:
+ *  - satin_alim          : Order (durum=tamamlandi) + OrderItem -> Course
+ *  - kursa_kayit         : CourseEnrollment
+ *  - yeni_yorum          : Review
+ *  - kurs_onay_talebi    : Course (durum=onay_bekliyor)
+ *  - sertifika_tamamlama : Certificate (kurs tamamlama = sertifika verişi)
+ *  - canli_ders          : LiveSession
+ *
+ * Query: ?limit=20 (default 20, max 100)
+ *
+ * @route GET /api/admin/activity-feed
+ */
+exports.getActivityFeed = async (req, res, next) => {
+    try {
+        const limitRaw = parseInt(req.query.limit, 10) || 20;
+        const limit = Math.min(Math.max(limitRaw, 1), 100);
+        // Her kaynaktan limit kadar cek; birlestirip tekrar limit kadar slice ederiz.
+        const perSource = limit;
+
+        // Son 24 saat penceresi - yeni kullanici kayitlari icin
+        const son24Saat = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        const [
+            recentOrders,
+            recentEnrollments,
+            recentReviews,
+            recentPendingCourses,
+            recentCertificates,
+            recentLiveSessions,
+            recentNewUsers,
+        ] = await Promise.all([
+            // 1) Basarili siparisler -> her OrderItem ayri bir 'satin_alim' kaydi
+            Order.findAll({
+                where: { durum: 'tamamlandi' },
+                attributes: ['id', 'kullanici_id', 'toplam_tutar', 'olusturulma_tarihi'],
+                include: [
+                    {
+                        model: Profile,
+                        attributes: ['id', 'ad', 'soyad', 'eposta'],
+                        required: false,
+                    },
+                    {
+                        model: OrderItem,
+                        attributes: ['id', 'kurs_id', 'odenen_fiyat'],
+                        required: false,
+                        include: [
+                            {
+                                model: Course,
+                                attributes: ['id', 'baslik'],
+                                required: false,
+                            },
+                        ],
+                    },
+                ],
+                order: [['olusturulma_tarihi', 'DESC']],
+                limit: perSource,
+            }),
+
+            // 2) Kursa kayit
+            CourseEnrollment.findAll({
+                attributes: ['id', 'ogrenci_id', 'kurs_id', 'kayit_tarihi', 'ilerleme_yuzdesi'],
+                include: [
+                    {
+                        model: Profile,
+                        as: 'Ogrenci',
+                        attributes: ['id', 'ad', 'soyad'],
+                        required: false,
+                    },
+                    {
+                        model: Course,
+                        attributes: ['id', 'baslik'],
+                        required: false,
+                    },
+                ],
+                order: [['kayit_tarihi', 'DESC']],
+                limit: perSource,
+            }),
+
+            // 3) Yeni yorumlar (Review'in id'si yok, composite PK)
+            Review.findAll({
+                attributes: ['kurs_id', 'ogrenci_id', 'puan', 'yorum', 'olusturulma_tarihi'],
+                include: [
+                    {
+                        model: Profile,
+                        as: 'Yazar',
+                        attributes: ['id', 'ad', 'soyad'],
+                        required: false,
+                    },
+                    {
+                        model: Course,
+                        attributes: ['id', 'baslik'],
+                        required: false,
+                    },
+                ],
+                order: [['olusturulma_tarihi', 'DESC']],
+                limit: perSource,
+            }),
+
+            // 4) Onay bekleyen kurslar
+            Course.findAll({
+                where: { durum: 'onay_bekliyor', silindi_mi: false },
+                attributes: ['id', 'baslik', 'fiyat', 'olusturulma_tarihi', 'egitmen_id'],
+                include: [
+                    {
+                        model: Profile,
+                        as: 'Egitmen',
+                        attributes: ['id', 'ad', 'soyad'],
+                        required: false,
+                    },
+                ],
+                order: [['olusturulma_tarihi', 'DESC']],
+                limit: perSource,
+            }),
+
+            // 5) Sertifika (kurs tamamlama olayi ile esdeger)
+            Certificate.findAll({
+                attributes: ['id', 'kayit_id', 'sertifika_kodu', 'verilis_tarihi'],
+                include: [
+                    {
+                        model: CourseEnrollment,
+                        attributes: ['ogrenci_id', 'kurs_id'],
+                        required: false,
+                        include: [
+                            {
+                                model: Profile,
+                                as: 'Ogrenci',
+                                attributes: ['id', 'ad', 'soyad'],
+                                required: false,
+                            },
+                            {
+                                model: Course,
+                                attributes: ['id', 'baslik'],
+                                required: false,
+                            },
+                        ],
+                    },
+                ],
+                order: [['verilis_tarihi', 'DESC']],
+                limit: perSource,
+            }),
+
+            // 6) Canli ders oluşturuldu - iptal edilenleri feed'den cikar
+            LiveSession.findAll({
+                where: { durum: { [Op.ne]: 'iptal' } },
+                attributes: ['id', 'baslik', 'baslangic_tarihi', 'durum', 'olusturulma_tarihi', 'egitmen_id', 'kurs_id'],
+                include: [
+                    {
+                        model: Profile,
+                        as: 'Egitmen',
+                        attributes: ['id', 'ad', 'soyad'],
+                        required: false,
+                    },
+                    {
+                        model: Course,
+                        attributes: ['id', 'baslik'],
+                        required: false,
+                    },
+                ],
+                order: [['olusturulma_tarihi', 'DESC']],
+                limit: perSource,
+            }),
+
+            // 7) Son 24 saatte sisteme kayit olan kullanicilar
+            // Profile.olusturulma_tarihi kolonu yeni eklendi (sync ile auto-migrate).
+            // Eski kayitlarda NULL olabilir; bunlar 24-saat filtresine takilmadigi icin doğal olarak gosterilmez.
+            Profile.findAll({
+                where: { olusturulma_tarihi: { [Op.gte]: son24Saat } },
+                attributes: ['id', 'ad', 'soyad', 'rol', 'olusturulma_tarihi'],
+                order: [['olusturulma_tarihi', 'DESC']],
+                limit: perSource,
+            }).catch(() => []), // Kolon sync edilmemisse sessizce bos liste
+        ]);
+
+        // --- Normalize: her kaydi { id, type, tarih, baslik, aciklama, ... } formatina cevir ---
+        const events = [];
+
+        for (const o of recentOrders) {
+            const items = o.OrderItems || [];
+            const kurslar = items.map(i => i.Course?.baslik).filter(Boolean);
+            const kursOzet = kurslar.length
+                ? (kurslar.length === 1 ? kurslar[0] : `${kurslar[0]} (+${kurslar.length - 1} kurs)`)
+                : 'Kurs paketi';
+            const alici = o.Profile
+                ? `${o.Profile.ad || ''} ${o.Profile.soyad || ''}`.trim()
+                : 'Misafir kullanici';
+            events.push({
+                id: `order:${o.id}`,
+                type: 'satin_alim',
+                tarih: o.olusturulma_tarihi,
+                baslik: kursOzet,
+                aciklama: `${alici} satin aldi`,
+                kullanici: alici,
+                tutar: Number(o.toplam_tutar || 0),
+                kurs_id: items[0]?.kurs_id || null,
+                link: { page: '/admin/orders.html', focus: o.id },
+            });
+        }
+
+        for (const e of recentEnrollments) {
+            const ogrenci = e.Ogrenci
+                ? `${e.Ogrenci.ad || ''} ${e.Ogrenci.soyad || ''}`.trim()
+                : 'Bilinmeyen ogrenci';
+            events.push({
+                id: `enroll:${e.id}`,
+                type: 'kursa_kayit',
+                tarih: e.kayit_tarihi,
+                baslik: e.Course?.baslik || 'Bilinmeyen kurs',
+                aciklama: `${ogrenci} kursa kaydoldu`,
+                kullanici: ogrenci,
+                kurs_id: e.kurs_id,
+                link: { page: '/admin/users.html', focus: e.ogrenci_id },
+            });
+        }
+
+        for (const r of recentReviews) {
+            const yazar = r.Yazar
+                ? `${r.Yazar.ad || ''} ${r.Yazar.soyad || ''}`.trim()
+                : 'Bilinmeyen kullanici';
+            const yorumKisa = (r.yorum || '').slice(0, 80);
+            events.push({
+                id: `review:${r.kurs_id}:${r.ogrenci_id}`,
+                type: 'yeni_yorum',
+                tarih: r.olusturulma_tarihi,
+                baslik: r.Course?.baslik || 'Bilinmeyen kurs',
+                aciklama: `${yazar} ${r.puan}/5 puan verdi${yorumKisa ? `: "${yorumKisa}${(r.yorum || '').length > 80 ? '...' : ''}"` : ''}`,
+                kullanici: yazar,
+                puan: r.puan,
+                kurs_id: r.kurs_id,
+                link: { page: '/admin/reviews.html', focus: `${r.kurs_id}:${r.ogrenci_id}` },
+            });
+        }
+
+        for (const c of recentPendingCourses) {
+            const egitmen = c.Egitmen
+                ? `${c.Egitmen.ad || ''} ${c.Egitmen.soyad || ''}`.trim()
+                : 'Bilinmeyen egitmen';
+            events.push({
+                id: `pending:${c.id}`,
+                type: 'kurs_onay_talebi',
+                tarih: c.olusturulma_tarihi,
+                baslik: c.baslik,
+                aciklama: `${egitmen} kurs onayi bekliyor`,
+                kullanici: egitmen,
+                kurs_id: c.id,
+                link: { page: '/admin/courses.html', focus: c.id },
+            });
+        }
+
+        for (const cert of recentCertificates) {
+            const enr = cert.CourseEnrollment;
+            const ogrenci = enr?.Ogrenci
+                ? `${enr.Ogrenci.ad || ''} ${enr.Ogrenci.soyad || ''}`.trim()
+                : 'Bilinmeyen ogrenci';
+            events.push({
+                id: `cert:${cert.id}`,
+                type: 'sertifika_tamamlama',
+                tarih: cert.verilis_tarihi,
+                baslik: enr?.Course?.baslik || 'Kurs tamamlandi',
+                aciklama: `${ogrenci} sertifika aldi (#${cert.sertifika_kodu})`,
+                kullanici: ogrenci,
+                kurs_id: enr?.kurs_id || null,
+                link: enr?.ogrenci_id
+                    ? { page: '/admin/users.html', focus: enr.ogrenci_id }
+                    : null,
+            });
+        }
+
+        for (const ls of recentLiveSessions) {
+            const egitmen = ls.Egitmen
+                ? `${ls.Egitmen.ad || ''} ${ls.Egitmen.soyad || ''}`.trim()
+                : 'Bilinmeyen egitmen';
+            events.push({
+                id: `live:${ls.id}`,
+                type: 'canli_ders',
+                tarih: ls.olusturulma_tarihi,
+                baslik: ls.baslik,
+                aciklama: `${egitmen} canli ders oluşturdu (${ls.durum})`,
+                kullanici: egitmen,
+                kurs_id: ls.kurs_id,
+                baslangic_tarihi: ls.baslangic_tarihi,
+                link: ls.kurs_id
+                    ? { page: '/admin/published-courses.html', focus: ls.kurs_id }
+                    : null,
+            });
+        }
+
+        for (const u of recentNewUsers) {
+            const adSoyad = `${u.ad || ''} ${u.soyad || ''}`.trim() || 'Yeni kullanici';
+            const rolEtiketi = u.rol === 'egitmen'
+                ? 'Egitmen olarak'
+                : (u.rol === 'admin' ? 'Yonetici olarak' : 'Ogrenci olarak');
+            events.push({
+                id: `user:${u.id}`,
+                type: 'yeni_kullanici',
+                tarih: u.olusturulma_tarihi,
+                baslik: adSoyad,
+                aciklama: `${rolEtiketi} sisteme kayit oldu`,
+                kullanici: adSoyad,
+                rol: u.rol,
+                link: { page: '/admin/users.html', focus: u.id },
+            });
+        }
+
+        // Tarih DESC sirala ve limit kadar slice et
+        events.sort((a, b) => {
+            const ta = a.tarih ? new Date(a.tarih).getTime() : 0;
+            const tb = b.tarih ? new Date(b.tarih).getTime() : 0;
+            return tb - ta;
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: events.slice(0, limit),
+            meta: {
+                limit,
+                toplam_event: events.length,
+                kaynak_sayisi: 7,
+            },
+        });
+    } catch (error) {
+        console.error(`[ADMIN] Activity feed hatasi: ${error.message}`);
+        error.message = 'Aktivite akisi alinirken sunucu hatasi olustu.';
+        error.statusCode = 500;
+        next(error);
+    }
+};
+
+/**
+ * Son N gunluk satis trendi (Chart.js icin).
+ * Query: ?days=7 (default 7, max 30)
+ *
+ * @route GET /api/admin/sales-trend
+ */
+exports.getSalesTrend = async (req, res, next) => {
+    try {
+        const daysRaw = parseInt(req.query.days, 10) || 7;
+        const days = Math.min(Math.max(daysRaw, 1), 30);
+
+        // Baslangic: bugunden 'days-1' gun once, gun başlangici
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1), 0, 0, 0, 0);
+
+        // GROUP BY DATE(olusturulma_tarihi)
+        // Not: ONLY_FULL_GROUP_BY uyumlu olmasi icin GROUP BY ifadesini alias degil,
+        // dogrudan DATE() fonksiyonuyla veriyoruz.
+        const dateExpr = fn('DATE', col('olusturulma_tarihi'));
+        const rows = await Order.findAll({
+            attributes: [
+                [dateExpr, 'gun'],
+                [fn('COALESCE', fn('SUM', col('toplam_tutar')), 0), 'toplam'],
+                [fn('COUNT', col('id')), 'siparis_sayisi'],
+            ],
+            where: {
+                durum: 'tamamlandi',
+                olusturulma_tarihi: { [Op.gte]: start },
+            },
+            group: [fn('DATE', col('olusturulma_tarihi'))],
+            order: [[fn('DATE', col('olusturulma_tarihi')), 'ASC']],
+            raw: true,
+        });
+
+        // Eksik gunleri 0 ile doldur (Chart.js'in tam serisi olsun)
+        const map = new Map();
+        for (const r of rows) {
+            // r.gun MySQL'den 'YYYY-MM-DD' string olarak gelir
+            const key = typeof r.gun === 'string' ? r.gun : new Date(r.gun).toISOString().slice(0, 10);
+            map.set(key, {
+                toplam: Number(r.toplam || 0),
+                siparis_sayisi: Number(r.siparis_sayisi || 0),
+            });
+        }
+
+        // Turkce kisa gun isimleri (getDay: 0=Pazar)
+        const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt'];
+
+        const seri = [];
+        for (let i = 0; i < days; i++) {
+            const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+            const key = d.toISOString().slice(0, 10);
+            const v = map.get(key) || { toplam: 0, siparis_sayisi: 0 };
+            seri.push({
+                gun: key,
+                gunIsmi: GUN_KISA[d.getDay()],
+                gunTam: d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
+                toplam: v.toplam,
+                siparis_sayisi: v.siparis_sayisi,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: seri,
+            meta: { days, paraBirimi: 'TRY' },
+        });
+    } catch (error) {
+        console.error(`[ADMIN] Sales trend hatasi: ${error.message}`);
+        error.message = 'Satis trendi alinirken sunucu hatasi olustu.';
+        error.statusCode = 500;
+        next(error);
+    }
+};
+
 // ============================================
 // MODULE EXPORTS
 // ============================================
 module.exports = {
     adminLogin: exports.adminLogin,
     getDashboardStats: exports.getDashboardStats,
+    getActivityFeed: exports.getActivityFeed,
+    getSalesTrend: exports.getSalesTrend,
     getPendingCourses: exports.getPendingCourses,
     getCourseDetail: exports.getCourseDetail,
     approveCourse: exports.approveCourse,
     rejectCourse: exports.rejectCourse,
     getAllCourses: exports.getAllCourses,
     getPublishedCoursesReport: exports.getPublishedCoursesReport,
-    getUserDetail : exports.getUserDetail
+    getUserDetail: exports.getUserDetail,
 };

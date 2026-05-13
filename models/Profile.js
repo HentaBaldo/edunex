@@ -87,6 +87,30 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: true,
       },
+      // --- Komuta Merkezi (Dashboard) icin yeni kayit / online takip kolonlari ---
+      // sequelize.sync({ alter: true }) bunlari otomatik ALTER TABLE ile ekler.
+      // Mevcut kayitlar icin NULL kalir; backfill icin app baslangicinda kontrol edilir.
+      olusturulma_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: DataTypes.NOW,
+        comment: 'Kullanici kayit tarihi (dashboard yeni-kayit feed icin).',
+      },
+      son_aktivite_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Son authenticate olunan istek zamani (dashboard online sayci icin, ~1 dk throttle).',
+      },
+      // --- Finans / Hakedis modulu icin ek yetkilendirme ---
+      // rol='admin' olan herkes admin paneline erisir ama
+      // Hakedis & Odemeler sayfasi sadece finans_yetkili=true olan adminlere acilir.
+      // UPDATE profiller SET finans_yetkili=true WHERE id='<sizin id>' ile elle aktive edilir.
+      finans_yetkili: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Sadece rol=admin + finans_yetkili=true olanlar payout sayfasina erisebilir.',
+      },
     },
     {
       tableName: 'profiller',

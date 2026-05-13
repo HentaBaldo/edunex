@@ -1,156 +1,583 @@
 /**
- * EduNex Admin - Dashboard Stats & Activity
+ * EduNex Admin - Komuta Merkezi (Dashboard)
+ * Widget Grid + Sales Chart + Live Activity Feed
  */
 
- .stat-grid {
+/* ============================================================
+   GENEL WIDGET GRID
+   ============================================================ */
+.widget-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 25px;
-    margin-bottom: 40px;
+    gap: 20px;
+    margin-bottom: 28px;
 }
 
-.stat-card {
+.finance-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.count-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+/* ============================================================
+   WIDGET KART
+   ============================================================ */
+.widget-card {
     background: var(--white);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 25px;
+    padding: 22px;
     display: flex;
     align-items: center;
-    gap: 20px;
-    border: 1px solid var(--border);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     transition: var(--transition);
+    position: relative;
+    overflow: hidden;
 }
 
-.stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+.widget-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.15);
 }
 
-.stat-icon {
-    width: 60px;
-    height: 60px;
+.widget-card.mini {
+    padding: 16px 18px;
+    gap: 12px;
+}
+
+.widget-icon {
+    width: 56px;
+    height: 56px;
     border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-}
-
-.stat-icon.blue {
+    font-size: 1.4rem;
+    flex-shrink: 0;
     background: #eff6ff;
     color: var(--admin-primary);
 }
 
-.stat-icon.green {
-    background: #f0fdf4;
-    color: #22c55e;
+.widget-card.mini .widget-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+    border-radius: 11px;
 }
 
-.stat-icon.orange {
-    background: #fff7ed;
-    color: #f97316;
+/* Ikon renk varyantlari */
+.widget-icon.icon-blue   { background: #eff6ff; color: #3b82f6; }
+.widget-icon.icon-green  { background: #f0fdf4; color: #22c55e; }
+.widget-icon.icon-orange { background: #fff7ed; color: #f97316; }
+.widget-icon.icon-teal   { background: #f0fdfa; color: #14b8a6; }
+.widget-icon.icon-purple { background: #faf5ff; color: #a855f7; }
+.widget-icon.icon-red    { background: #fef2f2; color: #ef4444; }
+.widget-icon.icon-gold   { background: #fefce8; color: #ca8a04; }
+
+.widget-info { flex: 1; min-width: 0; }
+
+.widget-label {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
 }
 
-.stat-info h3 {
-    font-size: 1.8rem;
+.widget-card.mini .widget-label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+}
+
+.widget-value {
+    font-size: 1.7rem;
     font-weight: 800;
     color: var(--text-main);
-    line-height: 1;
-    margin-bottom: 4px;
+    line-height: 1.1;
+    word-break: break-all;
 }
 
-.stat-info p {
+.widget-card.mini .widget-value {
+    font-size: 1.4rem;
+    margin-bottom: 2px;
+}
+
+.widget-sub {
     color: var(--text-muted);
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 0.78rem;
+    margin-top: 4px;
+    display: block;
 }
 
-.activity-card {
+/* Finansal kartlar icin ozel vurgu */
+.finance-card.revenue-total .widget-icon {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #fff;
+}
+
+.finance-card.revenue-monthly .widget-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+}
+
+/* Online (canli) widget - pulse animation */
+.finance-card.online-card .widget-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    position: relative;
+}
+
+.online-pulse {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 10px;
+    height: 10px;
+    background: #34d399;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+    animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+    0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+    70%  { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+/* ============================================================
+   ORTAK KART
+   ============================================================ */
+.admin-card {
     background: var(--white);
-    border-radius: 16px;
-    padding: 30px;
     border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .card-header-flex {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
+    margin-bottom: 22px;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .card-header-flex h2 {
     margin: 0;
-    font-size: 1.3rem;
+    font-size: 1.15rem;
     color: var(--text-main);
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+
+.card-header-flex h2 i { color: var(--admin-primary); }
 
 .btn-text-link {
     color: var(--admin-primary);
     text-decoration: none;
     font-size: 0.85rem;
     font-weight: 600;
-    display: flex;
+    background: none;
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
+    transition: var(--transition);
 }
 
 .btn-text-link:hover {
-    text-decoration: underline;
+    background: #eff6ff;
+    border-color: var(--admin-primary);
 }
 
-.table-empty-state {
-    text-align: center;
-    padding: 40px !important;
-    color: var(--text-muted);
-}
+.btn-text-link.loading i { animation: spin 0.8s linear infinite; }
 
-.table-empty-state i {
-    font-size: 2rem;
-    margin-bottom: 10px;
-    opacity: 0.5;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.activity-table {
+/* ============================================================
+   SATIS TRENDI GRAFIK
+   ============================================================ */
+.chart-card .chart-wrapper {
+    position: relative;
+    height: 280px;
     width: 100%;
-    border-collapse: collapse;
 }
 
-.activity-table thead {
-    background: #f1f5f9;
-    border-bottom: 2px solid var(--border);
-}
-
-.activity-table th {
-    padding: 15px 20px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-muted);
+.chart-meta {
     font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 999px;
 }
 
-.activity-table td {
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text-main);
+/* ============================================================
+   AKTIVITE AKISI - FILTRE BAR
+   ============================================================ */
+.feed-filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.feed-search {
+    position: relative;
+    width: 100%;
+}
+
+.feed-search i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
-.activity-table tbody tr:hover {
+.feed-search input {
+    width: 100%;
+    padding: 11px 14px 11px 40px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     background: #f8fafc;
+    font-size: 0.92rem;
+    font-family: inherit;
+    transition: var(--transition);
+}
+
+.feed-search input:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.feed-type-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-chip {
+    background: #f1f5f9;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+}
+
+.filter-chip:hover {
+    background: #e2e8f0;
+    color: var(--text-main);
+}
+
+.filter-chip.active {
+    background: var(--admin-primary);
+    color: #fff;
+    border-color: var(--admin-primary-dark);
+    box-shadow: 0 2px 6px -1px rgba(59, 130, 246, 0.4);
+}
+
+.filter-chip i { font-size: 0.78rem; }
+
+/* ============================================================
+   AKTIVITE AKISI - LISTE
+   ============================================================ */
+.activity-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 560px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.activity-feed-list::-webkit-scrollbar { width: 6px; }
+.activity-feed-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.activity-feed-list::-webkit-scrollbar-track { background: transparent; }
+
+.feed-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    transition: var(--transition);
+    border-left-width: 4px;
+}
+
+.feed-item:hover {
+    background: #f8fafc;
+    transform: translateX(2px);
+}
+
+.feed-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+/* Tip bazli renk paleti (border-left + icon arka plani) */
+.feed-item.type-purchase    { border-left-color: #22c55e; }
+.feed-item.type-purchase    .feed-icon { background: #dcfce7; color: #16a34a; }
+.feed-item.type-purchase    .feed-type-badge { background: #dcfce7; color: #15803d; }
+
+.feed-item.type-enroll      { border-left-color: #3b82f6; }
+.feed-item.type-enroll      .feed-icon { background: #dbeafe; color: #2563eb; }
+.feed-item.type-enroll      .feed-type-badge { background: #dbeafe; color: #1d4ed8; }
+
+.feed-item.type-review      { border-left-color: #eab308; }
+.feed-item.type-review      .feed-icon { background: #fef9c3; color: #ca8a04; }
+.feed-item.type-review      .feed-type-badge { background: #fef9c3; color: #a16207; }
+
+.feed-item.type-pending     { border-left-color: #f97316; }
+.feed-item.type-pending     .feed-icon { background: #ffedd5; color: #ea580c; }
+.feed-item.type-pending     .feed-type-badge { background: #ffedd5; color: #c2410c; }
+
+.feed-item.type-certificate { border-left-color: #d4a017; }
+.feed-item.type-certificate .feed-icon { background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%); color: #92400e; }
+.feed-item.type-certificate .feed-type-badge { background: #fef3c7; color: #92400e; }
+
+.feed-item.type-live        { border-left-color: #a855f7; }
+.feed-item.type-live        .feed-icon { background: #f3e8ff; color: #9333ea; }
+.feed-item.type-live        .feed-type-badge { background: #f3e8ff; color: #7e22ce; }
+
+.feed-item.type-newuser     { border-left-color: #14b8a6; }
+.feed-item.type-newuser     .feed-icon { background: #ccfbf1; color: #0f766e; }
+.feed-item.type-newuser     .feed-type-badge { background: #ccfbf1; color: #115e59; }
+
+.feed-item.type-default     { border-left-color: var(--border); }
+.feed-item.type-default     .feed-icon { background: #f1f5f9; color: var(--text-muted); }
+.feed-item.type-default     .feed-type-badge { background: #f1f5f9; color: var(--text-muted); }
+
+.feed-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.feed-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.feed-type-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.feed-title {
+    font-size: 0.92rem;
+    color: var(--text-main);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.feed-desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.feed-amount {
+    background: #dcfce7;
+    color: #15803d;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.feed-rating {
+    background: #fef9c3;
+    color: #a16207;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.feed-rating i { font-size: 0.7rem; }
+
+.feed-time {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.feed-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+.feed-inspect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #eff6ff;
+    color: var(--admin-primary);
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.feed-inspect-btn:hover {
+    background: var(--admin-primary);
+    color: #fff;
+    border-color: var(--admin-primary-dark);
+    transform: translateY(-1px);
+}
+
+.feed-inspect-btn i { font-size: 0.7rem; }
+
+/* Bos / Hata Durumu */
+.feed-empty-state,
+.table-empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-muted);
+}
+
+.feed-empty-state i,
+.table-empty-state i {
+    font-size: 2.2rem;
+    margin-bottom: 12px;
+    opacity: 0.4;
+    display: block;
+}
+
+.feed-empty-state.error i { color: #ef4444; opacity: 0.8; }
+
+.feed-empty-state p,
+.table-empty-state p { margin: 0; font-size: 0.92rem; }
+
+/* ============================================================
+   ESKI table-responsive (geri uyumluluk - varsa kullaniliyor)
+   ============================================================ */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+   MOBIL RESPONSIVE
+   ============================================================ */
+@media (max-width: 992px) {
+    .finance-grid { grid-template-columns: repeat(2, 1fr); }
+    .count-grid { grid-template-columns: repeat(3, 1fr); }
+    .chart-card .chart-wrapper { height: 240px; }
 }
 
 @media (max-width: 768px) {
-    .stat-grid {
-        grid-template-columns: 1fr;
-    }
+    .widget-grid { gap: 14px; margin-bottom: 20px; }
+    .finance-grid { grid-template-columns: 1fr; }
+    .count-grid { grid-template-columns: repeat(2, 1fr); }
 
-    .card-header-flex {
-        flex-direction: column;
-        align-items: flex-start;
+    .admin-card { padding: 18px; margin-bottom: 20px; }
+    .card-header-flex { margin-bottom: 16px; }
+    .card-header-flex h2 { font-size: 1rem; }
+
+    .widget-card { padding: 18px; }
+    .widget-value { font-size: 1.45rem; }
+    .widget-card.mini .widget-value { font-size: 1.2rem; }
+
+    .chart-card .chart-wrapper { height: 220px; }
+
+    .feed-item {
+        flex-wrap: wrap;
+        padding: 12px 14px;
         gap: 10px;
     }
+
+    .feed-meta {
+        order: 3;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding-left: 52px;
+        gap: 10px;
+    }
+
+    .feed-time { font-size: 0.75rem; }
+    .feed-inspect-btn { padding: 5px 10px; font-size: 0.74rem; }
+
+    .feed-icon { width: 38px; height: 38px; font-size: 0.9rem; }
+    .feed-title { font-size: 0.88rem; }
+    .feed-desc { font-size: 0.82rem; }
+
+    .filter-chip { padding: 6px 11px; font-size: 0.76rem; }
+    .filter-chip i { display: none; }
+}
+
+@media (max-width: 480px) {
+    .count-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .widget-card.mini { padding: 14px; }
+    .widget-card.mini .widget-icon { width: 38px; height: 38px; font-size: 1rem; }
+    .widget-card.mini .widget-value { font-size: 1.1rem; }
+    .widget-card.mini .widget-label { font-size: 0.78rem; }
+
+    .feed-type-filters { gap: 6px; }
+    .filter-chip { padding: 5px 10px; font-size: 0.72rem; }
 }

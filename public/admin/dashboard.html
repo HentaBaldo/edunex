@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Özet Tablo | EduNex Admin</title>
-    
+    <title>Komuta Merkezi | EduNex Admin</title>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="/admin/css/layout.css">
     <link rel="stylesheet" href="/admin/css/dashboard.css">
 </head>
@@ -22,19 +22,22 @@
         </div>
         <nav class="sidebar-nav" aria-label="Ana Navigasyon">
             <a href="/admin/dashboard.html" class="nav-item active">
-                <i class="fas fa-chart-pie"></i> Özet Tablo
+                <i class="fas fa-satellite-dish"></i> Komuta Merkezi
             </a>
             <a href="/admin/courses.html" class="nav-item">
-                <i class="fas fa-video"></i> Kurs Onayları
+                <i class="fas fa-video"></i> Kurs Onaylari
             </a>
             <a href="/admin/published-courses.html" class="nav-item">
                 <i class="fas fa-list-check"></i> Kurs Takibi
             </a>
             <a href="/admin/users.html" class="nav-item">
-                <i class="fas fa-users"></i> Kullanıcı Yönetimi
+                <i class="fas fa-users"></i> Kullanici Yonetimi
             </a>
             <a href="/admin/orders.html" class="nav-item">
-                <i class="fas fa-receipt"></i> Siparişler
+                <i class="fas fa-receipt"></i> Siparisler
+            </a>
+            <a href="/admin/payouts.html" class="nav-item">
+                <i class="fas fa-money-bill-wave"></i> Hakedis & Odemeler
             </a>
             <a href="/admin/categories.html" class="nav-item">
                 <i class="fas fa-tags"></i> Kategoriler
@@ -45,7 +48,7 @@
         </nav>
         <div class="sidebar-footer">
             <button type="button" onclick="adminLogout()" class="btn-logout">
-                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
+                <i class="fas fa-sign-out-alt"></i> Guvenli Cikis
             </button>
         </div>
     </aside>
@@ -53,13 +56,13 @@
     <main class="admin-main">
         <header class="admin-header">
             <div class="header-title">
-                <h1>Özet Tablo</h1>
-                <p class="subtitle">Platformun genel durumunu ve bekleyen işlemleri buradan takip edebilirsiniz.</p>
+                <h1>Komuta Merkezi</h1>
+                <p class="subtitle">Platformun canli durumunu ve tum sistem hareketlerini buradan takip edin.</p>
             </div>
             <div class="header-user">
                 <div class="user-meta">
-                    <span id="adminName" class="admin-name">Yönetici Yükleniyor...</span>
-                    <small>Sistem Yöneticisi</small>
+                    <span id="adminName" class="admin-name">Yonetici Yukleniyor...</span>
+                    <small>Sistem Yoneticisi</small>
                 </div>
                 <div class="admin-avatar-circle">
                     <i class="fas fa-user-shield"></i>
@@ -68,62 +71,198 @@
         </header>
 
         <section class="admin-content">
-            <div class="stat-grid">
-                <div class="stat-card">
-                    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
-                    <div class="stat-info">
-                        <h3 id="totalUsers">--</h3>
-                        <p>Toplam Kullanıcı</p>
+
+            <!-- ============================================================
+                 ROW 1 - FINANSAL WIDGETS (oncelik)
+                 ============================================================ -->
+            <div class="widget-grid finance-grid">
+                <div class="widget-card finance-card revenue-total">
+                    <div class="widget-icon"><i class="fas fa-coins"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Toplam Ciro</p>
+                        <h3 class="widget-value" id="toplamCiro">--</h3>
+                        <small class="widget-sub">Tum zamanlar</small>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
-                    <div class="stat-info">
-                        <h3 id="activeCourses">--</h3>
-                        <p>Yayındaki Kurslar</p>
+
+                <div class="widget-card finance-card revenue-monthly">
+                    <div class="widget-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Bu Ayki Kazanc</p>
+                        <h3 class="widget-value" id="aylikCiro">--</h3>
+                        <small class="widget-sub" id="ayAdi">--</small>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon orange"><i class="fas fa-hourglass-half"></i></div>
-                    <div class="stat-info">
-                        <h3 id="pendingCourses">--</h3>
-                        <p>Onay Bekleyenler</p>
+
+                <div class="widget-card finance-card online-card">
+                    <div class="widget-icon"><span class="online-pulse"></span><i class="fas fa-signal"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Su An Online</p>
+                        <h3 class="widget-value" id="onlineKullanicilar">--</h3>
+                        <small class="widget-sub">Son 15 dakika aktif</small>
+                    </div>
+                </div>
+
+                <div class="widget-card finance-card">
+                    <div class="widget-icon icon-teal"><i class="fas fa-user-plus"></i></div>
+                    <div class="widget-info">
+                        <p class="widget-label">Yeni Kayit</p>
+                        <h3 class="widget-value" id="yeniKayitlar24h">--</h3>
+                        <small class="widget-sub">Son 24 saat</small>
                     </div>
                 </div>
             </div>
 
+            <!-- Ek finansal ve etkinlik sayimlari -->
+            <div class="widget-grid count-grid">
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-green"><i class="fas fa-graduation-cap"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="totalEnrollments">--</h3>
+                        <p class="widget-label">Toplam Kayit</p>
+                    </div>
+                </div>
+
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-gold"><i class="fas fa-trophy"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="totalCertificates">--</h3>
+                        <p class="widget-label">Sertifika</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 ROW 2 - SAYIM WIDGETS (kullanici/kurs)
+                 ============================================================ -->
+            <div class="widget-grid count-grid">
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-blue"><i class="fas fa-users"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="totalUsers">--</h3>
+                        <p class="widget-label">Toplam Kullanici</p>
+                    </div>
+                </div>
+
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-teal"><i class="fas fa-user-graduate"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="totalStudents">--</h3>
+                        <p class="widget-label">Ogrenci</p>
+                    </div>
+                </div>
+
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-purple"><i class="fas fa-chalkboard-teacher"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="totalInstructors">--</h3>
+                        <p class="widget-label">Egitmen</p>
+                    </div>
+                </div>
+
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-green"><i class="fas fa-check-circle"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="activeCourses">--</h3>
+                        <p class="widget-label">Yayinda</p>
+                    </div>
+                </div>
+
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="pendingCourses">--</h3>
+                        <p class="widget-label">Onay Bekleyen</p>
+                    </div>
+                </div>
+
+                <div class="widget-card mini">
+                    <div class="widget-icon icon-red"><i class="fas fa-broadcast-tower"></i></div>
+                    <div class="widget-info">
+                        <h3 class="widget-value" id="upcomingLiveSessions">--</h3>
+                        <p class="widget-label">Yaklasan Canli</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 ROW 3 - SATIS TRENDI GRAFIK (Chart.js)
+                 ============================================================ -->
+            <article class="admin-card chart-card">
+                <div class="card-header-flex">
+                    <h2><i class="fas fa-chart-area"></i> Son 7 Gun Satis Trendi</h2>
+                    <span class="chart-meta" id="chartSummary">--</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="salesTrendChart" aria-label="Son 7 gunluk satis grafigi"></canvas>
+                </div>
+            </article>
+
+            <!-- ============================================================
+                 ROW 4 - CANLI AKTIVITE AKISI
+                 ============================================================ -->
             <article class="admin-card activity-card">
                 <div class="card-header-flex">
-                    <h2>Son Sistem Aktiviteleri</h2>
-                    <a href="/admin/courses.html" class="btn-text-link">Tümünü Gör <i class="fas fa-external-link-alt"></i></a>
+                    <h2><i class="fas fa-bolt"></i> Canli Aktivite Akisi</h2>
+                    <button class="btn-text-link" type="button" id="refreshFeedBtn">
+                        <i class="fas fa-rotate"></i> Yenile
+                    </button>
                 </div>
-                
-                <div class="table-responsive">
-                    <table class="activity-table" id="recentActivityTable">
-                        <thead>
-                            <tr>
-                                <th>Kurs / Başlık</th>
-                                <th>Eğitmen</th>
-                                <th>Tarih</th>
-                                <th>Durum</th>
-                                <th style="text-align: right;">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="activityList">
-                            <tr>
-                                <td colspan="5" class="table-empty-state">
-                                    <i class="fas fa-inbox"></i>
-                                    <p>Henüz yeni bir aktivite bulunmuyor.</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                <!-- Filtreleme Bar -->
+                <div class="feed-filter-bar">
+                    <div class="feed-search">
+                        <i class="fas fa-search"></i>
+                        <input
+                            type="search"
+                            id="feedSearchInput"
+                            placeholder="Ogrenci, egitmen veya kurs adi ara..."
+                            autocomplete="off"
+                        >
+                    </div>
+                    <div class="feed-type-filters" role="tablist" aria-label="Aktivite tipi filtresi">
+                        <button class="filter-chip active" data-filter="all" type="button">
+                            <i class="fas fa-list"></i> Tumu
+                        </button>
+                        <button class="filter-chip" data-filter="satin_alim" type="button">
+                            <i class="fas fa-dollar-sign"></i> Satin Alim
+                        </button>
+                        <button class="filter-chip" data-filter="kursa_kayit" type="button">
+                            <i class="fas fa-book-open"></i> Kayit
+                        </button>
+                        <button class="filter-chip" data-filter="yeni_yorum" type="button">
+                            <i class="fas fa-comment-dots"></i> Yorum
+                        </button>
+                        <button class="filter-chip" data-filter="kurs_onay_talebi" type="button">
+                            <i class="fas fa-hourglass-half"></i> Onay
+                        </button>
+                        <button class="filter-chip" data-filter="sertifika_tamamlama" type="button">
+                            <i class="fas fa-trophy"></i> Sertifika
+                        </button>
+                        <button class="filter-chip" data-filter="canli_ders" type="button">
+                            <i class="fas fa-broadcast-tower"></i> Canli
+                        </button>
+                        <button class="filter-chip" data-filter="yeni_kullanici" type="button">
+                            <i class="fas fa-user-plus"></i> Yeni Kayit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Akis Listesi -->
+                <div class="activity-feed-list" id="activityFeedList" aria-live="polite">
+                    <div class="feed-empty-state" id="feedEmptyState">
+                        <i class="fas fa-satellite-dish"></i>
+                        <p>Aktivite akisi yukleniyor...</p>
+                    </div>
                 </div>
             </article>
         </section>
     </main>
 
+    <!-- Chart.js (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+
     <script src="/assets/js/api.js"></script>
-    <script src="/admin/js/dashboard.js"></script>
+    <script src="/admin/js/dashboard.js" defer></script>
 </body>
 </html>
