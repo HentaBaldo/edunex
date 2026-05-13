@@ -48,13 +48,22 @@ app.use(helmet({
 
 // CORS: izin verilen origin listesi env'den okunur. Bos birakilirsa ayni-origin
 // kullanim varsayilir (canli ortamda public/ statik servis edildigi icin yeterli).
+// Yerel gelistirme icin localhost / 127.0.0.1 (her port) her durumda serbesttir;
+// boylece Live Server (5500), Vite (5173) ya da farkli portlardan calisan
+// frontend dev sunuculari CORS_ORIGINS env'i ayarlanmadan da API'ye erisebilir.
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
     .split(',').map(o => o.trim()).filter(Boolean);
+
+const isLoopbackOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
 app.use(cors({
     origin: (origin, callback) => {
         // Same-origin / curl / Postman istekleri (origin = undefined) serbest
         if (!origin) return callback(null, true);
+        // Loopback (localhost / 127.0.0.1) her zaman serbest — dev ortami kolaylasir
+        if (isLoopbackOrigin(origin)) return callback(null, true);
+        // Env hic ayarlanmadiysa (production'da yanlislikla bos kalirsa)
+        // tamamen acmak yerine sadece loopback'e izin verdik, bu durumda diger origin'leri reddet
         if (allowedOrigins.length === 0) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         return callback(new Error(`CORS engellendi: ${origin}`));

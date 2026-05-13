@@ -6,6 +6,10 @@ const upload = require('../middleware/uploadMiddleware'); // Merkezi multer yapÄ
 
 router.get('/dashboard/stats', verifyToken, isInstructor, instructorController.getInstructorDashboardStats);
 
+// --- iyzico Pazaryeri (Marketplace) Alt Uye Isyeri Kaydi ---
+// Egitmenin satislardan dogrudan tahsilat alabilmesi icin gerekli tek seferlik kayit.
+router.post('/payment/submerchant', verifyToken, isInstructor, instructorController.registerSubMerchant);
+
 router.get('/test', (req, res) => {
     return res.status(200).json({
         success: true,

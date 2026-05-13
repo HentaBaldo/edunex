@@ -2,7 +2,12 @@ import { UIHelper } from './modules/ui-helper.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (!UIHelper.checkInstructorAccess()) return;
-    await Promise.all([loadDashboardStats(), loadMyCourses(), loadFollowers()]);
+    await Promise.all([
+        loadDashboardStats(),
+        loadMyCourses(),
+        loadFollowers(),
+        checkSubMerchantBanner(),
+    ]);
 });
 
 async function loadDashboardStats() {
@@ -361,3 +366,104 @@ function escapeHtml(text) {
 }
 
 window.loadMyCourses = loadMyCourses;
+
+// ─────────────────────────────────────────────────────────
+// iyzico SubMerchant Kurulum Banner'ı
+// ─────────────────────────────────────────────────────────
+
+const IYZICO_OK_KEY = 'edunex_iyzico_registered';
+
+/**
+ * Sayfa yüklenince SubMerchant durumunu kontrol et.
+ * localStorage'da onay varsa banner'ı hiç açma (gereksiz API çağrısı yok).
+ * Yoksa banner'ı göster ve buton eventini wire et.
+ */
+async function checkSubMerchantBanner() {
+    if (localStorage.getItem(IYZICO_OK_KEY) === '1') return;
+
+    const banner = document.getElementById('iyzicoSetupBanner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+
+    const btn = document.getElementById('iyzicoConnectBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', handleSubMerchantConnect);
+}
+
+async function handleSubMerchantConnect() {
+    const btn = document.getElementById('iyzicoConnectBtn');
+    if (!btn || btn.disabled) return;
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Bağlanıyor...</span>';
+
+    try {
+        const result = await ApiService.post('/instructor/payment/submerchant', {});
+
+        if (result?.success) {
+            const banner = document.getElementById('iyzicoSetupBanner');
+            localStorage.setItem(IYZICO_OK_KEY, '1');
+
+            // Butonu başarı görseline dönüştür
+            btn.disabled = true;
+            btn.classList.add('success');
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> <span>iyzico Hesabınız Bağlı</span>';
+
+            // 3 saniye sonra banner'ı kapat
+            setTimeout(() => {
+                if (banner) {
+                    banner.style.transition = 'opacity 0.4s';
+                    banner.style.opacity = '0';
+                    setTimeout(() => { banner.style.display = 'none'; }, 400);
+                }
+            }, 3000);
+
+            showToast(
+                result.data?.already_registered
+                    ? 'iyzico hesabınız zaten bağlı. Her şey yolunda!'
+                    : 'iyzico Alt Üye İşyeri hesabınız başarıyla oluşturuldu!',
+                'success'
+            );
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+
+        const msg = err.message || 'Bağlantı kurulamadı.';
+        showToast(msg, 'error');
+
+        // IBAN/TCKN eksikse profil sayfasına yönlendirme öner
+        if (msg.toLowerCase().includes('iban') || msg.toLowerCase().includes('kimlik')) {
+            const banner = document.getElementById('iyzicoSetupBanner');
+            if (banner) {
+                const body = banner.querySelector('.iyzico-banner-body p');
+                if (body) {
+                    body.innerHTML = `<strong style="color:#9a3412;">⚠ ${escapeHtml(msg)}</strong>
+                        <br><a href="/profile/index.html" style="color:#f97316;font-weight:700;">→ Profilinizi tamamlayın</a>`;
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Hafif toast bildirimi.
+ * @param {string} message
+ * @param {'success'|'error'|'info'} type
+ * @param {number} [durationMs]
+ */
+function showToast(message, type = 'info', durationMs = 4500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.35s';
+        setTimeout(() => el.remove(), 400);
+    }, durationMs);
+}

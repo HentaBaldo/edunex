@@ -4,12 +4,14 @@
  */
 
 const { v4: uuidv4 } = require('uuid');
+const { Op } = require('sequelize');
 const {
     sequelize,
     Cart,
     CartItem,
     Course,
     Profile,
+    InstructorDetail,
     Order,
     OrderItem,
     CourseEnrollment,
@@ -19,7 +21,11 @@ const {
 } = require('../models');
 const iyzicoService = require('../services/iyzicoService');
 
-const PLATFORM_KOMISYON_ORANI = 30; // %30
+// Platform komisyon orani: %30 (env ile override edilebilir)
+const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
+// Kurus bazli aritmetik: floating point sapmasini onler.
+const toKurus = (v) => Math.round(Number(v) * 100);
+const fromKurus = (k) => (k / 100).toFixed(2);
 
 /**
  * Sepetten ödeme başlat.
@@ -42,7 +48,11 @@ exports.checkout = async (req, res, next) => {
             include: [{
                 model: Course,
                 attributes: ['id', 'baslik', 'fiyat', 'durum', 'kategori_id', 'egitmen_id'],
-                include: [{ model: Category, attributes: ['ad'] }],
+                include: [
+                    { model: Category, attributes: ['ad'] },
+                    // Marketplace icin egitmenin SubMerchant anahtari sart.
+                    { model: InstructorDetail, attributes: ['kullanici_id', 'submerchant_key'] },
+                ],
                 required: true,
             }],
         });
@@ -71,11 +81,18 @@ exports.checkout = async (req, res, next) => {
                 err.statusCode = 400;
                 throw err;
             }
+            // Marketplace zorunlulugu: env flag ile sert mod.
+            // STRICT_MARKETPLACE=true ise submerchant_key olmayan kursa odeme acilmaz.
+            if (process.env.STRICT_MARKETPLACE === 'true' && !ci.Course.InstructorDetail?.submerchant_key) {
+                const err = new Error(`"${ci.Course.baslik}" egitmeni odeme almak icin profil kurulumunu tamamlamamis.`);
+                err.statusCode = 409;
+                throw err;
+            }
         }
 
-        // Toplami DB fiyatlarindan hesapla (istemciye guvenme)
-        const toplam = cartItems.reduce((s, ci) => s + Number(ci.Course.fiyat || 0), 0);
-        if (toplam <= 0) {
+        // Toplami DB fiyatlarindan KURUS bazli hesapla (floating-point sapmasi yok)
+        const toplamKurus = cartItems.reduce((s, ci) => s + toKurus(ci.Course.fiyat || 0), 0);
+        if (toplamKurus <= 0) {
             const err = new Error('Odeme tutari sifir veya gecersiz.');
             err.statusCode = 400;
             throw err;
@@ -108,7 +125,7 @@ exports.checkout = async (req, res, next) => {
         const { order, orderItems } = await sequelize.transaction(async (t) => {
             const ord = await Order.create({
                 kullanici_id,
-                toplam_tutar: toplam.toFixed(2),
+                toplam_tutar: fromKurus(toplamKurus),
                 para_birimi: 'TRY',
                 durum: 'beklemede',
                 saglayici: 'iyzico',
@@ -120,7 +137,8 @@ exports.checkout = async (req, res, next) => {
                 const oi = await OrderItem.create({
                     siparis_id: ord.id,
                     kurs_id: ci.kurs_id,
-                    odenen_fiyat: Number(ci.Course.fiyat).toFixed(2),
+                    odenen_fiyat: fromKurus(toKurus(ci.Course.fiyat)),
+                    hakedis_durumu: 'beklemede',
                 }, { transaction: t });
                 oItems.push({ orderItem: oi, course: ci.Course });
             }
@@ -145,10 +163,13 @@ exports.checkout = async (req, res, next) => {
                     ip: req.ip,
                 },
                 items: orderItems.map(({ orderItem, course }) => ({
-                    id: orderItem.id,
+                    id: orderItem.id, // callback'te itemTransactions ile eslestirilecek
                     baslik: course.baslik,
                     kategori: course.Category?.ad || 'Egitim',
                     fiyat: course.fiyat,
+                    // Marketplace: her item kendi egitmeninin SubMerchant'ina yonlendirilir.
+                    // Eski (key'i olmayan) kayitlarda klasik tahsilata duser.
+                    subMerchantKey: course.InstructorDetail?.submerchant_key || null,
                 })),
                 callbackUrl,
             });
@@ -283,65 +304,85 @@ exports.callback = async (req, res) => {
             return failWith(retrieveResult?.errorMessage || 'Odeme iyzico tarafinda basarisiz.');
         }
 
-        // Basarili: Enrollment + Earning olustur + sepeti bosalt (transaction)
+        // Basarili: itemTransactionId eslemesi + Enrollment + Earning + sepet temizleme (transaction)
+        // iyzico, callback retrieve sonucunda paymentItems (veya itemTransactions) listesi doner.
+        // Her bir kalem 'itemId' alaniyla geri gelir; bu alani biz checkout'ta OrderItem.id olarak gondermistik.
+        // Boylece itemTransactionId'yi dogru OrderItem'a yaziyoruz - iade ve approval icin sart.
+        const itemTransactions = retrieveResult?.paymentItems || retrieveResult?.itemTransactions || [];
+        const txByItemId = new Map();
+        for (const it of itemTransactions) {
+            const key = it?.itemId || it?.basketItemId;
+            const txId = it?.paymentTransactionId || it?.itemTransactionId;
+            if (key && txId) txByItemId.set(key, txId);
+        }
+        if (txByItemId.size === 0) {
+            console.warn('[CALLBACK] iyzico itemTransactions bos doner; iade/approval bu siparisten yapilamaz.', { order_id: order.id });
+        }
+
         try {
             await sequelize.transaction(async (t) => {
-            await order.update({
-                durum: 'tamamlandi',
-                islem_id: retrieveResult.paymentId || null,
-                gateway_response: retrieveResult,
-            }, { transaction: t });
+                await order.update({
+                    durum: 'tamamlandi',
+                    islem_id: retrieveResult.paymentId || null,
+                    gateway_response: retrieveResult,
+                }, { transaction: t });
 
-            const orderItems = await OrderItem.findAll({
-                where: { siparis_id: order.id },
-                include: [{
-                    model: Course,
-                    attributes: ['id', 'fiyat', 'egitmen_id'],
-                }],
-                transaction: t,
-            });
-
-            for (const oi of orderItems) {
-                // Enrollment (idempotent: zaten varsa atla)
-                const [enrollment, created] = await CourseEnrollment.findOrCreate({
-                    where: { ogrenci_id: order.kullanici_id, kurs_id: oi.kurs_id },
-                    defaults: {
-                        ogrenci_id: order.kullanici_id,
-                        kurs_id: oi.kurs_id,
-                        siparis_kalemi_id: oi.id,
-                        ilerleme_yuzdesi: 0,
-                        kayit_tarihi: new Date(),
-                    },
+                const orderItems = await OrderItem.findAll({
+                    where: { siparis_id: order.id },
+                    include: [{
+                        model: Course,
+                        attributes: ['id', 'fiyat', 'egitmen_id'],
+                    }],
                     transaction: t,
                 });
-                if (!created && !enrollment.siparis_kalemi_id) {
-                    await enrollment.update({ siparis_kalemi_id: oi.id }, { transaction: t });
+
+                for (const oi of orderItems) {
+                    // 1) itemTransactionId'yi OrderItem'a yansit (idempotent: yoksa NULL kalir)
+                    const txId = txByItemId.get(oi.id) || null;
+                    if (txId && !oi.iyzico_item_transaction_id) {
+                        await oi.update({ iyzico_item_transaction_id: txId }, { transaction: t });
+                    }
+
+                    // 2) Enrollment (idempotent)
+                    const [enrollment, created] = await CourseEnrollment.findOrCreate({
+                        where: { ogrenci_id: order.kullanici_id, kurs_id: oi.kurs_id },
+                        defaults: {
+                            ogrenci_id: order.kullanici_id,
+                            kurs_id: oi.kurs_id,
+                            siparis_kalemi_id: oi.id,
+                            ilerleme_yuzdesi: 0,
+                            kayit_tarihi: new Date(),
+                        },
+                        transaction: t,
+                    });
+                    if (!created && !enrollment.siparis_kalemi_id) {
+                        await enrollment.update({ siparis_kalemi_id: oi.id }, { transaction: t });
+                    }
+
+                    // 3) Egitmen hakedisi - kurus bazli aritmetik
+                    const brutKurus = toKurus(oi.odenen_fiyat);
+                    const kesintiKurus = Math.round(brutKurus * PLATFORM_KOMISYON_ORANI / 100);
+                    const netKurus = brutKurus - kesintiKurus;
+                    await InstructorEarning.findOrCreate({
+                        where: { siparis_kalemi_id: oi.id },
+                        defaults: {
+                            egitmen_id: oi.Course?.egitmen_id || null,
+                            siparis_kalemi_id: oi.id,
+                            brut_tutar: fromKurus(brutKurus),
+                            komisyon_orani: PLATFORM_KOMISYON_ORANI,
+                            platform_kesintisi: fromKurus(kesintiKurus),
+                            net_tutar: fromKurus(netKurus),
+                            para_birimi: 'TRY',
+                        },
+                        transaction: t,
+                    });
                 }
 
-                // Egitmen hakedisi (findOrCreate: çift callback'te tekrar oluşturma)
-                const brut = Number(oi.odenen_fiyat);
-                const kesinti = Number((brut * PLATFORM_KOMISYON_ORANI / 100).toFixed(2));
-                const net = Number((brut - kesinti).toFixed(2));
-                await InstructorEarning.findOrCreate({
-                    where: { siparis_kalemi_id: oi.id },
-                    defaults: {
-                        egitmen_id: oi.Course?.egitmen_id || null,
-                        siparis_kalemi_id: oi.id,
-                        brut_tutar: brut.toFixed(2),
-                        komisyon_orani: PLATFORM_KOMISYON_ORANI,
-                        platform_kesintisi: kesinti.toFixed(2),
-                        net_tutar: net.toFixed(2),
-                        para_birimi: 'TRY',
-                    },
-                    transaction: t,
-                });
-            }
-
-            // Sepeti bosalt
-            const cart = await Cart.findOne({ where: { kullanici_id: order.kullanici_id }, transaction: t });
-            if (cart) {
-                await CartItem.destroy({ where: { sepet_id: cart.id }, transaction: t });
-            }
+                // 4) Sepeti bosalt
+                const cart = await Cart.findOne({ where: { kullanici_id: order.kullanici_id }, transaction: t });
+                if (cart) {
+                    await CartItem.destroy({ where: { sepet_id: cart.id }, transaction: t });
+                }
             });
         } catch (dbError) {
             // KRITIK: iyzico tahsilati YAPTI ama bizim DB islemimiz patladi.
@@ -367,6 +408,161 @@ exports.callback = async (req, res) => {
             stack: error.stack,
         });
         return failWith(`Sunucu hatasi: ${error.message || 'Bilinmeyen hata'}`);
+    }
+};
+
+/**
+ * Akilli iade (refund) - musteri tarafindan tek bir kurs kalemi icin iade talebi.
+ * KOSULLAR (HER IKISI BIRLIKTE SAGLANMALI):
+ *   1) Siparis tarihinden itibaren 14 gun GECMEMIS olmali.
+ *   2) Kurs ilerleme yuzdesi <= %20 olmali (egitmenin emegini korur).
+ * Sadece sahip olan kullanici kendi siparisini iade edebilir.
+ *
+ * @route POST /api/payments/refund/:orderItemId
+ */
+exports.refundItem = async (req, res, next) => {
+    const kullanici_id = req.user.id;
+    const { orderItemId } = req.params;
+
+    const IADE_PENCERESI_GUN = 14;
+    const MAX_ILERLEME_YUZDESI = 20;
+
+    try {
+        // 1) OrderItem + Order + Enrollment'i tek sorguda cek (N+1 onleme)
+        const oi = await OrderItem.findOne({
+            where: { id: orderItemId },
+            include: [
+                {
+                    model: Order,
+                    attributes: ['id', 'kullanici_id', 'durum', 'olusturulma_tarihi'],
+                    required: true,
+                },
+            ],
+        });
+
+        if (!oi || !oi.Order) {
+            const err = new Error('Iade edilecek siparis kalemi bulunamadi.');
+            err.statusCode = 404;
+            throw err;
+        }
+        if (oi.Order.kullanici_id !== kullanici_id) {
+            const err = new Error('Bu siparis size ait degil.');
+            err.statusCode = 403;
+            throw err;
+        }
+        if (oi.Order.durum !== 'tamamlandi') {
+            const err = new Error('Sadece tamamlanmis siparisler iade edilebilir.');
+            err.statusCode = 400;
+            throw err;
+        }
+        if (oi.hakedis_durumu === 'iade_edildi') {
+            const err = new Error('Bu kalem zaten iade edilmis.');
+            err.statusCode = 409;
+            throw err;
+        }
+        if (oi.hakedis_durumu === 'onaylandi') {
+            const err = new Error('Bu kalemin hakedisi egitmene aktarilmis. Iade penceresi kapanmistir.');
+            err.statusCode = 409;
+            throw err;
+        }
+        if (!oi.iyzico_item_transaction_id) {
+            const err = new Error('Bu kalemde iyzico takip numarasi yok; iade gerceklestirilemez. Destek ile iletisime gecin.');
+            err.statusCode = 422;
+            throw err;
+        }
+
+        // 2) Sart-1: 14 gun penceresi
+        const siparisTarihi = new Date(oi.Order.olusturulma_tarihi);
+        const simdi = new Date();
+        const gecenMs = simdi.getTime() - siparisTarihi.getTime();
+        const gecenGun = gecenMs / (1000 * 60 * 60 * 24);
+        if (gecenGun > IADE_PENCERESI_GUN) {
+            const err = new Error(`Iade penceresi kapanmis (${IADE_PENCERESI_GUN} gun gecmis).`);
+            err.statusCode = 409;
+            throw err;
+        }
+
+        // 3) Sart-2: Ilerleme yuzdesi <= 20
+        const enrollment = await CourseEnrollment.findOne({
+            where: { ogrenci_id: kullanici_id, kurs_id: oi.kurs_id },
+            attributes: ['id', 'ilerleme_yuzdesi'],
+        });
+        const ilerleme = Number(enrollment?.ilerleme_yuzdesi || 0);
+        if (ilerleme > MAX_ILERLEME_YUZDESI) {
+            const err = new Error(`Kursta ilerlemeniz %${ilerleme} oldugundan iade hakkiniz dustu. (Limit: %${MAX_ILERLEME_YUZDESI})`);
+            err.statusCode = 409;
+            throw err;
+        }
+
+        // 4) iyzico iade cagrisi - DB transaction'i icine almiyoruz cunku
+        //    long-running HTTP cagri (timeout/duplikasyon riski). Strateji:
+        //      a) Once iyzico refund -> basarili olursa
+        //      b) Hizli bir transaction ile DB durumlarini guncelle.
+        const refundResult = await iyzicoService.refundItem({
+            paymentTransactionId: oi.iyzico_item_transaction_id,
+            price: oi.odenen_fiyat,
+            ip: req.ip,
+            conversationId: oi.Order.id,
+        });
+
+        // 5) DB guncellemesi (transaction)
+        await sequelize.transaction(async (t) => {
+            await oi.update({ hakedis_durumu: 'iade_edildi' }, { transaction: t });
+
+            // Hakedis kaydi varsa sifirla (egitmene gitmemis para zaten)
+            await InstructorEarning.destroy({
+                where: { siparis_kalemi_id: oi.id },
+                transaction: t,
+            });
+
+            // Ogrenci enrollment'ini sil (artik kursa erisemez)
+            if (enrollment) {
+                await CourseEnrollment.destroy({
+                    where: { id: enrollment.id },
+                    transaction: t,
+                });
+            }
+
+            // Iade log kaydi
+            await PaymentTransaction.create({
+                siparis_id: oi.Order.id,
+                saglayici: 'iyzico',
+                islem_tipi: 'refund',
+                conversation_id: oi.Order.id,
+                payment_id: refundResult?.paymentId || null,
+                durum: 'success',
+                ham_yanit: refundResult || null,
+            }, { transaction: t });
+
+            // Tum kalemler iade ise siparisin ust durumunu da guncelle
+            const kalanlar = await OrderItem.count({
+                where: {
+                    siparis_id: oi.Order.id,
+                    hakedis_durumu: { [Op.ne]: 'iade_edildi' },
+                },
+                transaction: t,
+            });
+            if (kalanlar === 0) {
+                await Order.update(
+                    { durum: 'iade_edildi' },
+                    { where: { id: oi.Order.id }, transaction: t }
+                );
+            }
+        });
+
+        console.log(`[REFUND OK] order_item=${oi.id} kullanici=${kullanici_id} price=${oi.odenen_fiyat}`);
+        return res.status(200).json({
+            success: true,
+            message: 'Iadeniz basariyla isleme alindi. Tutar 3-7 is gunu icinde kartiniza yansiyacaktir.',
+            data: { siparis_kalemi_id: oi.id, iade_tutari: oi.odenen_fiyat },
+        });
+    } catch (error) {
+        console.error('[REFUND FATAL]', {
+            kullanici_id, orderItemId,
+            message: error.message,
+            iyzico: error.iyzicoResult || null,
+        });
+        next(error);
     }
 };
 

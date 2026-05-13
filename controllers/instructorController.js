@@ -1,5 +1,6 @@
 const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, InstructorEarning, LiveSession, InstructorFollower, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const iyzicoService = require('../services/iyzicoService');
 
 /**
  * Yeni Ders Oluşturma ve Video Yükleme İşlemi
@@ -187,6 +188,109 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
         });
 
     } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Egitmenin iyzico Pazaryeri Alt Uye Isyeri (SubMerchant) kaydini olusturur.
+ * Idempotent: zaten bir submerchant_key varsa yeniden olusturmaz.
+ * Ucret tahsilatinda her basket item bu key uzerinden eslenecek.
+ * @route POST /api/instructor/payment/submerchant
+ */
+exports.registerSubMerchant = async (req, res, next) => {
+    const egitmenId = req.user.id;
+    try {
+        const profile = await Profile.findByPk(egitmenId, {
+            attributes: ['id', 'ad', 'soyad', 'eposta', 'phone', 'identity_number', 'sehir', 'rol'],
+            include: [{ model: InstructorDetail, attributes: ['iban_no', 'submerchant_key'] }],
+        });
+
+        if (!profile || profile.rol !== 'egitmen') {
+            const err = new Error('Egitmen kaydi bulunamadi.');
+            err.statusCode = 404;
+            throw err;
+        }
+        if (!profile.InstructorDetail) {
+            const err = new Error('Egitmen detay kaydi yok. Once profilinizi tamamlayin.');
+            err.statusCode = 400;
+            throw err;
+        }
+        if (profile.InstructorDetail.submerchant_key) {
+            return res.status(200).json({
+                success: true,
+                message: 'SubMerchant kaydiniz zaten mevcut.',
+                data: { submerchant_key: profile.InstructorDetail.submerchant_key, already_registered: true },
+            });
+        }
+        if (!profile.InstructorDetail.iban_no) {
+            const err = new Error('Hakedis transferi icin profilinizde IBAN tanimli olmalidir.');
+            err.statusCode = 400;
+            throw err;
+        }
+        if (!profile.identity_number || profile.identity_number === '11111111111') {
+            const err = new Error('Gercek T.C. Kimlik Numaranizi profilinize ekleyin (varsayilan deger kabul edilmez).');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const { subMerchantKey, raw } = await iyzicoService.createSubMerchant({
+            id: profile.id,
+            ad: profile.ad,
+            soyad: profile.soyad,
+            eposta: profile.eposta,
+            phone: profile.phone,
+            identity_number: profile.identity_number,
+            iban_no: profile.InstructorDetail.iban_no,
+            sehir: profile.sehir,
+        });
+
+        await InstructorDetail.update(
+            { submerchant_key: subMerchantKey },
+            { where: { kullanici_id: profile.id } }
+        );
+
+        console.log(`[SUBMERCHANT OK] egitmen=${profile.id} key=${subMerchantKey}`);
+        return res.status(201).json({
+            success: true,
+            message: 'iyzico SubMerchant kaydi olusturuldu. Artik kurs satislariniz dogrudan hesabiniza yansiyacak.',
+            data: { submerchant_key: subMerchantKey, raw: process.env.NODE_ENV === 'production' ? undefined : raw },
+        });
+    } catch (error) {
+        // --- Tam hata detayini terminale dok: 500'un kok nedenini gormezse ekibimiz takilir. ---
+        console.error('SUBMERCHANT KAYIT HATASI DETAYI:', error);
+        console.error('[SUBMERCHANT FATAL]', {
+            egitmenId,
+            message: error.message,
+            statusCode: error.statusCode,
+            iyzico: error.iyzicoResult || null,
+            stack: error.stack,
+        });
+
+        // --- iyzico kaynakli hatalar (IBAN/TCKN/format) frontend'e 400 ile dondurulur ---
+        // iyzicoResult dolu ise iyzico'dan failure donmus demektir; mesaji direkt kullaniciya gosteriyoruz.
+        // Bu sayede "IBAN hatali", "TCKN gecersiz" gibi spesifik nedenleri kullanici gorebilir.
+        if (error.iyzicoResult) {
+            return res.status(400).json({
+                success: false,
+                message: error.iyzicoResult.errorMessage || error.message || 'iyzico SubMerchant kaydi reddedildi.',
+                code: error.iyzicoResult.errorCode || null,
+                group: error.iyzicoResult.errorGroup || null,
+                source: 'iyzico',
+            });
+        }
+
+        // --- Servis tarafindaki pre-validation hatalari da 400 olarak dondurulur ---
+        // createSubMerchant icindeki "SubMerchant veri dogrulamasi basarisiz: ..." gibi mesajlar buraya duser.
+        if (error.statusCode === 400 || /SubMerchant veri dogrulamasi basarisiz/i.test(error.message || '')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+                source: 'validation',
+            });
+        }
+
+        // Diger her sey gercekten beklenmeyen sunucu hatasi -> global error handler 500 dondurur.
         next(error);
     }
 };

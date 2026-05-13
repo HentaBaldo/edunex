@@ -7,6 +7,7 @@
 require('dotenv').config();
 const app = require('./app');
 const { sequelize } = require('./models');
+const payoutCron = require('./cron/payoutCron');
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,6 +21,15 @@ async function startServer() {
         const server = app.listen(PORT, () => {
             console.log(`[SERVER] Sunucu port ${PORT} uzerinde calisiyor. Ortam: ${process.env.NODE_ENV || 'development'}`);
         });
+
+        // --- Hakedis Otomatik Onay Cron Job ---
+        // iyzico Pazaryeri havuzundaki bekleyen tutarlari periyodik olarak egitmenlere aktarir.
+        // PAYOUT_CRON_DISABLED=true ile devre disi birakilabilir (manuel test ortami icin).
+        if (process.env.PAYOUT_CRON_DISABLED !== 'true') {
+            payoutCron.start();
+        } else {
+            console.log('[PAYOUT CRON] PAYOUT_CRON_DISABLED=true oldugu icin baslatilmadi.');
+        }
 
         // Istemci zaman asimi (Timeout) yapilandirmasi:
         // Buyuk medya dosyalarinin (video) yuklenmesi sirasinda baglantinin kopmasini 

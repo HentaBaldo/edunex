@@ -165,6 +165,14 @@ exports.login = async (req, res, next) => {
         console.log(`[AUTH] Giriş başarılı: ${user.id} (${user.rol})`);
 
         // === JWT Token Oluştur ===
+        // JWT_SECRET .env'de tanimli degilse jwt.sign cryptic bir hata firlatip 500'e dusuyor.
+        // Bunu acik bir mesajla erken yakalayarak debug'i kolaylastiriyoruz.
+        if (!process.env.JWT_SECRET) {
+            const error = new Error('Sunucu yapilandirma hatasi: JWT_SECRET tanimli degil (.env).');
+            error.statusCode = 500;
+            throw error;
+        }
+
         const token = jwt.sign(
             { id: user.id, rol: user.rol },
             process.env.JWT_SECRET,
@@ -188,7 +196,10 @@ exports.login = async (req, res, next) => {
         });
 
     } catch (error) {
-        console.error(`[AUTH] Giriş hatası: ${error.message}`);
+        // Tam hata detayini (name, message, stack, sql, original) terminale dokuyoruz —
+        // 500 dustugunde kok nedeni gormek icin sart.
+        console.error('LOGIN ERROR:', error);
+        if (error?.original) console.error('LOGIN ERROR (DB original):', error.original);
         next(error);
     }
 };

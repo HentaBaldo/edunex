@@ -30,6 +30,24 @@
             </div>
         </header>
 
+        <!-- iyzico SubMerchant Kurulum Banner'ı -->
+        <!-- Gizli başlar; JS aşağıda görünürlüğü localStorage + API sonucuna göre ayarlar -->
+        <div id="iyzicoSetupBanner" class="iyzico-setup-banner" style="display:none;" role="alert" aria-live="polite">
+            <div class="iyzico-banner-icon">
+                <i class="fas fa-link"></i>
+            </div>
+            <div class="iyzico-banner-body">
+                <strong>Ödeme Altyapınızı Kurun</strong>
+                <p>Kurs satışlarından kazanç sağlayabilmek için iyzico Alt Üye İşyeri hesabınızı bağlamanız gerekiyor. Profilinizde IBAN ve T.C. Kimlik Numarası eksiksiz olmalıdır.</p>
+            </div>
+            <div class="iyzico-banner-actions">
+                <button id="iyzicoConnectBtn" class="btn-iyzico-connect">
+                    <i class="fas fa-plug"></i>
+                    <span>iyzico Hesabımı Bağla</span>
+                </button>
+            </div>
+        </div>
+
         <!-- KPI Kartları -->
         <section class="kpi-grid" id="kpiGrid">
             <div class="kpi-card skeleton"></div>
@@ -152,6 +170,105 @@
     </main>
 
     <div id="toastContainer" class="toast-container"></div>
+
+    <style>
+        /* --- iyzico SubMerchant Kurulum Banner'ı --- */
+        .iyzico-setup-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            border: 1px solid #fb923c;
+            border-left: 4px solid #f97316;
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        .iyzico-banner-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #f97316;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .iyzico-banner-body {
+            flex: 1;
+            min-width: 220px;
+        }
+        .iyzico-banner-body strong {
+            display: block;
+            font-size: 1rem;
+            color: #9a3412;
+            margin-bottom: 4px;
+        }
+        .iyzico-banner-body p {
+            color: #7c2d12;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+        .iyzico-banner-actions {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .btn-iyzico-connect {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f97316;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 11px 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            white-space: nowrap;
+        }
+        .btn-iyzico-connect:hover:not(:disabled) { background: #ea6c00; transform: translateY(-1px); }
+        .btn-iyzico-connect:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+        .btn-iyzico-connect.success {
+            background: #059669;
+            cursor: default;
+        }
+        /* Toast bildirim */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background: #1e293b;
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            max-width: 340px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+            pointer-events: all;
+            animation: toastIn 0.25s ease;
+        }
+        .toast.toast-success { border-left: 4px solid #22c55e; }
+        .toast.toast-error   { border-left: 4px solid #ef4444; }
+        .toast.toast-info    { border-left: 4px solid #3b82f6; }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/loadNavbar.js"></script>

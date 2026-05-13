@@ -35,6 +35,44 @@
         .empty-state { text-align: center; padding: 60px 20px; color: #64748b; background: #fff; border: 1px dashed #e2e8f0; border-radius: 12px; }
         .empty-state i { font-size: 3rem; color: #cbd5e1; margin-bottom: 12px; display: block; }
         .ref-id { font-family: monospace; color: #64748b; font-size: 0.85rem; }
+
+        /* --- İade Butonu --- */
+        .btn-refund {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: transparent;
+            border: 1.5px solid #e11d48;
+            color: #e11d48;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .btn-refund:hover:not(:disabled) { background: #e11d48; color: #fff; }
+        .btn-refund:disabled { opacity: 0.45; cursor: not-allowed; }
+        .badge-iade { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #e0e7ff; color: #3730a3; }
+        .badge-onaylandi { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #d1fae5; color: #065f46; }
+
+        /* --- Toast --- */
+        #ordersToastContainer {
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+        }
+        .orders-toast {
+            background: #1e293b; color: #fff; padding: 12px 18px; border-radius: 10px;
+            font-size: 0.88rem; max-width: 360px; box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+            pointer-events: all; animation: toastSlideIn 0.25s ease;
+        }
+        .orders-toast.toast-success { border-left: 4px solid #22c55e; }
+        .orders-toast.toast-error   { border-left: 4px solid #ef4444; }
+        @keyframes toastSlideIn {
+            from { opacity:0; transform:translateY(12px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -50,6 +88,8 @@
             <p>Siparişleriniz yükleniyor...</p>
         </div>
     </main>
+
+    <div id="ordersToastContainer"></div>
 
     <script src="/assets/js/api.js"></script>
     <script src="/main/js/main.js"></script>
