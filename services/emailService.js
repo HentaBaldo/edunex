@@ -33,6 +33,14 @@ const FRONTEND_URL = process.env.FRONTEND_URL
 // rejectUnauthorized: false — Render'in bazi sertifika zinciri uyusmazliklarinda
 // (intermediate cert eksikligi) bagliyi tamamen koparmasini onler. MITM riski
 // kabul edilerek mail teslimati onceliklendi.
+//
+// connectionTimeout: 5000 — Render Health Check 10sn icinde response bekliyor.
+// 10sn'lik timeout SMTP donanca tum register endpoint'i yanit veremiyor ve Render
+// servisi SIGTERM ile oldurup yeniden basliyor. 5sn ile hizlica vazgecip register'i
+// bitiriyoruz (fire-and-forget zaten arka plana itiyor ama bu ek emniyet katmani).
+//
+// debug+logger: true — Render loglarinda SMTP handshake adimlarini gormek icin.
+// Sorun cozuldukten sonra false'a cekilebilir (gurultu yaratir).
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -43,11 +51,35 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS,
     },
     tls: { rejectUnauthorized: false },
-    // Bağlantı asmama (hanging) koruması — Gmail cevap vermezse sistem kilitlenmez
-    connectionTimeout: 10000,
+    // Bağlantı asmama (hanging) koruması — Render Health Check'i tetiklememek icin agresif
+    connectionTimeout: 5000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
+    // SMTP handshake adim adim Render logunda gorunsun
+    debug: true,
+    logger: true,
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PORT 587 (STARTTLS) FALLBACK — Eger 465 hala calismazsa asagidaki blogu aktive et
+// ─────────────────────────────────────────────────────────────────────────────
+// const transporter = nodemailer.createTransport({
+//     host: 'smtp.gmail.com',
+//     port: 587,
+//     secure: false, // STARTTLS
+//     family: 4,
+//     requireTLS: true, // STARTTLS zorunlu olsun (cleartext'e dusmesin)
+//     auth: {
+//         user: process.env.EMAIL_USER,
+//         pass: process.env.EMAIL_PASS,
+//     },
+//     tls: { rejectUnauthorized: false },
+//     connectionTimeout: 5000,
+//     greetingTimeout: 10000,
+//     socketTimeout: 15000,
+//     debug: true,
+//     logger: true,
+// });
 
 // Sunucu ayağa kalktığında SMTP bağlantısını test et
 transporter.verify()
@@ -160,4 +192,23 @@ async function sendVerificationEmail(to, token) {
   }
 }
 
-module.exports = { sendVerificationEmail };
+/**
+ * Fire-and-forget wrapper: maili arka planda gonderir, caller bekletmez.
+ * Render Health Check'in (SIGTERM) tetiklenmemesi icin register/resend
+ * akislarinda BU kullanilmali — await edilmez, response hemen doner.
+ *
+ * sendVerificationEmail zaten throw etmiyor; yine de garantili olsun diye
+ * .catch ile sariliyor (unhandled rejection riskini sifirlamak icin).
+ */
+function sendVerificationEmailAsync(to, token) {
+    setImmediate(() => {
+        sendVerificationEmail(to, token)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Mail gonderildi: ${to}`);
+                else console.error(`[EMAIL SERVICE] (bg) Mail basarisiz (${to}): ${result.error}`);
+            })
+            .catch(err => console.error(`[EMAIL SERVICE] (bg) Beklenmeyen hata (${to}):`, err.message));
+    });
+}
+
+module.exports = { sendVerificationEmail, sendVerificationEmailAsync };

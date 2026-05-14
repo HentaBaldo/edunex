@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sequelize, Profile, StudentDetail, InstructorDetail } = require('../models');
-const { sendVerificationEmail } = require('../services/emailService');
+const { sendVerificationEmailAsync } = require('../services/emailService');
 
 /**
  * Kullanıcı Kayıt Olma (Register)
@@ -112,15 +112,12 @@ exports.register = async (req, res, next) => {
         await t.commit();
         console.log(`[AUTH] Kayıt işlemi tamamlandı: ${newUser.id}`);
 
-        // === ADIM 8: Doğrulama Maili Gönder ===
-        // sendVerificationEmail throw etmez; { ok, error } doner — register asla bloklanmaz.
-        // Mail gitmezse kullanici resend endpoint'iyle tekrar deneyebilir.
-        const mailResult = await sendVerificationEmail(eposta, verifyToken);
-        if (mailResult.ok) {
-            console.log(`[AUTH] Doğrulama maili gönderildi: ${eposta}`);
-        } else {
-            console.error(`[AUTH] Doğrulama maili gönderilemedi (${eposta}): ${mailResult.error}`);
-        }
+        // === ADIM 8: Doğrulama Maili Gönder (Fire & Forget) ===
+        // Render Health Check 10sn'lik response limiti var; SMTP donanca register
+        // endpoint'i yanit veremiyor ve SIGTERM aliyoruz. Bu yuzden maili arka plana
+        // itiyoruz — response hemen 201 doner, mail bg'de gonderilir.
+        sendVerificationEmailAsync(eposta, verifyToken);
+        console.log(`[AUTH] Doğrulama maili kuyruga alindi: ${eposta}`);
 
         // === ADIM 9: Başarılı Yanıt ===
         return res.status(201).json({
@@ -287,17 +284,11 @@ exports.resendVerification = async (req, res, next) => {
             onay_token_gecerlilik: newExpiry,
         });
 
-        // sendVerificationEmail throw etmez; resend'de hatayi kullaniciya bildirmemiz
-        // gerekiyor (enumeration zaten ustte handle edildi, burada kullanici dogru).
-        const mailResult = await sendVerificationEmail(eposta, newToken);
-        if (mailResult.ok) {
-            console.log(`[AUTH] Doğrulama maili yeniden gönderildi: ${eposta}`);
-        } else {
-            console.error(`[AUTH] Resend mail hatasi (${eposta}): ${mailResult.error}`);
-            const error = new Error('Mail gönderimi sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
-            error.statusCode = 502;
-            throw error;
-        }
+        // Fire-and-forget — Render Health Check icin senkron beklemeyiz.
+        // Enumeration korumasi zaten ustte yapildigi icin generic 200 doneriz.
+        // Mail bg'de gonderilir; basarisizsa sadece logda gorunur.
+        sendVerificationEmailAsync(eposta, newToken);
+        console.log(`[AUTH] Doğrulama maili (resend) kuyruga alindi: ${eposta}`);
 
         return res.status(200).json({
             success: true,
