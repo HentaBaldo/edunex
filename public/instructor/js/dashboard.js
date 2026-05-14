@@ -326,7 +326,20 @@ function createCourseCard(course) {
     const statusLabel = getStatusLabel(course.durum);
     const categoryName = course.Category?.ad || 'Genel';
     const sectionCount = course.Sections?.length || 0;
-    const priceDisplay = course.fiyat > 0 ? `${parseFloat(course.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
+
+    // İndirim varsa eski/yeni fiyat göster
+    const original = parseFloat(course.original_fiyat ?? course.fiyat) || 0;
+    const net = parseFloat(course.net_fiyat ?? course.fiyat) || 0;
+    const indirimVar = course.indirim_var && net < original;
+    let priceDisplay;
+    if (original <= 0) {
+        priceDisplay = 'Ücretsiz';
+    } else if (indirimVar) {
+        priceDisplay = `<span style="text-decoration:line-through; color:#94a3b8; font-size:0.8em; margin-right:4px;">${original.toFixed(2)} ₺</span><span style="color:#10b981; font-weight:700;">${net.toFixed(2)} ₺</span>${course.indirim_yuzde ? `<span style="background:#ef4444; color:#fff; padding:1px 6px; border-radius:4px; font-size:0.7em; font-weight:700; margin-left:5px;">-%${course.indirim_yuzde}</span>` : ''}`;
+    } else {
+        priceDisplay = `${original.toFixed(2)} ₺`;
+    }
+
     const cover = course.kapak_fotografi
         ? `<img src="${escapeHtml(course.kapak_fotografi)}" alt="${escapeHtml(course.baslik)}" class="course-card-cover-img">`
         : `<div class="course-card-cover-placeholder"><i class="fas fa-graduation-cap"></i></div>`;

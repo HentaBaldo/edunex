@@ -104,6 +104,9 @@ exports.getInstructorCourses = async (req, res, next) => {
             subQuery: false
         });
 
+        // İndirim bilgisini iliştir (eğitmen kart'ta indirimli fiyatı görür)
+        await discountService.attachPricingToCourses(courses);
+
         return res.status(200).json({
             success: true,
             message: 'Kurslarınız başarıyla getirildi.',

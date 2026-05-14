@@ -164,28 +164,41 @@
 
         grid.innerHTML = kurslar.map(k => {
             const kategori = k.Category ? _esc(k.Category.ad) : 'Genel';
-            const fiyat    = k.fiyat > 0 ? `${parseFloat(k.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
             const puan     = k.istatistikler?.ortalama_puan || 0;
             const yorum    = k.istatistikler?.toplam_yorum  || 0;
             const kapak    = k.kapak_fotografi || null;
+            const fiyatHtml = _renderPriceTag(k);
 
             return `
             <a href="/main/course-detail.html?id=${_esc(k.id)}" class="course-card">
                 <div class="kurs-kart-kapak">
                     ${kapak ? `<img src="${_esc(kapak)}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
                     <span class="kurs-kategori-rozet">${kategori}</span>
+                    ${k.indirim_var && k.indirim_yuzde ? `<span class="kurs-indirim-rozet">-%${k.indirim_yuzde}</span>` : ''}
                 </div>
                 <div class="kurs-kart-govde">
                     <h3 class="kurs-kart-baslik">${_esc(k.baslik)}</h3>
                     <p class="kurs-kart-alt-baslik">${_plainText(k.aciklama, 120)}</p>
                     ${yildizHtml(puan, yorum)}
                     <div class="kurs-kart-alt">
-                        <span class="kurs-fiyat">${fiyat}</span>
+                        ${fiyatHtml}
                         <span class="kurs-incele">İncele <i class="fas fa-arrow-right"></i></span>
                     </div>
                 </div>
             </a>`;
         }).join('');
+    }
+
+    function _renderPriceTag(k) {
+        const original = parseFloat(k.original_fiyat ?? k.fiyat) || 0;
+        if (original <= 0) return '<span class="kurs-fiyat">Ücretsiz</span>';
+        if (k.indirim_var && k.net_fiyat != null && parseFloat(k.net_fiyat) < original) {
+            return `<span class="kurs-fiyat-wrap">
+                <span class="kurs-fiyat-eski">${original.toFixed(2)} ₺</span>
+                <span class="kurs-fiyat kurs-fiyat-indirimli">${parseFloat(k.net_fiyat).toFixed(2)} ₺</span>
+            </span>`;
+        }
+        return `<span class="kurs-fiyat">${original.toFixed(2)} ₺</span>`;
     }
 
     function istatistiklerDoldur(ist) {
