@@ -724,6 +724,7 @@ window.switchTab = (tabId) => {
 // İNDİRİM SEKMESİ — Eğitmen kendi kursuna indirim ekler
 // ═══════════════════════════════════════════════════
 window._myDiscountId = null;
+window._activePlatformDiscount = null; // önizleme hesabında kullanılır
 
 async function loadCourseDiscount() {
     if (!courseId) return;
@@ -740,6 +741,7 @@ function renderCourseDiscounts(rows) {
     const userId = (JSON.parse(localStorage.getItem('edunex_user') || '{}'))?.id;
     const myActive = rows.find(d => d.finansman_tarafi === 'egitmen' && d.olusturan_id === userId && d.aktif_mi);
     const platformActive = rows.find(d => d.finansman_tarafi === 'platform' && d.aktif_mi);
+    window._activePlatformDiscount = platformActive || null;
 
     // Platform kampanya banner
     const banner = document.getElementById('disc_platformBanner');
@@ -798,7 +800,6 @@ function bindDiscountPreview() {
         const s = parseFloat(sabit.value);
         const preview = document.getElementById('disc_preview');
         const text = document.getElementById('disc_previewText');
-        // Kurs fiyatini once window.__courseData'dan, yoksa mf_fiyat input'undan al
         const courseFiyat =
             parseFloat(window.__courseData?.fiyat) ||
             parseFloat(document.getElementById('mf_fiyat')?.value) || 0;
@@ -809,16 +810,43 @@ function bindDiscountPreview() {
             return;
         }
 
-        if ((y && y >= 1 && y <= 99) || (s && s > 0)) {
-            let net = courseFiyat;
-            let label = '';
-            if (y) { net = courseFiyat * (1 - y / 100); label = `%${y}`; }
-            else if (s) { net = Math.max(courseFiyat - s, courseFiyat * 0.05); label = `₺${s}`; }
-            text.innerHTML = ` ${label} indirim → <s>${courseFiyat.toFixed(2)} ₺</s> <strong>${net.toFixed(2)} ₺</strong>`;
-            preview.style.display = 'block';
-        } else {
+        const myYuzde = (y && y >= 1 && y <= 99) ? y : 0;
+        const mySabit = (s && s > 0) ? s : 0;
+        const hasInput = myYuzde > 0 || mySabit > 0;
+
+        if (!hasInput) {
             preview.style.display = 'none';
+            return;
         }
+
+        // Platform indirimi de hesaba kat (additive)
+        const plat = window._activePlatformDiscount;
+        const platYuzde = plat?.yuzde_indirim ? parseInt(plat.yuzde_indirim, 10) : 0;
+        const platSabit = plat?.sabit_indirim ? parseFloat(plat.sabit_indirim) : 0;
+
+        const toplamYuzde = Math.min(myYuzde + platYuzde, 95);
+        const toplamSabit = mySabit + platSabit;
+
+        let net = courseFiyat - toplamSabit;
+        if (net < 0) net = 0;
+        net = net * (1 - toplamYuzde / 100);
+        const minPrice = courseFiyat * 0.05;
+        if (net < minPrice) net = minPrice;
+
+        // Etiket oluştur
+        const parts = [];
+        if (myYuzde) parts.push(`Eğitmen %${myYuzde}`);
+        if (mySabit) parts.push(`Eğitmen ₺${mySabit}`);
+        if (platYuzde) parts.push(`<span style="color:#1e40af;">EduNex %${platYuzde}</span>`);
+        if (platSabit) parts.push(`<span style="color:#1e40af;">EduNex ₺${platSabit}</span>`);
+        const label = parts.join(' + ');
+
+        const totalLabel = toplamYuzde
+            ? `Toplam %${toplamYuzde} indirim`
+            : `Toplam ₺${toplamSabit.toFixed(2)} indirim`;
+
+        text.innerHTML = ` ${label} → ${totalLabel} → <s>${courseFiyat.toFixed(2)} ₺</s> <strong>${net.toFixed(2)} ₺</strong>`;
+        preview.style.display = 'block';
     }
     yuzde.addEventListener('input', updatePreview);
     sabit.addEventListener('input', updatePreview);
