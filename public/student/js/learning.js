@@ -801,97 +801,94 @@ function trackBunnyVideo(lesson) {
     }
 
     console.log('[TRACKING] Olay bazlı takip başlatılıyor...');
+
+    // player.js wrapper'ı sadece ilk handshake için kullanıyoruz.
+    // Tüm komutlar iframe.contentWindow.postMessage ile gönderilecek —
+    // böylece player.js'in desteklenen events listesi kontrolünü bypass ediyoruz.
     bunnyPlayer = new playerjs.Player(iframe);
 
-    // ── Yedek: window.message ile ham mesajları yakala ───────────────────────
-    // player.on() çağrısı zaten subscribe eder, ama bazı Bunny versiyonlarında
-    // window.message da tetiklenir; ikisi de _handleTimeUpdate'e yönlendirilir.
+    // iframe'e doğrudan player.js protokolü ile mesaj gönder
+    function _iframeSend(method, value, listener) {
+        if (!_activeIframe || !_activeIframe.contentWindow) return;
+        const msg = { context: 'player.js', method };
+        if (value !== undefined) msg.value = value;
+        if (listener)           msg.listener = listener;
+        try { _activeIframe.contentWindow.postMessage(JSON.stringify(msg), '*'); } catch(e) {}
+    }
+
+    // Tüm Bunny postMessage'larını yakala ve işle
     _msgHandler = function(e) {
         if (!_activeIframe || !_activeIframe.contentWindow) return;
         if (e.source !== _activeIframe.contentWindow) return;
         let data;
         try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(ex) { return; }
-        if (!data) return;
-        // RAW LOGGER — hangi mesajların geldiğini görüyoruz
-        console.log('[BUNNY RAW]', JSON.stringify(data).substring(0, 200));
-        if (!data.event) return;
-        if (data.event === 'timeupdate') {
-            const val = data.value;
-            const secs  = typeof val === 'object' ? val.seconds  : val;
-            const dur   = typeof val === 'object' ? val.duration : 0;
-            _handleTimeUpdate(secs, dur);
+        if (!data || !data.event) return;
+
+        const ev  = data.event;
+        const val = data.value;
+
+        // ── Ready: event'lere abone ol + konumu geri yükle ──────────────────
+        if (ev === 'ready') {
+            console.log('[TRACKING] Ready alındı → doğrudan subscribe gönderiliyor.');
+
+            // Süreyi iste
+            _iframeSend('getDuration', undefined, 'cb_dur');
+
+            // timeupdate + ended'e abone ol (player.js bypass)
+            _iframeSend('addEventListener', 'timeupdate', 'cb_tu');
+            _iframeSend('addEventListener', 'ended',      'cb_end');
+
+            // Kaldığı yerden devam
+            const resumePos = _loadResumePos(lesson.id);
+            if (resumePos > 5 && !lesson.tamamlandi_mi) {
+                console.log('[TRACKING] Resume: ' + resumePos + 's');
+                _iframeSend('setCurrentTime', resumePos);
+                maxWatchedSeconds = resumePos;
+                lastTimeUpdatePos = resumePos;
+            }
+            return;
         }
-        if (data.event === 'ended' && !videoCompleted) {
-            videoCompleted = true;
-            _clearResumePos(currentLessonId);
-            console.log('[TRACKING] Video bitti (window.message).');
-            markLessonComplete(currentLessonId);
+
+        // ── getDuration yanıtı ───────────────────────────────────────────────
+        if (ev === 'cb_dur') {
+            const d = typeof val === 'number' ? val : parseFloat(val);
+            if (d > 0) { _resolvedDuration = d; console.log('[TRACKING] Süre: ' + d + 's'); }
+            return;
+        }
+
+        // ── timeupdate (subscription yanıtı veya cb_tu event'i) ─────────────
+        if (ev === 'timeupdate' || ev === 'cb_tu') {
+            const s = typeof val === 'object' ? (val.seconds ?? 0) : (Number(val) || 0);
+            const d = typeof val === 'object' ? (val.duration ?? 0) : 0;
+            _handleTimeUpdate(s, d);
+            return;
+        }
+
+        // ── getCurrentTime polling yanıtı ─────────────────────────────────────
+        if (ev === 'cb_poll') {
+            const t = typeof val === 'number' ? val : parseFloat(val);
+            if (!isNaN(t) && t >= 0) _handleTimeUpdate(t, _resolvedDuration);
+            return;
+        }
+
+        // ── Ended ─────────────────────────────────────────────────────────────
+        if (ev === 'ended' || ev === 'cb_end') {
+            if (!videoCompleted) {
+                videoCompleted = true;
+                _clearResumePos(currentLessonId);
+                console.log('[TRACKING] Video bitti.');
+                markLessonComplete(currentLessonId);
+            }
         }
     };
     window.addEventListener('message', _msgHandler);
 
-    // ── ANA: player ready → polling başlat ──────────────────────────────────
-    bunnyPlayer.on('ready', () => {
-        console.log('[TRACKING] Bunny player hazır → polling başlatılıyor.');
-
-        // 1) Süreyi al
-        try {
-            bunnyPlayer.getDuration(function(d) {
-                if (typeof d === 'number' && d > 0) {
-                    _resolvedDuration = d;
-                    console.log('[TRACKING] Süre alındı: ' + d + 's');
-                }
-            });
-        } catch(e) {}
-
-        // 2) Kaldığı yerden devam
-        const resumePos = _loadResumePos(lesson.id);
-        if (resumePos > 5 && !lesson.tamamlandi_mi) {
-            console.log('[TRACKING] Kaldığı yer yükleniyor: ' + resumePos + 's');
-            try { bunnyPlayer.setCurrentTime(resumePos); } catch(e) {}
-            maxWatchedSeconds = resumePos;
-            lastTimeUpdatePos = resumePos;
-        }
-
-        // 3) ended event (Bunny bunu genellikle gönderir)
-        try {
-            bunnyPlayer.on('ended', function() {
-                if (!videoCompleted) {
-                    videoCompleted = true;
-                    _clearResumePos(currentLessonId);
-                    console.log('[TRACKING] Video bitti (ended event).');
-                    markLessonComplete(currentLessonId);
-                }
-            });
-        } catch(e) {}
-
-        // 4) timeupdate event (opsiyonel — gelirse iyi, gelmezse polling devrede)
-        try {
-            bunnyPlayer.on('timeupdate', function(val) {
-                const s = typeof val === 'object' ? (val.seconds ?? 0) : (val ?? 0);
-                const d = typeof val === 'object' ? (val.duration ?? 0) : 0;
-                _handleTimeUpdate(s, d);
-            });
-        } catch(e) {}
-
-        // 5) Polling: her 1 saniyede getCurrentTime sorgusu
-        //    → timeupdate gelsin ya da gelmesin, hep çalışır.
-        if (_pollInterval) clearInterval(_pollInterval);
-        _pollInterval = setInterval(function() {
-            if (!_activeIframe || videoCompleted) {
-                clearInterval(_pollInterval);
-                _pollInterval = null;
-                return;
-            }
-            try {
-                bunnyPlayer.getCurrentTime(function(t) {
-                    if (typeof t === 'number' && !isNaN(t) && t >= 0) {
-                        _handleTimeUpdate(t, _resolvedDuration);
-                    }
-                });
-            } catch(e) {}
-        }, 1000);
-    });
+    // Polling: her 1 saniyede getCurrentTime iste (timeupdate gelmese bile çalışır)
+    if (_pollInterval) clearInterval(_pollInterval);
+    _pollInterval = setInterval(function() {
+        if (!_activeIframe || videoCompleted) { clearInterval(_pollInterval); _pollInterval = null; return; }
+        _iframeSend('getCurrentTime', undefined, 'cb_poll');
+    }, 1000);
 }
 
 // ═══════════════════════════════════════════════════
