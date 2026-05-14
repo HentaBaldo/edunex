@@ -349,13 +349,13 @@ function loadLessonContent(lesson) {
     // 2. Ana Sahneyi Çiz
     // learning.js içindeki loadLessonContent fonksiyonunun ilgili kısmı
         if (mainMedia === 'bunny') {
+            // controls/controlsList kaldirildi — Plyr kendi UI'ini koyacak
             htmlContent += `
                 <div style="position: relative; flex-grow: 1; min-height: 400px; background: #000; display: flex; align-items: center; justify-content: center;">
                     <video
                         id="bunnyNativePlayer"
-                        controls
-                        controlsList="nodownload"
-                        style="width: 100%; height: 100%; object-fit: contain; display: block;">
+                        playsinline
+                        style="width: 100%; height: 100%; display: block;">
                     </video>
                 </div>`;
         } else if (mainMedia === 'youtube') {
@@ -674,6 +674,7 @@ if (!document.querySelector('style[data-toast-animations]')) {
 // ==========================================
 
 let _activeHls = null;        // HLS.js instance
+let _activePlyr = null;       // Plyr instance (UI wrapper)
 let _activeVideoEl = null;    // Native <video> elementi
 let maxWatchedSeconds = 0;
 let videoCompleted = false;
@@ -696,6 +697,10 @@ function initLessonTracking(lesson, mainMedia) {
 }
 
 function _stopTracking() {
+    if (_activePlyr) {
+        try { _activePlyr.destroy(); } catch(e) {}
+        _activePlyr = null;
+    }
     if (_activeHls) {
         try { _activeHls.destroy(); } catch(e) {}
         _activeHls = null;
@@ -761,6 +766,37 @@ function trackBunnyVideo(lesson) {
     } else {
         console.error('[TRACKING] Bu tarayıcı HLS oynatmayı desteklemiyor.');
         return;
+    }
+
+    // ─── Plyr UI wrapper ──────────────────────────────────────────────────
+    // Native <video>'yu modern bir player kabuğu ile sarıyoruz.
+    // Tüm event'ler (timeupdate, seeked, pause, ended) hala native video
+    // element'inde tetikleniyor → seek engelimiz ve takip mantığımız değişmez.
+    if (typeof Plyr !== 'undefined') {
+        try {
+            _activePlyr = new Plyr(videoEl, {
+                controls: [
+                    'play-large', 'play', 'progress', 'current-time', 'duration',
+                    'mute', 'volume', 'settings', 'pip', 'fullscreen'
+                ],
+                settings: ['speed'],
+                speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
+                keyboard: { focused: true, global: false },
+                tooltips: { controls: true, seek: true },
+                hideControls: true,
+                resetOnEnd: false,
+                fullscreen: { enabled: true, fallback: true, iosNative: true },
+                i18n: {
+                    speed: 'Hız', normal: 'Normal', quality: 'Kalite',
+                    settings: 'Ayarlar', play: 'Oynat', pause: 'Duraklat',
+                    mute: 'Sessize Al', unmute: 'Sesi Aç',
+                    enterFullscreen: 'Tam Ekran', exitFullscreen: 'Tam Ekranı Kapat',
+                    enable_pip: 'PIP', disable_pip: 'PIP Kapat'
+                }
+            });
+        } catch(e) {
+            console.warn('[TRACKING] Plyr başlatılamadı:', e.message);
+        }
     }
 
     // Tamamlanmış ders: video oynatılır ama takip/kısıtlama YOK (özgür gözden geçirme)
