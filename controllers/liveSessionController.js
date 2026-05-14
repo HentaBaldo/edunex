@@ -243,19 +243,56 @@ exports.getMyLiveSessions = async (req, res, next) => {
 
 /**
  * GET /api/live-sessions/course/:courseId
- * Kursa ait tüm oturumları getirir. Eğitmen veya kayıtlı öğrenci erişebilir.
+ * Kursa ait tüm oturumları LISTELER (sadece program / takvim gorunumu).
+ *
+ * Defansif erisim politikasi:
+ *   - Programi GORMEK herkese (giris yapmis) acik. Kursa kayitli olmayan ogrenci 403 ile
+ *     karsilasmaz; sadece program listesini ve `isEnrolled: false` bayragini alir.
+ *   - Asıl yetki kontrolu (canli yayina KATILMA) zaten POST /:id/join icinde yapiliyor —
+ *     kullanici "Yayina Katil" butonuna bastiginda kursa_ozel ise resolveCourseAccess
+ *     calisir ve kayitsizsa orada 403 doner.
+ *   - Kurs gercekten yoksa 404 net hata, baska durumlarda guvenli yanit don.
  */
 exports.getSessionsByCourse = async (req, res, next) => {
     try {
         const { courseId } = req.params;
-        const { role } = await resolveCourseAccess(courseId, req.user);
+
+        const course = await Course.findByPk(courseId, { attributes: ['id', 'egitmen_id'] });
+        if (!course) {
+            const err = new Error('Kurs bulunamadı.');
+            err.statusCode = 404;
+            throw err;
+        }
+
+        // Rol/erisim tespiti — hata firlatmadan, sadece bayrak olarak hesapla.
+        let role = 'guest';
+        let isEnrolled = false;
+
+        if (req.user?.rol === 'egitmen' && course.egitmen_id === req.user.id) {
+            role = 'egitmen';
+            isEnrolled = true; // sahibi → tam erisim
+        } else if (req.user?.id) {
+            const enrollment = await CourseEnrollment.findOne({
+                where: { ogrenci_id: req.user.id, kurs_id: courseId },
+                attributes: ['id'],
+            });
+            if (enrollment) {
+                role = 'ogrenci';
+                isEnrolled = true;
+            }
+        }
 
         const sessions = await LiveSession.findAll({
             where: { kurs_id: courseId },
             order: [['baslangic_tarihi', 'ASC']],
         });
 
-        return res.status(200).json({ success: true, data: sessions, meta: { role } });
+        return res.status(200).json({
+            success: true,
+            data: sessions,
+            isEnrolled,
+            meta: { role },
+        });
     } catch (error) {
         next(error);
     }
