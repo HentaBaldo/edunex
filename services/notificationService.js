@@ -9,7 +9,7 @@
  * Dis API'da daha okunakli alanlar kullanildi (mesaj, baglanti_linki) ve burada map'lenir.
  *
  * Tip enum'u (Notification.js):
- *   'yeni_kurs' | 'canli_yayin' | 'sistem' | 'satis' | 'yorum' | 'takip'
+ *   'yeni_kurs' | 'canli_yayin' | 'sistem' | 'satis' | 'yorum' | 'takip' | 'destek'
  */
 
 const { Notification } = require('../models');
@@ -24,6 +24,7 @@ const ALLOWED_TIPS = new Set([
     'satis',
     'yorum',
     'takip',
+    'destek',
 ]);
 
 /**

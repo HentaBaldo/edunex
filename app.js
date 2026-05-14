@@ -109,6 +109,7 @@ const quizRoutes = require('./routes/quizRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
 const followRoutes = require('./routes/followRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const supportRoutes = require('./routes/supportRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
@@ -128,6 +129,7 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/follows', followRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/support', supportRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {
@@ -222,7 +224,7 @@ sequelize.sync(syncOptions)
                 await sequelize.query(`
                     ALTER TABLE bildirimler
                       MODIFY COLUMN tip ENUM(
-                        'yeni_kurs','canli_yayin','sistem','satis','yorum','takip'
+                        'yeni_kurs','canli_yayin','sistem','satis','yorum','takip','destek'
                       ) NOT NULL DEFAULT 'sistem'
                 `);
                 if (!bildirimDesc.kaynak_id) {
@@ -248,6 +250,43 @@ sequelize.sync(syncOptions)
             // KRITIK: Burayi yutmuyoruz; bildirim modulu bu olmadan sessizce coker.
             console.error('[NOTIFICATION MIGRATION ERROR]', notifMigErr.message);
         }
+
+        // --- Destek Modulu Migration (Faz 1+2) ---
+        // sequelize.sync({alter:true}) MySQL'de mevcut tabloya YENI KOLON eklemiyor
+        // (ENUM degisikligi gibi); destek_talepleri/destek_mesajlari ilk seferde
+        // CREATE TABLE ile dogru olusur, ancak kurslar.red_sebebi mevcut tabloya
+        // dusmez. Idempotent ALTER ile garanti altina aliyoruz.
+        try {
+            const kurslarDesc = await sequelize.getQueryInterface().describeTable('kurslar');
+            if (!kurslarDesc.red_sebebi) {
+                await sequelize.query(`
+                    ALTER TABLE kurslar
+                      ADD COLUMN red_sebebi TEXT NULL
+                `);
+                console.log('[SUPPORT MIGRATION] kurslar.red_sebebi sutunu eklendi.');
+            }
+        } catch (supMigErr) {
+            console.error('[SUPPORT MIGRATION ERROR] kurslar.red_sebebi:', supMigErr.message);
+        }
+
+        // sertifikalar.pdf_yolu → sertifikalar.sertifika_url migration (idempotent)
+        try {
+            const certDesc = await sequelize.getQueryInterface().describeTable('sertifikalar');
+            if (certDesc.pdf_yolu && !certDesc.sertifika_url) {
+                await sequelize.query(`ALTER TABLE sertifikalar CHANGE COLUMN pdf_yolu sertifika_url VARCHAR(512) NULL`);
+                console.log('[CERT MIGRATION] sertifikalar.pdf_yolu → sertifika_url yeniden adlandırıldı.');
+            } else if (!certDesc.sertifika_url) {
+                await sequelize.query(`ALTER TABLE sertifikalar ADD COLUMN sertifika_url VARCHAR(512) NULL`);
+                console.log('[CERT MIGRATION] sertifikalar.sertifika_url kolonu eklendi.');
+            }
+        } catch (certMigErr) {
+            console.error('[CERT MIGRATION ERROR]', certMigErr.message);
+        }
+
+        // Sertifika fontlarını arka planda ön-ısıt (ilk PDF isteğinde gecikme olmasın)
+        require('./services/certificateService').getFontsReady().catch(err => {
+            console.warn('[CERT FONTS] Ön-ısıtma başarısız:', err.message);
+        });
 
         try {
             console.log('[SEEDER] Kategori hiyerarsisi kontrol ediliyor...');

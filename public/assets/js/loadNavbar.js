@@ -135,6 +135,7 @@
                         <a href="${panelLinki}"><i class="fas fa-columns" style="width:20px;"></i> Panelim</a>
                         ${egitmenMenusu}
                         ${ogrenciMenusu}
+                        <a href="/main/contact.html"><i class="fas fa-headset" style="width:20px;color:#0ea5e9;"></i> Destek Talepleri</a>
                         <hr>
                         <button onclick="cikisYap()" class="text-danger">
                             <i class="fas fa-sign-out-alt" style="width:20px;"></i> Çıkış Yap
@@ -206,11 +207,13 @@
                            : b.tip === 'satis'       ? 'fa-shopping-bag'
                            : b.tip === 'yorum'       ? 'fa-comment-dots'
                            : b.tip === 'takip'       ? 'fa-user-plus'
+                           : b.tip === 'destek'      ? 'fa-headset'
                            : 'fa-info-circle';
                 const renk = b.tip === 'canli_yayin' ? '#ef4444'
                            : b.tip === 'satis'       ? '#16a34a'
                            : b.tip === 'yorum'       ? '#f59e0b'
                            : b.tip === 'takip'       ? '#8b5cf6'
+                           : b.tip === 'destek'      ? '#0ea5e9'
                            : '#2563eb';
                 // Stateful: backend hedef_url'i 'canli_yayin' icin dinamik olarak null'a cekebilir
                 // (ders bitince). null/empty ise tiklanamaz hale getiriyoruz.

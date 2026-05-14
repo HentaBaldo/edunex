@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destek Talepleri | EduNex Admin</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/admin/css/layout.css">
+    <link rel="stylesheet" href="/admin/css/support.css">
+</head>
+<body>
+
+    <script src="/admin/js/admin-auth.js"></script>
+
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-halved"></i> EduNex Admin
+        </div>
+        <nav class="sidebar-nav" aria-label="Ana Navigasyon">
+            <a href="/admin/dashboard.html" class="nav-item">
+                <i class="fas fa-satellite-dish"></i> Komuta Merkezi
+            </a>
+            <a href="/admin/courses.html" class="nav-item">
+                <i class="fas fa-video"></i> Kurs Onayları
+            </a>
+            <a href="/admin/published-courses.html" class="nav-item">
+                <i class="fas fa-list-check"></i> Kurs Takibi
+            </a>
+            <a href="/admin/users.html" class="nav-item">
+                <i class="fas fa-users"></i> Kullanıcı Yönetimi
+            </a>
+            <a href="/admin/orders.html" class="nav-item">
+                <i class="fas fa-receipt"></i> Siparişler
+            </a>
+            <a href="/admin/payouts.html" class="nav-item">
+                <i class="fas fa-money-bill-wave"></i> Hakediş & Ödemeler
+            </a>
+            <a href="/admin/categories.html" class="nav-item">
+                <i class="fas fa-tags"></i> Kategoriler
+            </a>
+            <a href="/admin/reviews.html" class="nav-item">
+                <i class="fas fa-star"></i> Yorumlar
+            </a>
+            <a href="/admin/support.html" class="nav-item active">
+                <i class="fas fa-headset"></i> Destek Talepleri
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button type="button" onclick="adminLogout()" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Güvenli Çıkış
+            </button>
+        </div>
+    </aside>
+
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h1>Destek Merkezi</h1>
+                <p class="subtitle">Eğitmen ve öğrencilerin açtığı talepleri yönetin.</p>
+            </div>
+            <div class="header-user">
+                <div class="user-meta">
+                    <span id="adminName" class="admin-name">Yönetici Yükleniyor...</span>
+                    <small>Sistem Yöneticisi</small>
+                </div>
+                <div class="admin-avatar-circle">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content support-content">
+        <div class="support-shell">
+            <!-- SOL: bilet listesi + sekmeler + arama -->
+            <aside class="support-sidebar">
+                <div class="support-tabs" role="tablist">
+                    <button class="tab-btn active" data-durum="" role="tab">
+                        Hepsi <span class="tab-count" id="cnt-all">0</span>
+                    </button>
+                    <button class="tab-btn" data-durum="acik" role="tab">
+                        Açık <span class="tab-count" id="cnt-acik">0</span>
+                    </button>
+                    <button class="tab-btn" data-durum="cevaplandi" role="tab">
+                        Cevaplandı <span class="tab-count" id="cnt-cevaplandi">0</span>
+                    </button>
+                    <button class="tab-btn" data-durum="kapali" role="tab">
+                        Kapalı <span class="tab-count" id="cnt-kapali">0</span>
+                    </button>
+                </div>
+
+                <div class="support-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Konuda ara...">
+                </div>
+
+                <div class="support-list" id="ticketList">
+                    <div class="empty-state">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                        <p>Yükleniyor...</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- SAG: mesajlasma paneli (WhatsApp benzeri) -->
+            <section class="support-thread" id="threadPane">
+                <div class="thread-empty" id="threadEmpty">
+                    <i class="fas fa-comments"></i>
+                    <h3>Bir talep seçin</h3>
+                    <p>Sol listeden mesajlaşmak istediğiniz destek talebini açın.</p>
+                </div>
+
+                <div class="thread-active" id="threadActive" style="display:none;">
+                    <div class="thread-header">
+                        <div class="thread-header-left">
+                            <div class="user-avatar" id="threadAvatar">?</div>
+                            <div class="thread-meta">
+                                <strong id="threadKonu">—</strong>
+                                <small>
+                                    <span id="threadKullanici">—</span>
+                                    <span class="dot">·</span>
+                                    <span id="threadKategori">—</span>
+                                    <span class="dot">·</span>
+                                    <span id="threadDurum" class="badge-durum">—</span>
+                                </small>
+                            </div>
+                        </div>
+                        <div class="thread-header-right">
+                            <button id="btnCloseTicket" class="btn-close-ticket" type="button">
+                                <i class="fas fa-lock"></i> Bileti Kapat
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="thread-messages" id="threadMessages"></div>
+
+                    <form class="thread-composer" id="composerForm">
+                        <textarea id="composerInput" rows="1" placeholder="Yanıtınızı yazın..." maxlength="5000"></textarea>
+                        <button type="submit" id="composerSend" class="btn-send" aria-label="Gönder">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </div>
+        </section>
+    </main>
+
+    <div id="toastContainer" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/admin/js/support.js"></script>
+</body>
+</html>

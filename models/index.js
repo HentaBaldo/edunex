@@ -29,6 +29,8 @@ const QuizAttempt = require('./QuizAttempt')(sequelize, DataTypes);
 const QuizAnswer = require('./QuizAnswer')(sequelize, DataTypes);
 const InstructorFollower = require('./InstructorFollower')(sequelize, DataTypes);
 const Notification = require('./Notification')(sequelize, DataTypes);
+const SupportTicket = require('./SupportTicket')(sequelize, DataTypes);
+const SupportMessage = require('./SupportMessage')(sequelize, DataTypes);
 
 // --- PROFİL İLİŞKİLERİ ---
 Profile.hasOne(StudentDetail, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -190,6 +192,19 @@ InstructorFollower.belongsTo(InstructorDetail, { foreignKey: 'egitmen_id', onDel
 Profile.hasMany(Notification, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Notification.belongsTo(Profile, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+// --- DESTEK TALEBI (TICKET) ILISKILERI ---
+// Talep sahibi (kullanici) <-> Ticket
+Profile.hasMany(SupportTicket, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+SupportTicket.belongsTo(Profile, { as: 'Kullanici', foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// Ticket -> mesajlar (CASCADE: ticket silinince mesajlar da silinsin)
+SupportTicket.hasMany(SupportMessage, { as: 'Mesajlar', foreignKey: 'talep_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+SupportMessage.belongsTo(SupportTicket, { foreignKey: 'talep_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+// Mesaji gonderen (admin veya talep sahibi)
+Profile.hasMany(SupportMessage, { foreignKey: 'gonderen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+SupportMessage.belongsTo(Profile, { as: 'Gonderen', foreignKey: 'gonderen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 module.exports = {
   sequelize,
   Profile,
@@ -220,4 +235,6 @@ module.exports = {
   QuizAnswer,
   InstructorFollower,
   Notification,
+  SupportTicket,
+  SupportMessage,
 };

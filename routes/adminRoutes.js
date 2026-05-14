@@ -10,6 +10,7 @@ const adminOrderController = require('../controllers/adminOrderController');
 const adminCourseController = require('../controllers/adminCourseController');
 const adminReviewController = require('../controllers/adminReviewController');
 const adminPayoutController = require('../controllers/adminPayoutController');
+const supportController = require('../controllers/supportController');
 const { verifyToken, isAdmin, isFinanceAdmin } = require('../middleware/authMiddleware');
 const { loginLimiter } = require('../middleware/rateLimitMiddleware');
 
@@ -74,5 +75,15 @@ router.get('/payouts', isFinanceAdmin, adminPayoutController.listEarnings);
 router.post('/payouts/bulk-approve', isFinanceAdmin, adminPayoutController.bulkApprove);
 // Tek bir kaydi T+14 beklemeden iyzico'da onayla (admin manuel override).
 router.post('/payouts/:earning_id/approve-now', isFinanceAdmin, adminPayoutController.approveNow);
+
+// --- Destek Talebi (Ticket) Yonetimi ---
+// Listeleme + filtre + sayfalama (sekme rozet sayilari da donulur).
+router.get('/support/tickets', supportController.adminGetAllTickets);
+// Detay (mesaj gecmisi dahil). Kullanici tarafi ile ayni controller; rol kontrolu icerde.
+router.get('/support/tickets/:id', supportController.getTicketDetails);
+// Admin cevabi: durum 'cevaplandi' yapilir, talep sahibine 'destek' bildirim gider.
+router.post('/support/tickets/:id/messages', supportController.replyTicket);
+// Durum guncelle (cogunlukla 'kapali').
+router.patch('/support/tickets/:id/status', supportController.adminUpdateStatus);
 
 module.exports = router;

@@ -45,6 +45,9 @@
             <a href="/admin/reviews.html" class="nav-item">
                 <i class="fas fa-star"></i> Yorumlar
             </a>
+            <a href="/admin/support.html" class="nav-item">
+                <i class="fas fa-headset"></i> Destek Talepleri
+            </a>
         </nav>
         <div class="sidebar-footer">
             <button type="button" onclick="adminLogout()" class="btn-logout">
@@ -128,6 +131,44 @@
             </div>
         </div>
     </div>
+
+    <!-- ─── Kurs Reddetme Modali ─── -->
+    <div id="rejectModal" class="god-mode-backdrop" style="display:none;">
+        <div class="god-mode-modal" style="max-width:560px;">
+            <div class="god-mode-header" style="background:#fef2f2;border-bottom:1px solid #fecaca;">
+                <h2 style="color:#991b1b;font-size:1.15rem;">
+                    <i class="fas fa-triangle-exclamation"></i> Kursu Reddet
+                </h2>
+                <button type="button" id="rejectModalCloseBtn" class="god-mode-close" aria-label="Kapat">&times;</button>
+            </div>
+            <div class="god-mode-body" style="padding:24px;">
+                <p style="font-size:0.92rem;color:#334155;margin-bottom:8px;">
+                    <strong id="rejectCourseTitle" style="color:#0f172a;"></strong>
+                </p>
+                <p style="font-size:0.86rem;color:#64748b;line-height:1.5;margin-bottom:18px;">
+                    Yazdığınız gerekçe eğitmene otomatik açılan bir <strong>destek bileti</strong> üzerinden iletilecek. Eğitmen aynı bilet üzerinden size cevap verebilecek.
+                </p>
+                <label for="rejectReason" style="display:block;font-size:0.85rem;font-weight:600;color:#0f172a;margin-bottom:6px;">
+                    Red Gerekçesi <span style="color:#dc2626;">*</span>
+                </label>
+                <textarea id="rejectReason" rows="5" maxlength="2000" placeholder="Örn: Müfredat eksik, ders açıklamaları yetersiz, kapak fotoğrafı standartlara uymuyor..." style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.93rem;font-family:inherit;background:#fafafa;outline:none;resize:vertical;min-height:110px;"></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+                    <small id="rejectReasonHint" style="color:#64748b;font-size:0.78rem;">En az 10 karakter</small>
+                    <small id="rejectReasonCount" style="color:#64748b;font-size:0.78rem;">0 / 2000</small>
+                </div>
+                <div id="rejectModalError" style="display:none;margin-top:12px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:0.85rem;border-radius:6px;"></div>
+            </div>
+            <div class="god-mode-footer" style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" id="rejectModalCancelBtn" class="btn-secondary">İptal</button>
+                <button type="button" id="rejectModalConfirmBtn" class="btn btn-danger" style="background:#dc2626;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                    <i class="fas fa-times-circle"></i> <span id="rejectModalConfirmLabel">Reddetmeyi Onayla</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Toast Container ─── -->
+    <div id="toastContainer" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;"></div>
 
     <script src="/assets/js/api.js"></script>
     <script src="/admin/js/courses.js"></script>

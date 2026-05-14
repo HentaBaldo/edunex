@@ -23,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
       // Bildirim tipi.
       // - yeni_kurs / canli_yayin / sistem  : platform mesajlari
       // - satis / yorum / takip             : egitmene yonelik domain olaylari (Mayis 2026'da eklendi)
+      // - destek                            : destek talebi (ticket) icin admin/kullanici bildirimleri
       tip: {
         type: DataTypes.ENUM(
           'yeni_kurs',
@@ -30,7 +31,8 @@ module.exports = (sequelize, DataTypes) => {
           'sistem',
           'satis',
           'yorum',
-          'takip'
+          'takip',
+          'destek'
         ),
         allowNull: false,
         defaultValue: 'sistem',

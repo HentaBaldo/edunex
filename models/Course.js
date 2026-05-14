@@ -116,6 +116,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true
       },
+      // Admin kurs onay surecinde "Reddet" dedi ise sebep burada tutulur.
+      // iade_sebebi (yayindan taslaga geri yollama) ile karistirilmamali:
+      // red_sebebi = onay_bekliyor -> taslak (red), iade_sebebi = yayinda -> taslak (iade).
+      red_sebebi: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       tableName: 'kurslar',

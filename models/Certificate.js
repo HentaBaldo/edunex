@@ -22,9 +22,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: DataTypes.NOW,
       },
-      pdf_yolu: {
-        type: DataTypes.STRING(255),
+      sertifika_url: {
+        type: DataTypes.STRING(512),
         allowNull: true,
+        comment: 'Bunny CDN üzerindeki kalıcı PDF linki',
       },
     },
     {

@@ -1,0 +1,427 @@
+/**
+ * EduNex Admin - Destek Merkezi
+ * WhatsApp Web tarzi 2-pane layout. layout.css ile uyumlu degisken kullanir.
+ */
+
+:root {
+    --support-bg-soft: #f1f5f9;
+    --support-border: #e2e8f0;
+    --support-msg-mine: #dbeafe;
+    --support-msg-other: #ffffff;
+}
+
+.support-content { padding: 24px 32px 32px; }
+.support-shell {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 0;
+    height: calc(100vh - 180px);
+    background: #fff;
+    border: 1px solid var(--support-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
+}
+
+/* ─── Sol Sutun ─── */
+.support-sidebar {
+    display: flex;
+    flex-direction: column;
+    background: #fafbfc;
+    border-right: 1px solid var(--support-border);
+    min-height: 0;
+}
+
+.support-tabs {
+    display: flex;
+    padding: 12px 12px 0;
+    gap: 4px;
+    border-bottom: 1px solid var(--support-border);
+    background: #fff;
+}
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    padding: 10px 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: var(--admin-primary); }
+.tab-btn.active {
+    color: var(--admin-primary);
+    border-bottom-color: var(--admin-primary);
+}
+.tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.tab-btn.active .tab-count {
+    background: var(--admin-primary);
+    color: #fff;
+}
+
+.support-search {
+    position: relative;
+    padding: 12px;
+    background: #fff;
+    border-bottom: 1px solid var(--support-border);
+}
+.support-search i {
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+.support-search input {
+    width: 100%;
+    padding: 9px 12px 9px 32px;
+    border: 1px solid var(--support-border);
+    border-radius: 8px;
+    background: #f8fafc;
+    font-size: 0.88rem;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+.support-search input:focus {
+    border-color: var(--admin-primary);
+    background: #fff;
+}
+
+.support-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+.support-list .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+.support-list .empty-state i {
+    display: block;
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+}
+
+.ticket-item {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.ticket-item:hover { background: #f1f5f9; }
+.ticket-item.active {
+    background: #eff6ff;
+    border-left: 3px solid var(--admin-primary);
+    padding-left: 11px;
+}
+.ticket-item .user-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+.ticket-item .ti-body {
+    flex: 1;
+    min-width: 0;
+}
+.ticket-item .ti-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+.ticket-item .ti-name {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ticket-item .ti-date {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+.ticket-item .ti-konu {
+    font-size: 0.82rem;
+    color: #475569;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ticket-item .ti-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+.badge-mini {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.badge-acik       { background: #fee2e2; color: #991b1b; }
+.badge-cevaplandi { background: #dcfce7; color: #166534; }
+.badge-kapali     { background: #e2e8f0; color: #475569; }
+.badge-kat        { background: #ede9fe; color: #5b21b6; }
+
+/* ─── Sag Pane ─── */
+.support-thread {
+    display: flex;
+    flex-direction: column;
+    background: var(--support-bg-soft);
+    min-height: 0;
+}
+.thread-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    text-align: center;
+    padding: 20px;
+}
+.thread-empty i { font-size: 3.5rem; margin-bottom: 14px; opacity: 0.5; }
+.thread-empty h3 { color: #475569; font-weight: 600; margin-bottom: 6px; }
+.thread-empty p { font-size: 0.88rem; }
+
+.thread-active {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.thread-header {
+    background: #fff;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--support-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.thread-header-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+}
+.thread-header .user-avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+}
+.thread-meta strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #0f172a;
+    margin-bottom: 2px;
+    max-width: 480px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.thread-meta small {
+    font-size: 0.78rem;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.thread-meta .dot { color: #cbd5e1; }
+.badge-durum {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+}
+.badge-durum.acik       { background: #fee2e2; color: #991b1b; }
+.badge-durum.cevaplandi { background: #dcfce7; color: #166534; }
+.badge-durum.kapali     { background: #e2e8f0; color: #475569; }
+
+.btn-close-ticket {
+    background: #fff;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+.btn-close-ticket:hover {
+    background: #fef2f2;
+    color: #7f1d1d;
+}
+.btn-close-ticket:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
+}
+
+.thread-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-image:
+        radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.04), transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(99, 102, 241, 0.04), transparent 40%);
+}
+
+.msg {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: #0f172a;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    position: relative;
+}
+.msg .msg-time {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-align: right;
+}
+.msg.from-me {
+    align-self: flex-end;
+    background: var(--support-msg-mine);
+    border-bottom-right-radius: 3px;
+}
+.msg.from-other {
+    align-self: flex-start;
+    background: var(--support-msg-other);
+    border-bottom-left-radius: 3px;
+}
+.msg.from-other .msg-author {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--admin-primary);
+    margin-bottom: 3px;
+}
+
+.thread-composer {
+    background: #fff;
+    border-top: 1px solid var(--support-border);
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+.thread-composer textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--support-border);
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    background: #f8fafc;
+    outline: none;
+    max-height: 140px;
+    line-height: 1.4;
+    transition: border-color 0.15s, background 0.15s;
+}
+.thread-composer textarea:focus {
+    border-color: var(--admin-primary);
+    background: #fff;
+}
+.btn-send {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: var(--admin-primary);
+    color: #fff;
+    border: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    font-size: 0.95rem;
+}
+.btn-send:hover { background: var(--admin-primary-dark); }
+.btn-send:active { transform: scale(0.95); }
+.btn-send:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+.thread-composer.locked {
+    opacity: 0.7;
+    pointer-events: none;
+}
+.thread-composer-locked-note {
+    text-align: center;
+    padding: 14px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--support-border);
+}
+
+@media (max-width: 980px) {
+    .support-shell {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+    .support-sidebar { max-height: 50vh; border-right: 0; border-bottom: 1px solid var(--support-border); }
+    .support-thread { min-height: 60vh; }
+}
+
