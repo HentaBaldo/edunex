@@ -293,23 +293,27 @@ function setupEventListeners() {
             icerikTipiSelect.addEventListener('change', (e) => {
                 const secilenTip = e.target.value;
     
+                // Tip degisiminde STATE takilmasin diye onceki dosya secimi her seferinde temizleniyor.
+                if (dersDosyasiInput) dersDosyasiInput.value = '';
+                window.calculatedVideoDuration = 0;
+
                 if (secilenTip === 'video') {
-                    // Video seçildi: Süre sorulmaz, dosya inputu video ile kısıtlanır
+                    // Video: Süre videodan hesaplanır, dosya video tipleriyle kısıtlanır.
                     if (tahminiSureContainer) tahminiSureContainer.style.display = 'none';
-                    if (dersDosyasiInput) dersDosyasiInput.accept = 'video/mp4,video/webm';
-                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (Video MP4/WEBM)';
-                } 
+                    if (dersDosyasiInput) dersDosyasiInput.accept = 'video/mp4,video/x-m4v,video/*';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (Video)';
+                }
                 else if (secilenTip === 'metin') {
-                    // Belge seçildi: Süre sorulur, dosya inputu belge ile kısıtlanır
+                    // Belge: Süre manuel girilir, dosya PDF/DOC/DOCX ile kısıtlanır.
                     if (tahminiSureContainer) tahminiSureContainer.style.display = 'block';
-                    if (dersDosyasiInput) dersDosyasiInput.accept = '.pdf,.doc,.docx,.ppt,.pptx';
-                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (PDF, Word, PPT)';
-                } 
+                    if (dersDosyasiInput) dersDosyasiInput.accept = 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Ders Dosyası (PDF / Word)';
+                }
                 else if (secilenTip === 'quiz') {
-                    // Quiz seçildi: Süre sorulur, dosya inputu PDF veya resim ile kısıtlanır
+                    // Quiz: dosya yuklenmez (sorular quizModal'dan eklenir); input gizli kalır.
                     if (tahminiSureContainer) tahminiSureContainer.style.display = 'block';
-                    if (dersDosyasiInput) dersDosyasiInput.accept = '.pdf,.jpg,.png';
-                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Test Dosyası (PDF veya Resim)';
+                    if (dersDosyasiInput) dersDosyasiInput.accept = '';
+                    if (dersDosyasiLabel) dersDosyasiLabel.textContent = 'Test Dosyası (Opsiyonel)';
                 }
             });
     
@@ -721,13 +725,25 @@ window.closeSectionModal = () => {
     document.getElementById('bolumEkleModal').style.display = 'none';
 };
 
+// Dosya inputunun varsayilan accept'i (closeLessonModal'da geri yuklenir)
+const DEFAULT_LESSON_FILE_ACCEPT = 'video/mp4,video/x-m4v,video/*';
+
 window.showLessonModal = (sectionId) => {
-    // Tıklanan bölümün ID'sini gizli inputa yaz
+    const form = document.getElementById('dersEkleForm');
+    if (form) form.reset();
+    window.calculatedVideoDuration = 0;
+
+    // Tıklanan bölümün ID'sini gizli inputa yaz (reset sonrasi atanmali)
     const bolumInput = document.getElementById('secili_bolum_id');
-    if (bolumInput) {
-        bolumInput.value = sectionId;
+    if (bolumInput) bolumInput.value = sectionId;
+
+    // Icerik tipi varsayilana (video) doner; change event ile accept/label senkronlanir
+    const tipSelect = document.getElementById('icerik_tipi');
+    if (tipSelect) {
+        tipSelect.value = 'video';
+        tipSelect.dispatchEvent(new Event('change'));
     }
-    
+
     const modal = document.getElementById('dersEkleModal');
     if (modal) modal.style.display = 'flex';
 };
@@ -735,10 +751,16 @@ window.showLessonModal = (sectionId) => {
 window.closeLessonModal = () => {
     const modal = document.getElementById('dersEkleModal');
     if (modal) modal.style.display = 'none';
-};
 
-window.closeLessonModal = () => {
-    document.getElementById('dersEkleModal').style.display = 'none';
+    // Bir sonraki acilista temiz baslangic icin formu sifirla ve accept'i default'a dondur
+    const form = document.getElementById('dersEkleForm');
+    if (form) form.reset();
+    window.calculatedVideoDuration = 0;
+
+    const dosyaInput = document.getElementById('ders_dosyasi');
+    if (dosyaInput) dosyaInput.accept = DEFAULT_LESSON_FILE_ACCEPT;
+    const dosyaLabel = document.getElementById('ders_dosyasi_label');
+    if (dosyaLabel) dosyaLabel.textContent = 'Ders Dosyası (Video)';
 };
 
 window.openLessonModal = (sectionId) => window.showLessonModal(sectionId);
@@ -807,69 +829,88 @@ window.closeQuizModal = () => {
     _quizLessonId = null;
 };
 
+// Her soru icin sabit 4 sik (A, B, C, D)
+const QUIZ_CHOICE_LABELS = ['A', 'B', 'C', 'D'];
+
 // Yeni boş soru ekle
 window.addQuizQuestion = () => _appendQuestion(null);
 
+/**
+ * Bir quiz sorusunu (kart) container'a ekler.
+ * existingQ varsa mevcut sorudan doldurur (edit modu); yoksa bos kart olusturur.
+ * Her zaman 4 sik render edilir; backend'den 4'ten az gelirse bos slotlarla tamamlanir,
+ * fazla gelirse ilk 4'u alinir (kurumsal standartta sinav her zaman 4 sik).
+ */
 function _appendQuestion(existingQ) {
     const container = document.getElementById('quizSorularContainer');
     const idx = container.children.length;
+
+    // 4 siki normalize et — eksikse bos doldur, fazlaysa ilk 4'u al
+    const rawChoices = Array.isArray(existingQ?.Choices) ? existingQ.Choices.slice(0, 4) : [];
+    const choices = QUIZ_CHOICE_LABELS.map((_, ci) => rawChoices[ci] || { secenek_metni: '', dogru_mu: false });
+
     const div = document.createElement('div');
     div.className = 'quiz-soru-item';
     div.dataset.idx = idx;
-    div.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:14px;';
+    div.style.cssText = 'background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; margin-bottom:16px; box-shadow:0 2px 8px rgba(15,23,42,0.04);';
 
-    const seceneklerHtml = (existingQ?.Choices || [{ secenek_metni: '', dogru_mu: false }, { secenek_metni: '', dogru_mu: false }])
-        .map((c, ci) => _choiceHtml(idx, ci, c))
-        .join('');
+    const seceneklerHtml = choices.map((c, ci) => _choiceHtml(idx, ci, c)).join('');
 
     div.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <strong style="font-size:0.9rem; color:#1e293b;">Soru ${idx + 1}</strong>
-            <button type="button" onclick="window.removeQuizQuestion(this)" style="background:#fee2e2; border:none; color:#991b1b; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-trash"></i> Kaldır</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #f1f5f9;">
+            <strong style="font-size:0.95rem; color:#1e293b;">
+                <i class="fas fa-question-circle" style="color:#8b5cf6; margin-right:6px;"></i>Soru ${idx + 1}
+            </strong>
+            <button type="button" onclick="window.removeQuizQuestion(this)"
+                style="background:transparent; border:1px solid #fecaca; color:#b91c1c; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"
+                title="Bu soruyu kaldir"
+                onmouseover="this.style.background='#fee2e2'"
+                onmouseout="this.style.background='transparent'">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <textarea class="form-control quiz-soru-metni" rows="2" placeholder="Soru metnini yazın..." style="margin-bottom:10px; resize:vertical;">${escapeHtml(existingQ?.soru_metni || '')}</textarea>
+        <textarea class="form-control quiz-soru-metni" rows="2" placeholder="Soru metnini yazın..." style="margin-bottom:14px; resize:vertical;">${escapeHtml(existingQ?.soru_metni || '')}</textarea>
+        <p style="font-size:0.78rem; color:#64748b; margin:0 0 8px;">
+            <i class="fas fa-info-circle" style="color:#8b5cf6;"></i> Doğru cevabın yanındaki yuvarlağı işaretleyin.
+        </p>
         <div class="quiz-secenekler-list" style="display:flex; flex-direction:column; gap:8px;">
             ${seceneklerHtml}
         </div>
-        <button type="button" onclick="window.addQuizChoice(this)" style="margin-top:10px; background:#ede9fe; border:1px dashed #8b5cf6; color:#6d28d9; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.82rem; width:100%;"><i class="fas fa-plus"></i> Seçenek Ekle</button>
     `;
     container.appendChild(div);
 }
 
+/**
+ * Tek bir sik (A/B/C/D) — sik etiketi + radio + metin inputu.
+ * Cevap secim mantigi: radio name "dogru_cevap_<qIdx>" + value=cIdx (0..3).
+ */
 function _choiceHtml(qIdx, cIdx, choice) {
     const checked = choice.dogru_mu ? 'checked' : '';
+    const harf = QUIZ_CHOICE_LABELS[cIdx];
     return `
-        <div class="quiz-secenek-item" style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="dogru_cevap_${qIdx}" value="${cIdx}" ${checked} style="accent-color:#8b5cf6;" title="Doğru cevap">
-            <input type="text" class="form-control quiz-secenek-metni" placeholder="Seçenek metni..." value="${escapeHtml(choice.secenek_metni || '')}" style="flex:1;">
-            <button type="button" onclick="window.removeQuizChoice(this)" style="background:#fee2e2; border:none; color:#991b1b; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.75rem;" title="Bu seçeneği kaldır"><i class="fas fa-times"></i></button>
-        </div>
+        <label class="quiz-secenek-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; transition:all 0.15s;"
+            onmouseover="this.style.background='#f1f5f9'"
+            onmouseout="this.style.background='#f8fafc'">
+            <input type="radio" name="dogru_cevap_${qIdx}" value="${cIdx}" ${checked}
+                style="width:18px; height:18px; accent-color:#8b5cf6; cursor:pointer; flex-shrink:0;"
+                title="Doğru cevap bu">
+            <span style="font-weight:700; color:#8b5cf6; font-size:0.95rem; min-width:18px;">${harf}</span>
+            <input type="text" class="form-control quiz-secenek-metni"
+                placeholder="${harf} şıkkı..."
+                value="${escapeHtml(choice.secenek_metni || '')}"
+                style="flex:1; border:none; background:transparent; padding:4px 0;">
+        </label>
     `;
 }
 
 window.removeQuizQuestion = (btn) => {
     btn.closest('.quiz-soru-item').remove();
-    // Soru başlıklarını güncelle
+    // Kalan sorularin baslik numaralarini ve radio name'lerini yeniden senkronla
     document.querySelectorAll('#quizSorularContainer .quiz-soru-item').forEach((el, i) => {
-        el.querySelector('strong').textContent = `Soru ${i + 1}`;
+        el.dataset.idx = i;
+        el.querySelector('strong').innerHTML = `<i class="fas fa-question-circle" style="color:#8b5cf6; margin-right:6px;"></i>Soru ${i + 1}`;
+        el.querySelectorAll('input[type="radio"]').forEach(r => { r.name = `dogru_cevap_${i}`; });
     });
-};
-
-window.addQuizChoice = (btn) => {
-    const soruItem = btn.closest('.quiz-soru-item');
-    const qIdx = parseInt(soruItem.dataset.idx);
-    const list = soruItem.querySelector('.quiz-secenekler-list');
-    const cIdx = list.children.length;
-    list.insertAdjacentHTML('beforeend', _choiceHtml(qIdx, cIdx, { secenek_metni: '', dogru_mu: false }));
-};
-
-window.removeQuizChoice = (btn) => {
-    const list = btn.closest('.quiz-secenekler-list');
-    if (list.children.length <= 2) {
-        showToast('En az 2 seçenek olmalı.', 'error');
-        return;
-    }
-    btn.closest('.quiz-secenek-item').remove();
 };
 
 // ═══════════════════════════════════════════════════
@@ -1239,8 +1280,10 @@ window.saveQuiz = async () => {
     const sure_dakika = parseInt(document.getElementById('quiz_sure_dakika').value) || null;
 
     const soruItems = document.querySelectorAll('#quizSorularContainer .quiz-soru-item');
+
+    // === Validasyon 1: En az 1 soru ===
     if (soruItems.length === 0) {
-        showToast('En az 1 soru eklemelisiniz.', 'error');
+        showToast('Sınavı kaydetmek için en az 1 soru eklemelisiniz.', 'error');
         return;
     }
 
@@ -1249,25 +1292,58 @@ window.saveQuiz = async () => {
 
     soruItems.forEach((soruEl, si) => {
         if (hata) return;
+        const soruNo = si + 1;
+
+        // === Validasyon 2: Soru metni dolu mu? ===
         const soru_metni = soruEl.querySelector('.quiz-soru-metni').value.trim();
-        if (!soru_metni) { hata = `Soru ${si + 1}: soru metni boş olamaz.`; return; }
+        if (!soru_metni) {
+            hata = `Soru ${soruNo}: soru metnini yazmadınız.`;
+            return;
+        }
 
+        // Tum siklari (sabit 4) topla ve dogru cevap radio'sundan correctOption index'i hesapla
         const secenekEls = soruEl.querySelectorAll('.quiz-secenek-item');
-        if (secenekEls.length < 2) { hata = `Soru ${si + 1}: en az 2 seçenek gerekli.`; return; }
+        const dogru_radio = soruEl.querySelector('input[type="radio"][name^="dogru_cevap_"]:checked');
+        const correctOption = dogru_radio ? parseInt(dogru_radio.value, 10) : -1;
 
-        const secenekler = [];
-        let dogru_sayisi = 0;
-        const dogru_radio = soruEl.querySelector(`input[type="radio"][name^="dogru_cevap_"]:checked`);
-
-        secenekEls.forEach((cEl, ci) => {
+        // Sik metinlerini topla (bos olanlar disarida tutulmuyor — siralama korunmali)
+        const options = [];
+        let doluSikSayisi = 0;
+        secenekEls.forEach((cEl) => {
             const secenek_metni = cEl.querySelector('.quiz-secenek-metni').value.trim();
-            if (!secenek_metni) { hata = `Soru ${si + 1}, Seçenek ${ci + 1}: boş olamaz.`; return; }
-            const dogru_mu = dogru_radio ? parseInt(dogru_radio.value) === ci : false;
-            if (dogru_mu) dogru_sayisi++;
-            secenekler.push({ secenek_metni, dogru_mu });
+            if (secenek_metni) doluSikSayisi++;
+            options.push(secenek_metni);
         });
 
-        if (dogru_sayisi !== 1) { hata = `Soru ${si + 1}: tam olarak 1 doğru cevap işaretlenmeli.`; return; }
+        // === Validasyon 3: En az 2 sik dolu mu? ===
+        if (doluSikSayisi < 2) {
+            hata = `Soru ${soruNo}: en az 2 şıkkı doldurmalısınız (şu an ${doluSikSayisi}).`;
+            return;
+        }
+
+        // === Validasyon 4: Dogru cevap secilmis mi? ===
+        if (correctOption < 0) {
+            hata = `Soru ${soruNo}: doğru cevap olarak bir şık işaretlemediniz.`;
+            return;
+        }
+
+        // === Validasyon 5: Secilen dogru cevabin metni dolu mu? ===
+        if (!options[correctOption]) {
+            hata = `Soru ${soruNo}: doğru cevap olarak işaretlediğiniz ${QUIZ_CHOICE_LABELS[correctOption]} şıkkı boş.`;
+            return;
+        }
+
+        // Backend formatina cevir: dolu sikler + correctOption index'i isaretle
+        // (Bos siklar gonderilmiyor; backend her sik icin secenek_metni.trim() zorunlu)
+        const secenekler = [];
+        options.forEach((secenek_metni, ci) => {
+            if (!secenek_metni) return; // bos sigi atla
+            secenekler.push({
+                secenek_metni,
+                dogru_mu: ci === correctOption,
+            });
+        });
+
         sorular.push({ soru_metni, soru_tipi: 'coktan_secmeli', secenekler });
     });
 

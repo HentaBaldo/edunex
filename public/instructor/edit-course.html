@@ -270,7 +270,7 @@
                 </div>
                 <div class="form-group" id="dosyaInputContainer">
                     <label for="ders_dosyasi" id="ders_dosyasi_label" class="form-label">Ders Dosyası (Video)</label>
-                    <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/webm">
+                    <input type="file" id="ders_dosyasi" class="form-control" accept="video/mp4,video/x-m4v,video/*">
                 </div>
                 <div class="form-group" id="aciklamaContainer">
                     <label for="ders_aciklama" class="form-label">Ders Açıklaması / İçerik Görünümü</label>
@@ -367,6 +367,9 @@
                         <label class="form-label">Süre Limiti (Dakika, opsiyonel)</label>
                         <input type="number" id="quiz_sure_dakika" class="form-control" min="1" placeholder="Süresiz bırakmak için boş">
                     </div>
+                </div>
+                <div style="background:#f5f3ff; border-left:4px solid #8b5cf6; padding:10px 14px; border-radius:6px; margin-bottom:14px; font-size:0.82rem; color:#5b21b6;">
+                    <i class="fas fa-info-circle"></i> Her soru için 4 şık (A, B, C, D) doldurun. Doğru cevabı yanındaki yuvarlağa tıklayarak işaretleyin. En az 2 şıkkı doldurmanız yeterlidir.
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                     <strong style="font-size:0.95rem; color:#1e293b;">Sorular</strong>

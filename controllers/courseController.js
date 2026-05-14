@@ -120,13 +120,45 @@ exports.getInstructorCourses = async (req, res, next) => {
 exports.createCourse = async (req, res, next) => {
     try {
         const { baslik, alt_baslik, aciklama, kategori_id, fiyat, dil, seviye, gereksinimler, kazanimlar } = req.body;
+        // JWT'den gelen kullanici id'si — kurs sahibi olarak set edilecek (eger gerekli FK varsa).
+        // egitmen_id frontend'den DEĞIL token'dan alınır (yetki zaafiyetini onler).
         const egitmen_id = req.user.id;
 
-        // Validasyon
+        // === Validasyon: Zorunlu alanlar ===
         if (!baslik || !aciklama || !kategori_id) {
             const error = new Error('Başlık, açıklama ve kategori gereklidir.');
             error.statusCode = 400;
             throw error;
+        }
+
+        // === FK GUVENLIK KATMANI: kurslar.egitmen_id -> egitmen_detaylari.kullanici_id ===
+        //
+        // 'kurslar_ibfk_139' constraint'i kurslar.egitmen_id'yi egitmen_detaylari.kullanici_id'ye
+        // bagliyor. Profili olup egitmen_detaylari satiri olmayan kullanicilarda (legacy hesaplar
+        // veya manuel olusturulan kayitlarda) Sequelize ham Foreign Key hatasi firlatiyor.
+        //
+        // Self-healing: isInstructor middleware'i zaten rol='egitmen' garantisi veriyor.
+        // Eger satir yoksa otomatik bir bos InstructorDetail satiri olustur.
+        // (Bu register sirasinda yapilan ayni atomik islemin recovery versiyonu.)
+        let instructorRow = await InstructorDetail.findByPk(egitmen_id);
+        if (!instructorRow) {
+            console.warn(`[COURSE CREATE] InstructorDetail satiri eksik (kullanici_id=${egitmen_id}). Self-heal: bos satir olusturuluyor.`);
+            try {
+                instructorRow = await InstructorDetail.create({
+                    kullanici_id: egitmen_id,
+                    unvan: null,
+                    deneyim_yili: 0,
+                    iban_no: null,
+                    baslik: null,
+                    biyografi: null,
+                });
+            } catch (healErr) {
+                // Self-heal de basarisizsa (ornegin Profile bile yoksa) anlasilabilir hata don.
+                console.error(`[COURSE CREATE] Self-heal basarisiz (kullanici_id=${egitmen_id}):`, healErr.message);
+                const error = new Error('Eğitmen profili eksik. Lütfen önce eğitmen detaylarınızı tamamlayın.');
+                error.statusCode = 409;
+                throw error;
+            }
         }
 
         const course = await Course.create({
@@ -134,7 +166,7 @@ exports.createCourse = async (req, res, next) => {
             alt_baslik: alt_baslik || '',
             aciklama,
             kategori_id,
-            egitmen_id,
+            egitmen_id, // artik egitmen_detaylari.kullanici_id ile eslesmesi garanti
             fiyat: fiyat || 0,
             dil: dil || 'Turkce',
             seviye: seviye || 'Baslangic',
@@ -149,6 +181,13 @@ exports.createCourse = async (req, res, next) => {
             data: course
         });
     } catch (error) {
+        // FK hatasini yakalarsak kullaniciya teknik mesaj yerine anlamli bir aciklama dondur.
+        if (error?.name === 'SequelizeForeignKeyConstraintError') {
+            console.error('[COURSE CREATE] FK hatasi:', error.original?.sqlMessage || error.message);
+            const friendly = new Error('Kurs oluşturulamadı: Eğitmen veya kategori kaydı eksik. Lütfen profilinizi kontrol edin.');
+            friendly.statusCode = 409;
+            return next(friendly);
+        }
         next(error);
     }
 };
