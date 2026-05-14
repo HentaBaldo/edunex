@@ -191,7 +191,7 @@ function renderCurriculum(sections) {
             if (isPreviewOnly) previewLessonsMap[lesson.id] = lesson;
 
             const desc = lesson.aciklama
-                ? `<span class="lesson-desc">${escapeHtml(lesson.aciklama.length > 80 ? lesson.aciklama.substring(0, 80) + '…' : lesson.aciklama)}</span>`
+                ? `<span class="lesson-desc">${plainText(lesson.aciklama, 80)}</span>`
                 : '';
             const badge = lesson.icerik_tipi
                 ? `<span class="content-badge badge-${escapeAttr(lesson.icerik_tipi)}">${escapeHtml(contentTypeLabel(lesson.icerik_tipi))}</span>`
@@ -439,6 +439,18 @@ function escapeHtml(text) {
     if (text === null || text === undefined) return '';
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
     return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+// Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+function plainText(html, maxLen) {
+    if (html == null) return '';
+    const d = document.createElement('div');
+    d.innerHTML = String(html);
+    let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    if (maxLen && text.length > maxLen) {
+        text = text.slice(0, maxLen).trim() + '…';
+    }
+    return escapeHtml(text);
 }
 
 function escapeAttr(text) {

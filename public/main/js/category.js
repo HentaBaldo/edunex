@@ -180,7 +180,7 @@
                 </div>
                 <div class="kurs-kart-govde">
                     <h3 class="kurs-kart-baslik">${_esc(kurs.baslik)}</h3>
-                    <p class="kurs-kart-alt-baslik">${_esc(kurs.aciklama || '')}</p>
+                    <p class="kurs-kart-alt-baslik">${_plainText(kurs.aciklama, 120)}</p>
                     <p class="kurs-kart-egitmen"><i class="fas fa-chalkboard-teacher"></i> ${_esc(egitmen)}</p>
                     ${yildizHtml(puan, yorum)}
                     <div class="kurs-kart-alt">
@@ -215,5 +215,17 @@
         const d = document.createElement('div');
         d.textContent = String(text);
         return d.innerHTML;
+    }
+
+    // Zengin metni (HTML içerebilir) düz, kısaltılmış ve güvenli metne çevir
+    function _plainText(html, maxLen) {
+        if (html == null) return '';
+        const d = document.createElement('div');
+        d.innerHTML = String(html);
+        let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+        if (maxLen && text.length > maxLen) {
+            text = text.slice(0, maxLen).trim() + '…';
+        }
+        return _esc(text);
     }
 })();

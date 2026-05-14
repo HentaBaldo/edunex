@@ -143,7 +143,7 @@ function renderPopulerKategoriler(kategoriler) {
         const kursSayisi = kat.istatistikler?.kurs_sayisi || 0;
         const puan       = parseFloat(kat.yildiz_ortalamasi || 0);
         const aciklama   = kat.aciklama
-            ? guvenliMetin(kat.aciklama.length > 90 ? kat.aciklama.slice(0, 90) + '…' : kat.aciklama)
+            ? duzMetin(kat.aciklama, 90)
             : `${kursSayisi} kurs ile yeteneklerinizi geliştirin.`;
 
         const arkaplan = kat.kapak_fotografi
@@ -374,6 +374,18 @@ function guvenliMetin(metin) {
     const div = document.createElement('div');
     div.textContent = String(metin);
     return div.innerHTML;
+}
+
+// Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+function duzMetin(html, maxUzunluk) {
+    if (html == null) return '';
+    const d = document.createElement('div');
+    d.innerHTML = String(html);
+    let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    if (maxUzunluk && text.length > maxUzunluk) {
+        text = text.slice(0, maxUzunluk).trim() + '…';
+    }
+    return guvenliMetin(text);
 }
 
 function yildizHtmlOlustur(puan, yorumSayisi) {

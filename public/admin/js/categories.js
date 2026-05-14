@@ -37,6 +37,18 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+function plainText(html, maxLen) {
+    if (html == null) return '';
+    const d = document.createElement('div');
+    d.innerHTML = String(html);
+    let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    if (maxLen && text.length > maxLen) {
+        text = text.slice(0, maxLen).trim() + '…';
+    }
+    return escapeHtml(text);
+}
+
 // === Veri çek ===
 async function fetchCategories() {
     const tbody = document.getElementById('categoriesList');
@@ -113,7 +125,7 @@ function renderTable(list) {
 
     tbody.innerHTML = list.map(c => {
         const desc = c.aciklama
-            ? escapeHtml(c.aciklama.length > 90 ? c.aciklama.slice(0, 90) + '…' : c.aciklama)
+            ? plainText(c.aciklama, 90)
             : '<em style="color:#94a3b8;">Açıklama yok</em>';
 
         const cover = c.kapak_fotografi
