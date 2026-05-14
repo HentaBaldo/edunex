@@ -7,10 +7,21 @@
  * Gerekli .env değişkenleri:
  *   EMAIL_USER    — Gmail adresi
  *   EMAIL_PASS    — Gmail uygulama şifresi (App Password; 2FA açık olmalı)
- *   FRONTEND_URL  — Yönlendirme için temel URL (ör. http://localhost:3000)
+ *   FRONTEND_URL  — Doğrulama linki için temel URL. PRODUCTION'da ZORUNLU.
+ *                   Tanımsızsa development'ta localhost'a düşer, production'da fail-loud.
  */
 
 const nodemailer = require('nodemailer');
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+// FRONTEND_URL kontrol — production'da yanlis URL ile mail gondermek
+// kullaniciya kirik link gonderir; bu yuzden config-eksikligini erken yakaliyoruz.
+if (isProduction && !process.env.FRONTEND_URL) {
+    console.error('[EMAIL SERVICE] KRITIK: FRONTEND_URL .env tanimli degil — production ortaminda dogrulama linkleri kirik gidecek!');
+}
+const FRONTEND_URL = process.env.FRONTEND_URL
+    || (isProduction ? null : 'http://localhost:3000');
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -20,8 +31,9 @@ const transporter = nodemailer.createTransport({
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    // Yerel/uzak ortam farklarından kaynaklanan SSL sertifika uyumsuzluklarını önler
-    tls: { rejectUnauthorized: false },
+    // SSL sertifika dogrulamasi: production'da MUTLAKA aktif (MITM koruma).
+    // Sadece localhost geliştirme ortamindaki self-signed cert sorunlarini bypass ediyoruz.
+    tls: { rejectUnauthorized: isProduction },
     // Bağlantı asmama (hanging) koruması — Gmail cevap vermezse sistem kilitlenmez
     connectionTimeout: 10000,
     greetingTimeout: 10000,
@@ -34,7 +46,6 @@ transporter.verify()
     .catch(err => console.error('[EMAIL SERVICE] SMTP Hatası:', err.message));
 
 const FROM_ADDRESS = `EduNex Academy <${process.env.EMAIL_USER}>`;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 /**
  * E-posta doğrulama maili gönderir.
@@ -42,6 +53,10 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
  * @param {string} token — crypto.randomBytes ile üretilmiş hex token
  */
 async function sendVerificationEmail(to, token) {
+    if (!FRONTEND_URL) {
+        // Production'da FRONTEND_URL eksikse mail göndermek anlamsız — kırık link gider.
+        throw new Error('FRONTEND_URL .env tanimli degil; dogrulama maili gonderilemez.');
+    }
     const verifyUrl = `${FRONTEND_URL}/api/auth/verify?token=${token}`;
 
     const html = `
