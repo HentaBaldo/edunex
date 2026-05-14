@@ -782,10 +782,11 @@ function trackBunnyVideo(lesson) {
             _resolvedDuration = videoEl.duration;
         }
         const resumePos = _loadResumePos(lesson.id);
-        if (resumePos > 5 && !lesson.tamamlandi_mi) {
+        if (resumePos >= 2 && !lesson.tamamlandi_mi) {
             console.log('[TRACKING] Kaldığı yerden devam: ' + resumePos + 's');
             videoEl.currentTime = resumePos;
             maxWatchedSeconds = resumePos;
+            _lastSaveAt = resumePos;
         }
     });
 
@@ -794,6 +795,7 @@ function trackBunnyVideo(lesson) {
     // ardışık iki güncelleme arası < 1.5s'dir. Daha büyük sıçrama → seek.
     // Bu sayede seeking/seeked race condition'ı tamamen ortadan kalkar.
     let _lastPos = -1;
+    let _lastSaveAt = 0;   // resume pozisyonunu son kaydettiğimiz saniye
 
     videoEl.addEventListener('timeupdate', function() {
         if (seekLock) return;
@@ -818,7 +820,11 @@ function trackBunnyVideo(lesson) {
 
         if (isNormal) {
             if (seconds > maxWatchedSeconds) maxWatchedSeconds = seconds;
-            if (Math.floor(seconds) % 5 === 0) _saveResumePos(currentLessonId, seconds);
+            // Her 3 saniyede bir resume pozisyonunu kaydet
+            if (seconds - _lastSaveAt >= 3) {
+                _saveResumePos(currentLessonId, seconds);
+                _lastSaveAt = seconds;
+            }
             if (!videoCompleted && _resolvedDuration > 0 && maxWatchedSeconds >= _resolvedDuration * 0.95) {
                 videoCompleted = true;
                 _clearResumePos(currentLessonId);
@@ -846,6 +852,14 @@ function trackBunnyVideo(lesson) {
             videoCompleted = true;
             _clearResumePos(currentLessonId);
             markLessonComplete(currentLessonId);
+        }
+    });
+
+    // Sayfa kapanırken/yenilenirken son pozisyonu kaydet
+    videoEl.addEventListener('pause', function() {
+        if (!videoCompleted && videoEl.currentTime >= 2) {
+            _saveResumePos(currentLessonId, videoEl.currentTime);
+            _lastSaveAt = videoEl.currentTime;
         }
     });
 }
