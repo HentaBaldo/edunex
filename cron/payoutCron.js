@@ -1,213 +1,100 @@
 /**
- * EduNex - Hakedis Otomatik Onay Cron Job (Payout Approval)
+ * EduNex - Otomatik Hakedis Onay (Payout Approval) Cron Job
  *
- * AMAC: iyzico Pazaryeri (Marketplace) modelinde tahsilat sonrasi para
- * havuzda bekler. Iade penceresi kapanan veya ogrencinin iade hakkini kaybettigi
- * (kursta %20+ ilerleme) kalemlerin parasini iyzico Approval API ile egitmenin
- * SubMerchant hesabina aktariyoruz.
+ * AMAC:
+ *   iyzico Marketplace modelinde para ogrenciden tahsil edildiginde
+ *   iyzico havuzunda 'on-tahsilat' olarak durur. Iade penceresi (T+14) gectiginde
+ *   her bir basket item icin 'approval' API'si cagrilarak para egitmenin
+ *   SubMerchant hesabina aktarilir. Bu cron bu adimi otomatize eder.
  *
- * KURALLAR (BIRI YETERLI - OR mantigi):
- *   1) Siparis tarihinden 14 gun GECMIS olmali, VEYA
- *   2) Ogrencinin kurs ilerlemesi > %20 olmali.
+ * KURAL:
+ *   - InstructorEarning.durum = 'pending'
+ *   - olusturulma_tarihi < NOW() - INTERVAL <PAYOUT_TOLERANS_GUN> DAY (default 14)
+ *   - Iliskili siparis_kalemleri.iyzico_item_transaction_id DOLU
+ *   -> iyzicoService.approvePayment cagrilir
+ *   -> InstructorEarning.durum = 'paid', odeme_tarihi=NOW, dekont='IYZICO-CRON:<paymentId>'
+ *   -> siparis_kalemleri.hakedis_durumu = 'onaylandi'
+ *
+ * TASARIM:
+ *   Tum approval is mantigi services/payoutApprovalService.js icinde tek noktada
+ *   toplandi. Cron ve admin manuel "Simdi Onayla" akisi AYNI fonksiyonu cagirir;
+ *   boylece tutarli idempotency garantisi, ortak audit logu, ortak hata yonetimi.
  *
  * GUVENLIK:
- *   - hakedis_durumu='beklemede' filtresi tek kaynak: iade edilmis veya
- *     onceden onaylanmis kalemlere tekrar dokunulmaz (idempotency).
- *   - iyzico_item_transaction_id bos kalemler atlanir (cron orada cuvallamaz).
- *   - Her kalem icin ayri try/catch: bir kalemin hatasi digerlerini bozmaz.
- *   - Iyzico cagrisindan sonra kucuk bir transaction ile DB durumu guncellenir.
+ *   - Idempotent: 'paid' veya 'cancelled' kayitlar atlanir.
+ *   - iyzico "already approved" basari kabul edilir (catch'te tutulur).
+ *   - Atomik: kayit basina Sequelize transaction.
+ *   - PAYOUT_CRON_DISABLED=true  -> cron hic baslatilmaz (test).
+ *   - PAYOUT_CRON_DRY_RUN=true   -> hicbir cagri yapilmaz, log atilir.
  *
  * PROGRAM:
- *   - PAYOUT_CRON_EXPRESSION env ile override edilir.
- *   - Default: production'da gunde bir (saat 03:00 TR), digerinde her 15 dk.
+ *   - Default: her gece 03:00 (TZ: Europe/Istanbul).
+ *   - PAYOUT_CRON_EXPRESSION env ile override edilebilir.
+ *   - Cron hatasi server'i etkilemez (server.js icinde try ile sariliyor).
  */
 
 const cron = require('node-cron');
-const { Op } = require('sequelize');
-const {
-    sequelize,
-    Order,
-    OrderItem,
-    Course,
-    CourseEnrollment,
-    InstructorDetail,
-    InstructorEarning,
-    PaymentTransaction,
-} = require('../models');
-const iyzicoService = require('../services/iyzicoService');
+const payoutApprovalService = require('../services/payoutApprovalService');
 
-const IADE_PENCERESI_GUN = 14;
-const MIN_ILERLEME_ICIN_KILITLENME = 20; // > %20 ise iade hakki dusmus sayilir
-const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
-
-const toKurus = (v) => Math.round(Number(v) * 100);
-const fromKurus = (k) => (k / 100).toFixed(2);
+const TOLERANS_GUN = Number(process.env.PAYOUT_TOLERANS_GUN || 14);
+const BATCH_LIMIT = Number(process.env.PAYOUT_CRON_BATCH_LIMIT || 500);
 
 /**
- * Onaylanmaya hazir OrderItem'lari getirir.
- * Kosullar:
- *   - hakedis_durumu = 'beklemede'
- *   - iyzico_item_transaction_id IS NOT NULL (iyzico cagrisi yapabilelim)
- *   - Order.durum = 'tamamlandi'
- *   - (Order 14 gun yasli) VEYA (kursa ilerleme > 20)
- */
-async function findOnaylanacakKalemler() {
-    const onDortGunOnce = new Date(Date.now() - IADE_PENCERESI_GUN * 24 * 60 * 60 * 1000);
-
-    // Tek raw SQL ile OR mantigini efektif tariyoruz (iki ayri Sequelize sorgu yerine).
-    // EXISTS subquery: yuksek ilerlemeli kayit var mi diye eslestirir.
-    const sql = `
-        SELECT oi.id
-        FROM siparis_kalemleri AS oi
-        INNER JOIN siparisler   AS o  ON o.id = oi.siparis_id
-        WHERE oi.hakedis_durumu = 'beklemede'
-          AND oi.iyzico_item_transaction_id IS NOT NULL
-          AND o.durum = 'tamamlandi'
-          AND (
-                o.olusturulma_tarihi <= :onDortGunOnce
-             OR EXISTS (
-                  SELECT 1 FROM kurs_kayitlari ce
-                  WHERE ce.kurs_id = oi.kurs_id
-                    AND ce.ogrenci_id = o.kullanici_id
-                    AND ce.ilerleme_yuzdesi > :minIlerleme
-             )
-          )
-        ORDER BY o.olusturulma_tarihi ASC
-        LIMIT 200
-    `;
-
-    const rows = await sequelize.query(sql, {
-        replacements: { onDortGunOnce, minIlerleme: MIN_ILERLEME_ICIN_KILITLENME },
-        type: sequelize.QueryTypes.SELECT,
-    });
-
-    if (rows.length === 0) return [];
-
-    const ids = rows.map(r => r.id);
-    return OrderItem.findAll({
-        where: { id: ids },
-        include: [
-            {
-                model: Order,
-                attributes: ['id', 'kullanici_id', 'olusturulma_tarihi', 'conversation_id'],
-                required: true,
-            },
-            {
-                model: Course,
-                attributes: ['id', 'baslik', 'egitmen_id'],
-                include: [{ model: InstructorDetail, attributes: ['kullanici_id', 'submerchant_key'] }],
-                required: true,
-            },
-        ],
-    });
-}
-
-/**
- * Tek bir kalemin iyzico approval cagrisini yapar ve DB'yi gunceller.
- * Idempotent: hata durumunda kalem 'beklemede' kalir, bir sonraki cron'da yeniden denenir.
- */
-async function approveTekKalem(oi) {
-    // Defansif kontrol (idempotency): cron baslarken cekildi diye baska bir cron run'unda
-    // durumu degismis olabilir. Bu yuzden son kez DB'den taze hali aliyoruz.
-    const taze = await OrderItem.findByPk(oi.id);
-    if (!taze || taze.hakedis_durumu !== 'beklemede') {
-        return { id: oi.id, status: 'skipped_status_changed' };
-    }
-
-    // iyzico Approval API
-    const approveResult = await iyzicoService.approveItem({
-        paymentTransactionId: oi.iyzico_item_transaction_id,
-        conversationId: `payout-${oi.id}`,
-    });
-
-    // DB transaction: durum + InstructorEarning idempotent ensure + log
-    await sequelize.transaction(async (t) => {
-        await OrderItem.update(
-            { hakedis_durumu: 'onaylandi' },
-            { where: { id: oi.id, hakedis_durumu: 'beklemede' }, transaction: t }
-        );
-
-        // InstructorEarning normalde callback'te olusturulmustu; defansif findOrCreate
-        // ile veri butunlugunu garantiliyoruz (eski siparislerde eksik olabilir).
-        const brutKurus = toKurus(oi.odenen_fiyat);
-        const kesintiKurus = Math.round(brutKurus * PLATFORM_KOMISYON_ORANI / 100);
-        const netKurus = brutKurus - kesintiKurus;
-        await InstructorEarning.findOrCreate({
-            where: { siparis_kalemi_id: oi.id },
-            defaults: {
-                egitmen_id: oi.Course?.egitmen_id || null,
-                siparis_kalemi_id: oi.id,
-                brut_tutar: fromKurus(brutKurus),
-                komisyon_orani: PLATFORM_KOMISYON_ORANI,
-                platform_kesintisi: fromKurus(kesintiKurus),
-                net_tutar: fromKurus(netKurus),
-                para_birimi: 'TRY',
-            },
-            transaction: t,
-        });
-
-        await PaymentTransaction.create({
-            siparis_id: oi.Order.id,
-            saglayici: 'iyzico',
-            islem_tipi: 'callback', // approval payment_transaction enum'una eklenmedi; en yakin tip
-            conversation_id: `payout-${oi.id}`,
-            payment_id: approveResult?.paymentTransactionId || null,
-            durum: 'success',
-            ham_yanit: approveResult || null,
-        }, { transaction: t });
-    });
-
-    return { id: oi.id, status: 'approved' };
-}
-
-/**
- * Tek bir cron tick'i: tarama + sirayla onay.
- * Module disindan da elle cagrilabilir (test icin).
+ * Tek bir tarama: tum 'pending' + T+14 gecmis hakedis kayitlarini iyzico'da onaylar.
+ * Geri donus: islem ozeti (scanned/approved/skipped/failed).
  */
 async function runOnce() {
-    const baslangic = Date.now();
-    let kalemler;
+    const t0 = Date.now();
     try {
-        kalemler = await findOnaylanacakKalemler();
-    } catch (queryErr) {
-        console.error('[PAYOUT CRON QUERY ERROR]', queryErr.message);
-        return { ok: false, count: 0, reason: 'query_failed' };
-    }
-
-    if (kalemler.length === 0) {
-        return { ok: true, count: 0 };
-    }
-
-    console.log(`[PAYOUT CRON] ${kalemler.length} bekleyen kalem bulundu, onay surecine giriliyor.`);
-
-    let basariliCount = 0;
-    let basarisizCount = 0;
-    for (const oi of kalemler) {
-        try {
-            const r = await approveTekKalem(oi);
-            if (r.status === 'approved') basariliCount++;
-        } catch (itemErr) {
-            basarisizCount++;
-            console.error('[PAYOUT CRON ITEM ERROR]', {
-                order_item_id: oi.id,
-                iyzico_tx: oi.iyzico_item_transaction_id,
-                message: itemErr.message,
-                iyzico: itemErr.iyzicoResult || null,
-            });
+        if (process.env.PAYOUT_CRON_DRY_RUN === 'true') {
+            console.log('[PAYOUT CRON] DRY_RUN modunda, hicbir cagri yapilmayacak.');
+            return { ok: true, dryRun: true };
         }
-    }
 
-    const sureMs = Date.now() - baslangic;
-    console.log(`[PAYOUT CRON] Tamamlandi. Onaylanan=${basariliCount} Hatali=${basarisizCount} Sure=${sureMs}ms`);
-    return { ok: true, count: basariliCount, errors: basarisizCount };
+        const summary = await payoutApprovalService.processDueEarnings({
+            toleransDay: TOLERANS_GUN,
+            limit: BATCH_LIMIT,
+            source: 'cron',
+        });
+
+        const ms = Date.now() - t0;
+        console.log('[PAYOUT CRON SUMMARY]', {
+            scanned: summary.scanned,
+            approved: summary.approved,
+            already_paid: summary.alreadyPaid,
+            skipped: summary.skipped,
+            failed: summary.failed,
+            tolerans_gun: TOLERANS_GUN,
+            duration_ms: ms,
+            ts: new Date().toISOString(),
+        });
+
+        if (summary.failed > 0) {
+            console.warn('[PAYOUT CRON] Basarisiz kalemler var, manuel inceleme gerekebilir.');
+            summary.details
+                .filter(d => d.status === 'failed')
+                .slice(0, 20)
+                .forEach(d => console.warn('   - FAIL:', d));
+        }
+
+        return { ok: true, ...summary, durationMs: ms };
+    } catch (error) {
+        console.error('[PAYOUT CRON ERROR]', error.message, error.stack);
+        return { ok: false, error: error.message };
+    }
 }
 
 /**
- * Cron job'u baslatir. server.js bu fonksiyonu uygulama acilir acilmaz cagirir.
+ * Cron'u baslatir. server.js / app.js boot esnasinda cagrir.
+ * @returns {object|null} node-cron task instance veya null (devre disi).
  */
 function start() {
-    // Production: gunde bir (TR saat 03:00). Aksi: her 15 dakika (test).
-    const defaultExpr = process.env.NODE_ENV === 'production' ? '0 3 * * *' : '*/15 * * * *';
+    if (process.env.PAYOUT_CRON_DISABLED === 'true') {
+        console.log('[PAYOUT CRON] PAYOUT_CRON_DISABLED=true, cron baslatilmadi.');
+        return null;
+    }
+
+    const defaultExpr = '0 3 * * *'; // Her gece 03:00
     const cronExpr = process.env.PAYOUT_CRON_EXPRESSION || defaultExpr;
 
     if (!cron.validate(cronExpr)) {
@@ -226,7 +113,10 @@ function start() {
         timezone: process.env.TZ || 'Europe/Istanbul',
     });
 
-    console.log(`[PAYOUT CRON] Aktif. Schedule="${cronExpr}" TZ="${process.env.TZ || 'Europe/Istanbul'}"`);
+    console.log(
+        `[PAYOUT CRON] Aktif. Schedule="${cronExpr}" TZ="${process.env.TZ || 'Europe/Istanbul'}" ` +
+        `tolerans=${TOLERANS_GUN}gun batch=${BATCH_LIMIT}`
+    );
     return task;
 }
 

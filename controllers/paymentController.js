@@ -321,8 +321,28 @@ exports.callback = async (req, res) => {
             const txId = it?.paymentTransactionId || it?.itemTransactionId;
             if (key && txId) txByItemId.set(key, txId);
         }
+
+        // --- TRANSACTION_ID AUDIT ---
+        // approval (otomatik payout) ve refund icin paymentTransactionId KRITIK.
+        // Burada eksik kalirsa o siparis iyzico tarafinda elle mudahale gerektirir.
+        console.log('[CALLBACK TXN AUDIT]', {
+            order_id: order.id,
+            iyzico_payment_id: retrieveResult?.paymentId,
+            item_count_in_response: itemTransactions.length,
+            mapped_count: txByItemId.size,
+            mapped_item_ids: Array.from(txByItemId.keys()),
+        });
+
         if (txByItemId.size === 0) {
-            console.warn('[CALLBACK] iyzico itemTransactions bos doner; iade/approval bu siparisten yapilamaz.', { order_id: order.id });
+            console.error('[CALLBACK CRITICAL] iyzico itemTransactions bos! Otomatik payout/refund yapilamayacak.', {
+                order_id: order.id,
+                payment_id: retrieveResult?.paymentId,
+                conversation_id: order.conversation_id,
+            });
+        } else if (txByItemId.size !== itemTransactions.length) {
+            console.warn('[CALLBACK] iyzico itemTransactions kismi eslesti; bazi siparis_kalemleri.iyzico_item_transaction_id NULL kalacak.', {
+                order_id: order.id, expected: itemTransactions.length, mapped: txByItemId.size,
+            });
         }
 
         // Transaction sonrasi bildirim icin gerekli minimum bilgileri yakalayacagimiz scope.

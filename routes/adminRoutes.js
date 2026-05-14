@@ -72,5 +72,7 @@ router.get('/payouts/export.csv', isFinanceAdmin, adminPayoutController.exportCS
 router.get('/payouts/:egitmen_id/items', isFinanceAdmin, adminPayoutController.getInstructorItems);
 router.get('/payouts', isFinanceAdmin, adminPayoutController.listEarnings);
 router.post('/payouts/bulk-approve', isFinanceAdmin, adminPayoutController.bulkApprove);
+// Tek bir kaydi T+14 beklemeden iyzico'da onayla (admin manuel override).
+router.post('/payouts/:earning_id/approve-now', isFinanceAdmin, adminPayoutController.approveNow);
 
 module.exports = router;

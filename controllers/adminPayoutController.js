@@ -22,6 +22,7 @@ const {
     Order,
     Course,
 } = require('../models');
+const payoutApprovalService = require('../services/payoutApprovalService');
 
 // T+14: hakedis kaydi olusturuldugu andan iade penceresinin kapandigi ana kadar gecen sure
 const IADE_PENCERESI_GUN = 14;
@@ -398,87 +399,218 @@ exports.getInstructorItems = async (req, res, next) => {
 };
 
 // ============================================================
-// 3) TOPLU ODEME ONAY API
+// 3) TOPLU ODEME ONAY API - iyzico Marketplace ile entegre
 // ============================================================
 /**
- * Body: { earning_ids: [uuid, uuid, ...], islem_dekont_no: 'REF-12345' }
+ * Toplu hakedis onayi.
  *
- * Atomik: tek transaction'da
- *   - kayitlarin durum='available' kontrolu (mismatch'lerden uyari donerek)
- *   - durum='paid', odeme_tarihi=NOW, islem_dekont_no set
+ * IKI MOD desteklenir:
  *
- * Egitmen bazli toplu (egitmen_id'ye gore tum available'lari odemek):
- *   Body: { egitmen_id: 'uuid', islem_dekont_no: 'REF-12345' }
- *   earning_ids omit edilir, egitmen_id verilirse o egitmenin tum available'lari odenir.
+ *  MOD A — IYZICO OTOMATIK (default):
+ *    Body: { earning_ids?: [uuid...], egitmen_id?: uuid }
+ *    Her bir kayit icin payoutApprovalService.approveEarning calistirilir;
+ *    iyzico Approval API'ye cagri yapilir, basarili ise DB 'paid'e cekilir.
+ *    Dekont alani otomatik 'IYZICO-MANUAL:<paymentId>' olarak yazilir.
+ *
+ *  MOD B — MANUEL BANKA TRANSFER (legacy / iade edilemez durumlar icin):
+ *    Body: { earning_ids? | egitmen_id, islem_dekont_no: 'REF-12345', manual_transfer: true }
+ *    iyzico cagrisi YAPILMAZ; sadece DB'ye dekont kaydedilir.
+ *    Bu mod yalnizca iyzico'da approval atilamayan eski/legacy kayitlar icin kullanilmali.
  *
  * @route POST /api/admin/payouts/bulk-approve
  */
 exports.bulkApprove = async (req, res, next) => {
-    const t = await sequelize.transaction();
     try {
-        const { earning_ids, egitmen_id, islem_dekont_no } = req.body || {};
-        const dekontNo = String(islem_dekont_no || '').trim();
+        const { earning_ids, egitmen_id, islem_dekont_no, manual_transfer } = req.body || {};
+        const isManual = !!manual_transfer;
 
-        if (!dekontNo) {
-            await t.rollback();
-            return res.status(400).json({
-                success: false,
-                message: 'Banka dekont/referans numarasi zorunludur.',
-            });
-        }
-
-        if (dekontNo.length > 100) {
-            await t.rollback();
-            return res.status(400).json({
-                success: false,
-                message: 'Dekont numarasi cok uzun (en fazla 100 karakter).',
-            });
-        }
-
-        // Hangi ID'lerin odenecegini belirle
-        let where;
+        // Hangi ID'lerin odenecegini belirle.
+        // 'available' VEYA 'pending' kabul ediyoruz; admin elle override edebilir.
+        let earningIds = [];
         if (Array.isArray(earning_ids) && earning_ids.length > 0) {
             if (earning_ids.length > 5000) {
-                await t.rollback();
                 return res.status(400).json({
                     success: false,
                     message: 'Tek bir toplu islemde en fazla 5000 kayit onaylanabilir.',
                 });
             }
-            where = { id: { [Op.in]: earning_ids }, durum: 'available' };
+            const rows = await InstructorEarning.findAll({
+                where: {
+                    id: { [Op.in]: earning_ids },
+                    durum: { [Op.in]: ['pending', 'available'] },
+                },
+                attributes: ['id'],
+            });
+            earningIds = rows.map(r => r.id);
         } else if (egitmen_id) {
-            where = { egitmen_id, durum: 'available' };
+            const rows = await InstructorEarning.findAll({
+                where: {
+                    egitmen_id,
+                    durum: { [Op.in]: ['pending', 'available'] },
+                },
+                attributes: ['id'],
+            });
+            earningIds = rows.map(r => r.id);
         } else {
-            await t.rollback();
             return res.status(400).json({
                 success: false,
                 message: 'earning_ids veya egitmen_id verilmeli.',
             });
         }
 
-        const [affectedCount] = await InstructorEarning.update(
-            {
-                durum: 'paid',
-                odeme_tarihi: new Date(),
-                islem_dekont_no: dekontNo,
-            },
-            { where, transaction: t }
-        );
+        if (earningIds.length === 0) {
+            return res.json({
+                success: true,
+                message: 'Onaylanacak kayit bulunamadi.',
+                data: { affectedCount: 0, results: [] },
+            });
+        }
 
-        await t.commit();
+        // --- MOD B: MANUEL BANKA TRANSFER ---
+        if (isManual) {
+            const dekontNo = String(islem_dekont_no || '').trim();
+            if (!dekontNo) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Manuel transfer modunda dekont/referans numarasi zorunludur.',
+                });
+            }
+            if (dekontNo.length > 100) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dekont numarasi cok uzun (en fazla 100 karakter).',
+                });
+            }
+
+            const t = await sequelize.transaction();
+            try {
+                const [affectedCount] = await InstructorEarning.update(
+                    {
+                        durum: 'paid',
+                        odeme_tarihi: new Date(),
+                        islem_dekont_no: dekontNo,
+                    },
+                    {
+                        where: { id: { [Op.in]: earningIds } },
+                        transaction: t,
+                    }
+                );
+                // OrderItem.hakedis_durumu da senkron tut
+                await OrderItem.update(
+                    { hakedis_durumu: 'onaylandi' },
+                    {
+                        where: {
+                            id: {
+                                [Op.in]: literal(
+                                    `(SELECT siparis_kalemi_id FROM egitmen_hakedisleri WHERE id IN (${earningIds.map(() => '?').join(',')}))`
+                                ),
+                            },
+                        },
+                        replacements: earningIds,
+                        transaction: t,
+                    }
+                ).catch(() => { /* siparis_kalemi_id null olabilir; sessiz gec */ });
+                await t.commit();
+
+                console.log('[PAYOUT MANUAL TRANSFER]', { count: affectedCount, dekontNo, admin_id: req.user?.id });
+                return res.json({
+                    success: true,
+                    message: `${affectedCount} kayit MANUEL transfer olarak 'paid' isaretlendi.`,
+                    data: { affectedCount, mode: 'manual', islem_dekont_no: dekontNo },
+                });
+            } catch (manualErr) {
+                try { await t.rollback(); } catch (_) {}
+                throw manualErr;
+            }
+        }
+
+        // --- MOD A: IYZICO OTOMATIK APPROVAL ---
+        // Sirayla isle; iyzico SDK paralel cagriya hassas oldugu icin tek seferde.
+        const results = [];
+        let approved = 0, alreadyPaid = 0, skipped = 0, failed = 0;
+        for (const eid of earningIds) {
+            const r = await payoutApprovalService.approveEarning({
+                earningId: eid,
+                source: 'admin-bulk',
+                dekontPrefix: 'IYZICO-MANUAL',
+            });
+            results.push(r);
+            if (r.status === 'approved') approved++;
+            else if (r.status === 'already_paid') alreadyPaid++;
+            else if (r.status === 'skipped') skipped++;
+            else failed++;
+        }
+
+        console.log('[PAYOUT BULK APPROVE]', {
+            admin_id: req.user?.id,
+            scanned: earningIds.length,
+            approved, alreadyPaid, skipped, failed,
+        });
 
         return res.json({
-            success: true,
-            message: `${affectedCount} hakedis kalemi 'paid' olarak isaretlendi.`,
+            success: failed === 0,
+            message: `${approved} kayit iyzico'da onaylandi (zaten odenmis: ${alreadyPaid}, atlandi: ${skipped}, hatali: ${failed}).`,
             data: {
-                affectedCount,
-                islem_dekont_no: dekontNo,
-                odeme_tarihi: new Date(),
+                affectedCount: approved,
+                scanned: earningIds.length,
+                approved, alreadyPaid, skipped, failed,
+                mode: 'iyzico-auto',
+                results,
             },
         });
     } catch (error) {
-        try { await t.rollback(); } catch (_) {}
         console.error('[PAYOUT BULK APPROVE] Hata:', error.message);
+        next(error);
+    }
+};
+
+/**
+ * Tek bir kaydi T+14 beklemeden hemen onayla (admin manuel override).
+ * Frontend'deki "Simdi Onayla (Sure Beklemeden)" butonunun ucu.
+ *
+ * @route POST /api/admin/payouts/:earning_id/approve-now
+ */
+exports.approveNow = async (req, res, next) => {
+    try {
+        const { earning_id } = req.params;
+        if (!earning_id) {
+            return res.status(400).json({ success: false, message: 'earning_id zorunlu.' });
+        }
+
+        const r = await payoutApprovalService.approveEarning({
+            earningId: earning_id,
+            source: 'admin-now',
+            dekontPrefix: 'IYZICO-NOW',
+        });
+
+        console.log('[PAYOUT APPROVE NOW]', { admin_id: req.user?.id, earning_id, status: r.status });
+
+        if (r.status === 'approved' || r.status === 'already_paid') {
+            return res.json({
+                success: true,
+                message: r.status === 'approved'
+                    ? 'Hakedis iyzico tarafinda onaylandi ve egitmene aktarildi.'
+                    : 'Bu hakedis zaten odenmis.',
+                data: r,
+            });
+        }
+
+        if (r.status === 'skipped') {
+            return res.status(409).json({
+                success: false,
+                message: r.reason || 'Bu kayit onaylanamaz (iyzico transaction id eksik olabilir).',
+                data: r,
+            });
+        }
+
+        // failed
+        return res.status(502).json({
+            success: false,
+            message: r.error || 'iyzico onay cagrisi basarisiz.',
+            data: r,
+        });
+    } catch (error) {
+        console.error('[PAYOUT APPROVE NOW] Hata:', error.message);
         next(error);
     }
 };
