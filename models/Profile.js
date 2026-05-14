@@ -111,6 +111,27 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: false,
         comment: 'Sadece rol=admin + finans_yetkili=true olanlar payout sayfasina erisebilir.',
       },
+      // --- E-posta Doğrulama ---
+      // DIKKAT: defaultValue=true. Sequelize sync({alter:true}) calistirildiginda
+      // VARDIYI olan kayitlar otomatik 'true' olur — boylece deploy aninda mevcut
+      // kullanicilar kilitlenmez. YENI kayitlar register'da EXPLICIT olarak false
+      // set edilir (authController.register).
+      eposta_onayli_mi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: 'Kullanicinin e-posta adresi dogrulanmis mi?',
+      },
+      onay_tokeni: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        defaultValue: null,
+      },
+      onay_token_gecerlilik: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+      },
     },
     {
       tableName: 'profiller',

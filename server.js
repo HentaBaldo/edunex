@@ -9,6 +9,7 @@ const app = require('./app');
 const { sequelize } = require('./models');
 const payoutCron = require('./cron/payoutCron');
 const liveSessionCron = require('./cron/liveSessionCron');
+const unverifiedAccountCron = require('./cron/unverifiedAccountCron');
 
 const PORT = process.env.PORT || 3000;
 
@@ -39,6 +40,15 @@ async function startServer() {
             liveSessionCron.start();
         } else {
             console.log('[LIVE SESSION CRON] LIVE_SESSION_CRON_DISABLED=true oldugu icin baslatilmadi.');
+        }
+
+        // --- Onaysiz Hesap Temizleme Cron Job ---
+        // Suresi dolmus dogrulama tokenina sahip (eposta_onayli_mi=false) kayitlari gece 04:00'da siler.
+        // UNVERIFIED_CRON_DISABLED=true ile devre disi birakilabilir.
+        if (process.env.UNVERIFIED_CRON_DISABLED !== 'true') {
+            unverifiedAccountCron.start();
+        } else {
+            console.log('[CLEANUP CRON] UNVERIFIED_CRON_DISABLED=true oldugu icin baslatilmadi.');
         }
 
         // Istemci zaman asimi (Timeout) yapilandirmasi:
