@@ -856,10 +856,14 @@ function trackBunnyVideo(lesson) {
     });
 
     // Sayfa kapanırken/yenilenirken son pozisyonu kaydet
+    // ÖNEMLİ: videoEl.currentTime DEĞİL maxWatchedSeconds kaydedilir —
+    // kullanıcı ileri atladığında pause buffering nedeniyle currentTime
+    // atladığı yere işaret ediyor; biz sadece doğrulanmış izlenen kısmı
+    // kaydetmek istiyoruz.
     videoEl.addEventListener('pause', function() {
-        if (!videoCompleted && videoEl.currentTime >= 2) {
-            _saveResumePos(currentLessonId, videoEl.currentTime);
-            _lastSaveAt = videoEl.currentTime;
+        if (!videoCompleted && maxWatchedSeconds >= 2) {
+            _saveResumePos(currentLessonId, maxWatchedSeconds);
+            _lastSaveAt = maxWatchedSeconds;
         }
     });
 }
