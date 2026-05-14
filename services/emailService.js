@@ -2,11 +2,15 @@
  * EduNex Email Service
  *
  * Nodemailer tabanlı merkezi mail gönderim servisi.
- * Tüm mail türleri (doğrulama, şifre sıfırlama vb.) buradan yönetilir.
+ * Saglayicidan bagimsiz (Brevo / SendGrid / Mailgun / Gmail) calisir —
+ * tum SMTP parametreleri .env'den okunur.
  *
  * Gerekli .env değişkenleri:
- *   EMAIL_USER    — Gmail adresi
- *   EMAIL_PASS    — Gmail uygulama şifresi (App Password; 2FA açık olmalı)
+ *   EMAIL_HOST    — SMTP host (varsayilan: smtp-relay.brevo.com)
+ *   EMAIL_PORT    — SMTP port (varsayilan: 587, STARTTLS)
+ *   EMAIL_USER    — SMTP kullanici adi (Brevo'da: hesap login eposta)
+ *   EMAIL_PASS    — SMTP sifresi / API key (Brevo'da: SMTP key)
+ *   EMAIL_FROM    — Gonderici adresi (opsiyonel; bos ise EMAIL_USER kullanilir)
  *   FRONTEND_URL  — Doğrulama linki için temel URL. PRODUCTION'da ZORUNLU.
  *                   Tanımsızsa development'ta localhost'a düşer, production'da fail-loud.
  */
@@ -23,77 +27,61 @@ if (isProduction && !process.env.FRONTEND_URL) {
 const FRONTEND_URL = process.env.FRONTEND_URL
     || (isProduction ? null : 'http://localhost:3000');
 
-// Port 587 + STARTTLS — Render gibi bulut hostlari 465 (SSL implicit) cikisini
-// genellikle dis kapatir; bu yuzden DNS cozuldukten sonra TCP connect SESSIZCE
-// asili kalir (silent drop). 587 outbound ise neredeyse her yerde acik. Bu
-// sebeple varsayilan port 587'ye cevrildi — .env tarafinda da EMAIL_PORT=587
-// olmasi gerekir (asagidaki notu okuyun).
+// === SMTP TRANSPORTER (saglayici-agnostik) ===
 //
-// secure: false + requireTLS: true — Baglanti once cleartext baslar, sonra
-// STARTTLS ile TLS'e yukseltilir. requireTLS=true: STARTTLS reddedilirse
-// cleartext'e DUSMESIN, baglanti hata versin (defansif).
+// Tum baglanti parametreleri .env'den okunur. Varsayilanlar Brevo (eski Sendinblue)
+// SMTP relay'ine gore: smtp-relay.brevo.com:587 + STARTTLS. Sadece env'i degistirerek
+// SendGrid/Mailgun/Postmark/Gmail vb. herhangi bir saglayiciya gecilebilir.
 //
-// pool: true — Bulut sunucularinda kisa-omurlu socket'ler "socket hang up"
-// veriyor. Pool, kalici (keep-alive) baglantilar tutar; her mailde yeni TCP
-// handshake gerekmez, bagli koparmalari onemli olcude azaltir.
+// Port secimi:
+//   - 587  -> STARTTLS (secure=false, requireTLS=true)
+//   - 465  -> SSL implicit (secure=true)
+//   - Diger portlarda secure flag 587 mantigina dusurulur (en yaygin guvenli mod).
 //
-// family: 4 — Render gibi bazi production hostlarinda IPv6 cikis yolu kapali
-// oldugu icin Node varsayilan olarak AAAA kaydini deneyince "connect ENETUNREACH"
-// aliyor. IPv4'u zorlayarak bu sorunu kalici olarak cozuyoruz.
+// pool: true — Bulutta kisa-omurlu socket'ler "socket hang up" hatasi verir;
+// keep-alive havuzu her mailde yeni TCP handshake'i ortadan kaldirir.
 //
-// rejectUnauthorized: false — Render'in bazi sertifika zinciri uyusmazliklarinda
-// (intermediate cert eksikligi) bagliyi tamamen koparmasini onler.
+// family: 4 — Render gibi hostlarda IPv6 cikis yolu kapali oldugu icin Node
+// AAAA kaydini deneyince "connect ENETUNREACH" alir. IPv4'u zorluyoruz.
 //
-// Timeout'lar (10sn x 3) — SESSIZ ASILMAYI ENGELLER. Pool'lu yapida hangi adimda
-// (TCP connect, banner, socket I/O) takildigini gormek icin agresif tutuyoruz.
-// Mail kuyrugu zaten arka planda calistigi icin 10sn istemci akisini bloklamaz.
+// rejectUnauthorized: false — Bazi proxy/host'larda intermediate sertifika
+// eksikligi bagliyi koparmasin diye gevsetildi.
 //
-// debug+logger: true — Render loglarinda SMTP handshake adimlarini gormek icin.
+// Timeout'lar 10sn x 3 — sessiz asilmayi (silent drop) engeller; mail
+// kuyrugu zaten arka planda calistigi icin istemci akisini bloklamaz.
+const SMTP_HOST = process.env.EMAIL_HOST || 'smtp-relay.brevo.com';
+const SMTP_PORT = Number.parseInt(process.env.EMAIL_PORT, 10) || 587;
+const SMTP_SECURE = SMTP_PORT === 465; // 465 implicit SSL; diger tum portlarda STARTTLS
+
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,        // STARTTLS — TLS yukseltmesi sonradan
-    requireTLS: true,     // STARTTLS reddedilirse cleartext'e dusmesin
-    pool: true,           // keep-alive baglanti havuzu — socket hang-up koruması
-    family: 4,            // IPv4 zorla — ENETUNREACH cozumu
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    requireTLS: !SMTP_SECURE, // STARTTLS modunda TLS yukseltmesi zorunlu — cleartext'e dusmesin
+    pool: true,
+    family: 4,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
     tls: { rejectUnauthorized: false },
-    // Bağlantı asmama (hanging) koruması — bulutta sessiz silent-drop'a kalkan.
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 10000,
-    // SMTP handshake adim adim Render logunda gorunsun
     debug: true,
     logger: true,
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PORT 465 (SSL implicit) FALLBACK — 587 calismazsa asagidaki blogu aktive et
-// ─────────────────────────────────────────────────────────────────────────────
-// const transporter = nodemailer.createTransport({
-//     host: 'smtp.gmail.com',
-//     port: 465,
-//     secure: true,
-//     pool: true,
-//     family: 4,
-//     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-//     tls: { rejectUnauthorized: false },
-//     connectionTimeout: 10000,
-//     greetingTimeout: 10000,
-//     socketTimeout: 10000,
-//     debug: true,
-//     logger: true,
-// });
+console.log(`[EMAIL SERVICE] SMTP transport hazirlaniyor: ${SMTP_HOST}:${SMTP_PORT} (${SMTP_SECURE ? 'SSL' : 'STARTTLS'})`);
 
 // Sunucu ayağa kalktığında SMTP bağlantısını test et
 transporter.verify()
     .then(() => console.log('[EMAIL SERVICE] SMTP Bağlantısı Hazır'))
     .catch(err => console.error('[EMAIL SERVICE] SMTP Hatası:', err.message));
 
-const FROM_ADDRESS = `EduNex Academy <${process.env.EMAIL_USER}>`;
+// EMAIL_FROM tanimliysa onu kullan (Brevo'da SMTP login != gonderici eposta olabilir).
+// Aksi halde EMAIL_USER'i fallback olarak kullan.
+const FROM_ADDRESS = `EduNex Academy <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
 
 /**
  * E-posta doğrulama maili gönderir.
