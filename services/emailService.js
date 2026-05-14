@@ -6,13 +6,13 @@
  * tum SMTP parametreleri .env'den okunur.
  *
  * Gerekli .env değişkenleri:
- *   EMAIL_HOST    — SMTP host (varsayilan: smtp-relay.brevo.com)
- *   EMAIL_PORT    — SMTP port (varsayilan: 587, STARTTLS)
- *   EMAIL_USER    — SMTP kullanici adi (Brevo'da: hesap login eposta)
- *   EMAIL_PASS    — SMTP sifresi / API key (Brevo'da: SMTP key)
- *   EMAIL_FROM    — Gonderici adresi (opsiyonel; bos ise EMAIL_USER kullanilir)
- *   FRONTEND_URL  — Doğrulama linki için temel URL. PRODUCTION'da ZORUNLU.
- *                   Tanımsızsa development'ta localhost'a düşer, production'da fail-loud.
+ * EMAIL_HOST    — SMTP host (varsayilan: smtp-relay.brevo.com)
+ * EMAIL_PORT    — SMTP port (Render engellerini asmak icin 2525 onerilir)
+ * EMAIL_USER    — SMTP kullanici adi (Brevo'da: hesap login eposta)
+ * EMAIL_PASS    — SMTP sifresi / API key (Brevo'da: SMTP key)
+ * EMAIL_FROM    — Gonderici adresi (opsiyonel; bos ise EMAIL_USER kullanilir)
+ * FRONTEND_URL  — Doğrulama linki için temel URL. PRODUCTION'da ZORUNLU.
+ * Tanımsızsa development'ta localhost'a düşer, production'da fail-loud.
  */
 
 const nodemailer = require('nodemailer');
@@ -29,14 +29,14 @@ const FRONTEND_URL = process.env.FRONTEND_URL
 
 // === SMTP TRANSPORTER (saglayici-agnostik) ===
 //
-// Tum baglanti parametreleri .env'den okunur. Varsayilanlar Brevo (eski Sendinblue)
-// SMTP relay'ine gore: smtp-relay.brevo.com:587 + STARTTLS. Sadece env'i degistirerek
-// SendGrid/Mailgun/Postmark/Gmail vb. herhangi bir saglayiciya gecilebilir.
+// Tum baglanti parametreleri .env'den okunur. 
 //
-// Port secimi:
+// Port secimi ve Render Engeli (ÖNEMLİ):
+//   - 2525 -> STARTTLS. Render vb. bulut sunuculari 587 portunu spam korumasi
+//             nedeniyle disari kapatir (Connection Timeout verir). Bu engeli
+//             asmak icin arka kapi olan 2525 portu kullanilmalidir.
 //   - 587  -> STARTTLS (secure=false, requireTLS=true)
 //   - 465  -> SSL implicit (secure=true)
-//   - Diger portlarda secure flag 587 mantigina dusurulur (en yaygin guvenli mod).
 //
 // pool: true — Bulutta kisa-omurlu socket'ler "socket hang up" hatasi verir;
 // keep-alive havuzu her mailde yeni TCP handshake'i ortadan kaldirir.
@@ -45,13 +45,13 @@ const FRONTEND_URL = process.env.FRONTEND_URL
 // AAAA kaydini deneyince "connect ENETUNREACH" alir. IPv4'u zorluyoruz.
 //
 // rejectUnauthorized: false — Bazi proxy/host'larda intermediate sertifika
-// eksikligi bagliyi koparmasin diye gevsetildi.
+// eksikligi baglantiyi koparmasin diye gevsetildi.
 //
 // Timeout'lar 10sn x 3 — sessiz asilmayi (silent drop) engeller; mail
 // kuyrugu zaten arka planda calistigi icin istemci akisini bloklamaz.
 const SMTP_HOST = process.env.EMAIL_HOST || 'smtp-relay.brevo.com';
-const SMTP_PORT = Number.parseInt(process.env.EMAIL_PORT, 10) || 587;
-const SMTP_SECURE = SMTP_PORT === 465; // 465 implicit SSL; diger tum portlarda STARTTLS
+const SMTP_PORT = Number.parseInt(process.env.EMAIL_PORT, 10) || 2525;
+const SMTP_SECURE = SMTP_PORT === 465; // 465 implicit SSL; diger tum portlarda (587, 2525) STARTTLS gecerli
 
 const transporter = nodemailer.createTransport({
     host: SMTP_HOST,
@@ -117,7 +117,6 @@ async function sendVerificationEmail(to, token) {
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
-          <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
               <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
@@ -125,7 +124,6 @@ async function sendVerificationEmail(to, token) {
             </td>
           </tr>
 
-          <!-- Body -->
           <tr>
             <td style="padding:40px 40px 32px;">
               <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 16px;">Hesabınızı Doğrulayın</h2>
@@ -137,7 +135,6 @@ async function sendVerificationEmail(to, token) {
                 Bu bağlantı <strong>24 saat</strong> geçerlidir.
               </p>
 
-              <!-- CTA Button -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
@@ -156,12 +153,11 @@ async function sendVerificationEmail(to, token) {
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
             <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
               <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
                 Bu e-postayı siz talep etmediyseniz güvenle görmezden gelebilirsiniz.<br />
-                &copy; 2025 EduNex Academy. Tüm hakları saklıdır.
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
               </p>
             </td>
           </tr>
