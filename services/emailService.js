@@ -23,60 +23,67 @@ if (isProduction && !process.env.FRONTEND_URL) {
 const FRONTEND_URL = process.env.FRONTEND_URL
     || (isProduction ? null : 'http://localhost:3000');
 
-// Port 465 (SSL) tercih edildi — port 587 (STARTTLS) bazi yerel ortamlarda
-// connection timeout veriyor (firewall/ISP blocking). 465 + secure=true daha stabil.
+// Port 587 + STARTTLS — Render gibi bulut hostlari 465 (SSL implicit) cikisini
+// genellikle dis kapatir; bu yuzden DNS cozuldukten sonra TCP connect SESSIZCE
+// asili kalir (silent drop). 587 outbound ise neredeyse her yerde acik. Bu
+// sebeple varsayilan port 587'ye cevrildi — .env tarafinda da EMAIL_PORT=587
+// olmasi gerekir (asagidaki notu okuyun).
 //
-// family: 4 — Render gibi bazi production hostlarinda IPv6 cikis yolu kapali oldugu
-// icin Node varsayilan olarak AAAA kaydini deneyince "connect ENETUNREACH" aliyor.
-// IPv4'u zorlayarak bu sorunu kalici olarak cozuyoruz.
+// secure: false + requireTLS: true — Baglanti once cleartext baslar, sonra
+// STARTTLS ile TLS'e yukseltilir. requireTLS=true: STARTTLS reddedilirse
+// cleartext'e DUSMESIN, baglanti hata versin (defansif).
+//
+// pool: true — Bulut sunucularinda kisa-omurlu socket'ler "socket hang up"
+// veriyor. Pool, kalici (keep-alive) baglantilar tutar; her mailde yeni TCP
+// handshake gerekmez, bagli koparmalari onemli olcude azaltir.
+//
+// family: 4 — Render gibi bazi production hostlarinda IPv6 cikis yolu kapali
+// oldugu icin Node varsayilan olarak AAAA kaydini deneyince "connect ENETUNREACH"
+// aliyor. IPv4'u zorlayarak bu sorunu kalici olarak cozuyoruz.
 //
 // rejectUnauthorized: false — Render'in bazi sertifika zinciri uyusmazliklarinda
-// (intermediate cert eksikligi) bagliyi tamamen koparmasini onler. MITM riski
-// kabul edilerek mail teslimati onceliklendi.
+// (intermediate cert eksikligi) bagliyi tamamen koparmasini onler.
 //
-// connectionTimeout: 5000 — Render Health Check 10sn icinde response bekliyor.
-// 10sn'lik timeout SMTP donanca tum register endpoint'i yanit veremiyor ve Render
-// servisi SIGTERM ile oldurup yeniden basliyor. 5sn ile hizlica vazgecip register'i
-// bitiriyoruz (fire-and-forget zaten arka plana itiyor ama bu ek emniyet katmani).
+// Timeout'lar (10sn x 3) — SESSIZ ASILMAYI ENGELLER. Pool'lu yapida hangi adimda
+// (TCP connect, banner, socket I/O) takildigini gormek icin agresif tutuyoruz.
+// Mail kuyrugu zaten arka planda calistigi icin 10sn istemci akisini bloklamaz.
 //
 // debug+logger: true — Render loglarinda SMTP handshake adimlarini gormek icin.
-// Sorun cozuldukten sonra false'a cekilebilir (gurultu yaratir).
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL/TLS bastan acik — Gmail 465'in tek modu
-    family: 4, // IPv4 zorla — ENETUNREACH cozumu
+    port: 587,
+    secure: false,        // STARTTLS — TLS yukseltmesi sonradan
+    requireTLS: true,     // STARTTLS reddedilirse cleartext'e dusmesin
+    pool: true,           // keep-alive baglanti havuzu — socket hang-up koruması
+    family: 4,            // IPv4 zorla — ENETUNREACH cozumu
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
     tls: { rejectUnauthorized: false },
-    // Bağlantı asmama (hanging) koruması — Render Health Check'i tetiklememek icin agresif
-    connectionTimeout: 5000,
+    // Bağlantı asmama (hanging) koruması — bulutta sessiz silent-drop'a kalkan.
+    connectionTimeout: 10000,
     greetingTimeout: 10000,
-    socketTimeout: 15000,
+    socketTimeout: 10000,
     // SMTP handshake adim adim Render logunda gorunsun
     debug: true,
     logger: true,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PORT 587 (STARTTLS) FALLBACK — Eger 465 hala calismazsa asagidaki blogu aktive et
+// PORT 465 (SSL implicit) FALLBACK — 587 calismazsa asagidaki blogu aktive et
 // ─────────────────────────────────────────────────────────────────────────────
 // const transporter = nodemailer.createTransport({
 //     host: 'smtp.gmail.com',
-//     port: 587,
-//     secure: false, // STARTTLS
+//     port: 465,
+//     secure: true,
+//     pool: true,
 //     family: 4,
-//     requireTLS: true, // STARTTLS zorunlu olsun (cleartext'e dusmesin)
-//     auth: {
-//         user: process.env.EMAIL_USER,
-//         pass: process.env.EMAIL_PASS,
-//     },
+//     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 //     tls: { rejectUnauthorized: false },
-//     connectionTimeout: 5000,
+//     connectionTimeout: 10000,
 //     greetingTimeout: 10000,
-//     socketTimeout: 15000,
+//     socketTimeout: 10000,
 //     debug: true,
 //     logger: true,
 // });
@@ -202,12 +209,24 @@ async function sendVerificationEmail(to, token) {
  */
 function sendVerificationEmailAsync(to, token) {
     setImmediate(() => {
+        // Iki katmanli koruma:
+        //   1) sendVerificationEmail icindeki try/catch zaten throw etmiyor.
+        //   2) Buradaki .catch ise olasi bir "unhandled promise rejection" durumunda
+        //      (ornegin sendMail icindeki bir sync hata, transporter pool kapanma vs.)
+        //      sessizce yutulmasin diye SON hat. Render'da loglarda gorebiliyoruz.
         sendVerificationEmail(to, token)
             .then(result => {
                 if (result.ok) console.log(`[EMAIL SERVICE] (bg) Mail gonderildi: ${to}`);
                 else console.error(`[EMAIL SERVICE] (bg) Mail basarisiz (${to}): ${result.error}`);
             })
-            .catch(err => console.error(`[EMAIL SERVICE] (bg) Beklenmeyen hata (${to}):`, err.message));
+            .catch(err => console.error('Kuyruk Hatası:', {
+                to,
+                name: err && err.name,
+                code: err && err.code,
+                command: err && err.command,
+                message: err && err.message,
+                stack: err && err.stack,
+            }));
     });
 }
 
