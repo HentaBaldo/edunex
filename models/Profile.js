@@ -111,6 +111,23 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: false,
         comment: 'Sadece rol=admin + finans_yetkili=true olanlar payout sayfasina erisebilir.',
       },
+      // --- E-posta Doğrulama ---
+      eposta_onayli_mi: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Kullanicinin e-posta adresi dogrulanmis mi?',
+      },
+      onay_tokeni: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        defaultValue: null,
+      },
+      onay_token_gecerlilik: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+      },
     },
     {
       tableName: 'profiller',

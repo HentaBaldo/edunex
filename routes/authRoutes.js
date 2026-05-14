@@ -11,5 +11,6 @@ const { loginLimiter } = require('../middleware/rateLimitMiddleware');
 // --- Authentication Endpoints ---
 router.post('/register', authController.register);
 router.post('/login', loginLimiter, authController.login);
+router.get('/verify', authController.verifyEmail);
 
 module.exports = router;

@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sequelize, Profile, StudentDetail, InstructorDetail } = require('../models');
+const { sendVerificationEmail } = require('../services/emailService');
 
 /**
  * Kullanıcı Kayıt Olma (Register)
@@ -94,14 +96,31 @@ exports.register = async (req, res, next) => {
             console.log(`[AUTH] StudentDetail oluşturuldu: ${newUser.id}`);
         }
 
-        // === ADIM 6: Transaction Commit (Hepsi Başarılı) ===
+        // === ADIM 6: E-posta Doğrulama Token Üret & Kaydet ===
+        const verifyToken = crypto.randomBytes(32).toString('hex');
+        const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 saat
+
+        await newUser.update(
+            { onay_tokeni: verifyToken, onay_token_gecerlilik: tokenExpiry },
+            { transaction: t }
+        );
+
+        // === ADIM 7: Transaction Commit (Hepsi Başarılı) ===
         await t.commit();
         console.log(`[AUTH] Kayıt işlemi tamamlandı: ${newUser.id}`);
 
-        // === ADIM 7: Başarılı Yanıt ===
+        // === ADIM 8: Doğrulama Maili Gönder (hata transaction'ı bozmaz) ===
+        try {
+            await sendVerificationEmail(eposta, verifyToken);
+            console.log(`[AUTH] Doğrulama maili gönderildi: ${eposta}`);
+        } catch (mailError) {
+            console.error(`[AUTH] Doğrulama maili gönderilemedi (${eposta}):`, mailError.message);
+        }
+
+        // === ADIM 9: Başarılı Yanıt ===
         return res.status(201).json({
             success: true,
-            message: 'Kayıt işlemi başarıyla tamamlandı. Lütfen giriş yapınız.',
+            message: 'Kayıt işlemi başarıyla tamamlandı. Lütfen e-posta adresinizi doğrulayın.',
             data: {
                 id: newUser.id,
                 ad: newUser.ad,
@@ -155,6 +174,13 @@ exports.login = async (req, res, next) => {
             throw error;
         }
 
+        // === E-posta Doğrulama Kontrolü ===
+        if (!user.eposta_onayli_mi) {
+            const error = new Error('Lütfen giriş yapmadan önce e-posta adresinizi doğrulayın.');
+            error.statusCode = 403;
+            throw error;
+        }
+
         // === Admin Kontrolü (Admin'ler Admin Portalından Girmeli) ===
         if (user.rol === 'admin') {
             const error = new Error('Yöneticiler admin portalını kullanmalıdır.');
@@ -200,6 +226,50 @@ exports.login = async (req, res, next) => {
         // 500 dustugunde kok nedeni gormek icin sart.
         console.error('LOGIN ERROR:', error);
         if (error?.original) console.error('LOGIN ERROR (DB original):', error.original);
+        next(error);
+    }
+};
+
+/**
+ * E-posta Doğrulama
+ * @route GET /api/auth/verify?token=XYZ
+ */
+exports.verifyEmail = async (req, res, next) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            const error = new Error('Doğrulama tokeni eksik.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const user = await Profile.findOne({ where: { onay_tokeni: token } });
+
+        if (!user) {
+            const error = new Error('Geçersiz doğrulama bağlantısı.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (!user.onay_token_gecerlilik || user.onay_token_gecerlilik < new Date()) {
+            const error = new Error('Doğrulama bağlantısının süresi dolmuş. Lütfen tekrar kayıt olunuz veya destek alınız.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        await user.update({
+            eposta_onayli_mi: true,
+            onay_tokeni: null,
+            onay_token_gecerlilik: null,
+        });
+
+        console.log(`[AUTH] E-posta doğrulandı: ${user.eposta}`);
+
+        return res.redirect('/auth/index.html?verified=true');
+
+    } catch (error) {
+        console.error('[AUTH] E-posta doğrulama hatası:', error.message);
         next(error);
     }
 };
