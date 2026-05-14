@@ -6,7 +6,7 @@
 /* ============================================================
    TOOLBAR
    ============================================================ */
-.payouts-toolbar-card {
+   .payouts-toolbar-card {
     margin-bottom: 20px;
 }
 
@@ -54,6 +54,65 @@
     flex-wrap: wrap;
     gap: 6px;
 }
+
+/* ============================================================
+   STATUS FILTER BUTONLARI
+   ============================================================ */
+.rating-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: #f8fafc;
+    color: var(--text-muted);
+    transition: var(--transition);
+    font-family: inherit;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.rating-chip:hover {
+    background: #e2e8f0;
+    color: var(--text-main);
+    border-color: #cbd5e1;
+}
+
+.rating-chip[data-status="available"].active {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+}
+
+.rating-chip[data-status="available"].active i { color: #16a34a; }
+
+.rating-chip[data-status="pending"].active {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+}
+
+.rating-chip[data-status="pending"].active i { color: #f97316; }
+
+.rating-chip[data-status="paid"].active {
+    background: #ccfbf1;
+    color: #115e59;
+    border-color: #5eead4;
+}
+
+.rating-chip[data-status="paid"].active i { color: #0d9488; }
+
+.rating-chip[data-status="cancelled"].active {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+
+.rating-chip[data-status="cancelled"].active i { color: #ef4444; }
 
 /* Gelismis filtre paneli */
 .payouts-advanced-filter {
@@ -160,6 +219,19 @@
 }
 
 .btn-danger:hover:not([disabled]) { background: #b91c1c; }
+
+.btn-warning {
+    background: #f97316;
+    color: #fff;
+    border-color: #ea6a00;
+}
+
+.btn-warning:hover:not([disabled]) { background: #ea6a00; }
+
+.btn-warning[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
 
 .btn-sm {
     padding: 6px 12px;
@@ -587,7 +659,6 @@
 @media (max-width: 768px) {
     .payouts-toolbar { gap: 12px; }
 
-    /* Tabloyu satir bazinda kart yapisina cevir */
     .payouts-table thead { display: none; }
     .payouts-table, .payouts-table tbody, .payouts-table tr, .payouts-table td {
         display: block;
@@ -616,7 +687,6 @@
 
     .payouts-table td:last-child { border-bottom: none; }
 
-    /* Mobilde her hucreye kucuk bir etiket ekle */
     .payouts-table td::before {
         content: attr(data-label);
         display: block;
@@ -628,10 +698,6 @@
         letter-spacing: 0.4px;
     }
 
-    /* Bu data-label'lari JS yerine CSS ile (sira ile tahmin):
-       Td sirasi: check, egitmen, kazanc, zaman, durum, aksiyon
-       JS'de td.dataset.label set etmedik; basit yaklasim - sadece okunabilirlik amacli sirayi
-       sutun adlariyla baglayalim. nth-child kullanarak: */
     .payouts-table td:nth-child(1)::before { content: ''; }
     .payouts-table td:nth-child(2)::before { content: 'Egitmen & Hesap'; }
     .payouts-table td:nth-child(3)::before { content: 'Kazanc'; }
