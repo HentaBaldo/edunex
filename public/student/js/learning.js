@@ -820,18 +820,16 @@ function trackBunnyVideo(lesson) {
 
     // Tüm Bunny postMessage'larını yakala ve işle
     _msgHandler = function(e) {
-        if (!_activeIframe || !_activeIframe.contentWindow) return;
-        if (e.source !== _activeIframe.contentWindow) return;
+        // DEBUG: e.source filtresi kaldırıldı — context:'player.js' olan her mesaj yakalanıyor
         let data;
         try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(ex) { return; }
-        if (!data || !data.event) return;
+        if (!data || data.context !== 'player.js') return;
 
         const ev  = data.event;
         const val = data.value;
 
-        // ── Ready: event'lere abone ol + konumu geri yükle ──────────────────
-        // ── Tüm mesajları logla (debug) ───────────────────────────────────────
-        console.log('[BUNNY MSG]', ev, '|', JSON.stringify(val ?? '').substring(0, 120));
+        // ── Tüm player.js mesajlarını logla ────────────────────────────────────
+        console.log('[BUNNY MSG]', ev, '| from:', e.origin, '|', JSON.stringify(val ?? '').substring(0, 80));
 
         if (ev === 'ready') {
             console.log('[TRACKING] Ready alındı → subscribe + polling başlatılıyor.');
