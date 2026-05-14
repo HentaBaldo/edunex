@@ -3,6 +3,7 @@ const { Op, fn, col, literal } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
 const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
+const discountService = require('../services/discountService');
 
 // === SLUG HELPERS ===
 const slugify = (text) => {
@@ -192,6 +193,9 @@ exports.getCategoryWithCourses = async (req, res, next) => {
             ],
             order: [['olusturulma_tarihi', 'DESC']]
         });
+
+        // İndirim bilgisini tek sorguda iliştir
+        await discountService.attachPricingToCourses(kurslar);
 
         const kurslarHesapli = kurslar.map(k => {
             const yorumlar    = k.Reviews || [];

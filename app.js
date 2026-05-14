@@ -110,6 +110,7 @@ const certificateRoutes = require('./routes/certificateRoutes');
 const followRoutes = require('./routes/followRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const supportRoutes = require('./routes/supportRoutes');
+const discountRoutes = require('./routes/discountRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
@@ -130,6 +131,7 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/follows', followRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/discounts', discountRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {

@@ -54,7 +54,16 @@ function render(data) {
     const itemsHtml = data.items.map(item => {
         const c = item.Course;
         const egitmen = c?.Egitmen ? `${c.Egitmen.ad} ${c.Egitmen.soyad}` : 'Eğitmen';
-        const fiyat = Number(c?.fiyat || 0).toFixed(2);
+        const original = Number(c?.original_fiyat ?? c?.fiyat ?? 0);
+        const net = Number(c?.net_fiyat ?? c?.fiyat ?? 0);
+        const indirimVar = c?.indirim_var && net < original;
+        const fiyatHtml = indirimVar
+            ? `<div style="text-align:right;">
+                <div style="text-decoration:line-through; color:#94a3b8; font-size:0.85rem;">${original.toFixed(2)} ₺</div>
+                <div style="color:#10b981; font-weight:800;">${net.toFixed(2)} ₺</div>
+                ${c.indirim_yuzde ? `<div style="font-size:0.7rem; color:#ef4444; font-weight:700;">-%${c.indirim_yuzde}</div>` : ''}
+              </div>`
+            : `${original.toFixed(2)} ₺`;
         return `
             <div class="cart-item" data-kurs-id="${c.id}">
                 <div class="thumb"><i class="fas fa-play-circle"></i></div>
@@ -63,7 +72,7 @@ function render(data) {
                     <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${escapeHtml(egitmen)} · ${escapeHtml(c.seviye || '')} · ${escapeHtml(c.dil || '')}</div>
                     <button class="remove" onclick="removeItem('${c.id}')"><i class="fas fa-trash"></i> Kaldır</button>
                 </div>
-                <div class="price">${fiyat} ₺</div>
+                <div class="price">${fiyatHtml}</div>
             </div>`;
     }).join('');
 

@@ -1,6 +1,7 @@
 const { Lesson, Profile, InstructorDetail, Course, Review, Category, CourseEnrollment, InstructorEarning, LiveSession, InstructorFollower, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const iyzicoService = require('../services/iyzicoService');
+const discountService = require('../services/discountService');
 
 /**
  * Yeni Ders Oluşturma ve Video Yükleme İşlemi
@@ -388,6 +389,9 @@ exports.getPublicProfile = async (req, res, next) => {
             ],
             order: [['olusturulma_tarihi', 'DESC']]
         });
+
+        // İndirim bilgisini tek sorguda iliştir
+        await discountService.attachPricingToCourses(kurslar);
 
         const kurslarHesapli = kurslar.map(k => {
             const yorumlar = k.Reviews || [];

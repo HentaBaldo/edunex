@@ -21,6 +21,7 @@ const {
 } = require('../models');
 const iyzicoService = require('../services/iyzicoService');
 const { sendNotification } = require('../services/notificationService');
+const discountService = require('../services/discountService');
 
 // Platform komisyon orani: %30 (env ile override edilebilir)
 const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
@@ -94,8 +95,15 @@ exports.checkout = async (req, res, next) => {
             }
         }
 
-        // Toplami DB fiyatlarindan KURUS bazli hesapla (floating-point sapmasi yok)
-        const toplamKurus = cartItems.reduce((s, ci) => s + toKurus(ci.Course.fiyat || 0), 0);
+        // Her kurs icin AKTIF indirimleri uygulayip net fiyati hesapla
+        // (indirim yoksa course.fiyat ile aynidir)
+        for (const ci of cartItems) {
+            const netFiyat = await discountService.getEffectivePrice(ci.Course);
+            ci._netFiyat = netFiyat; // sonraki adimlarda kullanmak icin gecici alan
+        }
+
+        // Toplami INDIRIMLI fiyatlardan KURUS bazli hesapla (floating-point sapmasi yok)
+        const toplamKurus = cartItems.reduce((s, ci) => s + toKurus(ci._netFiyat || ci.Course.fiyat || 0), 0);
         if (toplamKurus <= 0) {
             const err = new Error('Odeme tutari sifir veya gecersiz.');
             err.statusCode = 400;
@@ -141,10 +149,11 @@ exports.checkout = async (req, res, next) => {
                 const oi = await OrderItem.create({
                     siparis_id: ord.id,
                     kurs_id: ci.kurs_id,
-                    odenen_fiyat: fromKurus(toKurus(ci.Course.fiyat)),
+                    // INDIRIMLI fiyat kaydedilir (audit + iade icin onemli)
+                    odenen_fiyat: fromKurus(toKurus(ci._netFiyat ?? ci.Course.fiyat)),
                     hakedis_durumu: 'beklemede',
                 }, { transaction: t });
-                oItems.push({ orderItem: oi, course: ci.Course });
+                oItems.push({ orderItem: oi, course: ci.Course, netFiyat: ci._netFiyat ?? ci.Course.fiyat });
             }
             return { order: ord, orderItems: oItems };
         });
@@ -166,11 +175,12 @@ exports.checkout = async (req, res, next) => {
                     identity_number: user.identity_number,
                     ip: req.ip,
                 },
-                items: orderItems.map(({ orderItem, course }) => ({
+                items: orderItems.map(({ orderItem, course, netFiyat }) => ({
                     id: orderItem.id, // callback'te itemTransactions ile eslestirilecek
                     baslik: course.baslik,
                     kategori: course.Category?.ad || 'Egitim',
-                    fiyat: course.fiyat,
+                    // INDIRIMLI net fiyat iyzico'ya gonderilir.
+                    fiyat: netFiyat ?? course.fiyat,
                     // Marketplace: her item ZORUNLU olarak subMerchantKey tasir.
                     // Eksik anahtar yukarida 400 ile blokeli; burada null fallback yok.
                     // null gonderirsek iyzico tum cagriyi "butun sepet kirilimlarinda
