@@ -132,6 +132,22 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: null,
       },
+      // --- Şifre Sıfırlama (token tabanlı) ---
+      // Ham token kullanıcıya mail ile gönderilir; DB'de SADECE SHA-256 hash'i tutulur.
+      // Sebep: DB sızıntısı senaryosunda saldırgan tokenları doğrudan kullanamasın.
+      // Uzunluk: SHA-256 hex çıktısı = 64 karakter (sabit).
+      resetPasswordToken: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        defaultValue: null,
+        comment: 'Şifre sıfırlama tokeninin SHA-256 hash hali. Ham token kullaniciya mail ile gider.',
+      },
+      resetPasswordExpires: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+        comment: 'Şifre sıfırlama tokeninin son geçerlilik tarihi (üretildikten 1 saat sonra).',
+      },
     },
     {
       tableName: 'profiller',

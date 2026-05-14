@@ -6,12 +6,16 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { loginLimiter } = require('../middleware/rateLimitMiddleware');
+const { loginLimiter, passwordResetLimiter } = require('../middleware/rateLimitMiddleware');
 
 // --- Authentication Endpoints ---
 router.post('/register', authController.register);
 router.post('/login', loginLimiter, authController.login);
 router.get('/verify', authController.verifyEmail);
 router.post('/resend-verification', loginLimiter, authController.resendVerification);
+
+// --- Şifre Sıfırlama (token tabanlı, oturum gerektirmez) ---
+router.post('/forgot-password', passwordResetLimiter, authController.forgotPassword);
+router.post('/reset-password', passwordResetLimiter, authController.resetPassword);
 
 module.exports = router;

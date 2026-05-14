@@ -18,6 +18,20 @@
         .section-title { border-left: 4px solid #0d6efd; padding-left: 15px; margin-bottom: 25px; font-weight: 700; color: #212529; }
         .interest-tag { background: #e9ecef; border: 1px solid #dee2e6; border-radius: 20px; padding: 5px 15px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
         .interest-tag.active { background: #0d6efd; color: white; border-color: #0d6efd; }
+
+        /* Sifre Degistirme Modal: guc cubugu */
+        .password-strength-bar { height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+        .password-strength-bar > div { height: 100%; width: 0; transition: width 0.25s ease, background-color 0.25s ease; }
+        .password-strength.weak   #passwordStrengthFill { background-color: #dc3545; width: 33%; }
+        .password-strength.medium #passwordStrengthFill { background-color: #ffc107; width: 66%; }
+        .password-strength.strong #passwordStrengthFill { background-color: #198754; width: 100%; }
+        .password-strength.weak   #passwordStrengthText { color: #dc3545; }
+        .password-strength.medium #passwordStrengthText { color: #ffc107; }
+        .password-strength.strong #passwordStrengthText { color: #198754; }
+
+        /* Eslesme feedback'i */
+        .password-match-ok  { color: #198754; font-weight: 600; }
+        .password-match-bad { color: #dc3545; font-weight: 600; }
     </style>
 </head>
 <body class="bg-light">
@@ -159,7 +173,26 @@
                         <h5 class="section-title">Hesap Ayarları</h5>
                         <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="profil_herkese_acik_mi"><label class="form-check-label">Profilim görünsün</label></div>
                         <div class="form-check form-switch mb-4"><input class="form-check-input" type="checkbox" id="alinan_kurslari_goster"><label class="form-check-label">Kurslarım listelensin</label></div>
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteMyAccount()">Hesabımı Sil</button>
+
+                        <!-- Guvenlik Bolumu: Sifre Degistir + Hesap Sil -->
+                        <!-- Sebep: gorsel olarak "destruktif/onemli" aksiyonlari iki gizlilik switch'inden
+                             ayirip kullanicinin yanlislikla tetiklemesini engellemek. -->
+                        <hr class="my-4">
+                        <h6 class="fw-bold mb-3 text-muted text-uppercase" style="font-size:0.85rem;letter-spacing:0.5px;">
+                            <i class="fas fa-shield-halved me-2"></i>Güvenlik
+                        </h6>
+
+                        <div class="d-flex flex-column gap-2 align-items-start">
+                            <!-- Butonun type="button" olmasi ZORUNLU. profileForm icinde oldugu icin
+                                 default type="submit" form'u submit eder; bu da gizlilik switch'leriyle
+                                 birlikte yanlislikla profil-update'i tetikler. -->
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="openPasswordChangeBtn">
+                                <i class="fas fa-key me-2"></i>Şifremi Değiştir
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteMyAccount()">
+                                <i class="fas fa-trash me-2"></i>Hesabımı Sil
+                            </button>
+                        </div>
                     </div>
                 </div>
         
@@ -195,6 +228,88 @@
                     Devam Et <i class="fas fa-arrow-right ms-1"></i>
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Şifre Değiştirme Modal'ı -->
+<!-- KRITIK: profileForm'un DISINDA — bu modal kendi form etiketine sahip ve
+     profileForm.submit listener'ina karismaz. Submit handler index.js'tedir. -->
+<div class="modal fade" id="passwordChangeModal" tabindex="-1" aria-labelledby="passwordChangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form id="passwordChangeForm" autocomplete="off" novalidate>
+                <div class="modal-header border-0 pb-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary"
+                             style="width:48px;height:48px;font-size:1.25rem;">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title mb-0 fw-bold" id="passwordChangeModalLabel">Şifremi Değiştir</h5>
+                            <small class="text-muted">Güvenliğiniz için mevcut şifrenizi doğrulayın.</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+
+                <div class="modal-body px-4 pt-3">
+                    <!-- Mevcut Sifre -->
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label fw-semibold">Mevcut Şifre</label>
+                        <div class="input-group">
+                            <input type="password" id="currentPassword" class="form-control" required autocomplete="current-password" placeholder="Şu anki şifreniz">
+                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="currentPassword" tabindex="-1" aria-label="Şifreyi göster/gizle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Yeni Sifre -->
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label fw-semibold">Yeni Şifre</label>
+                        <div class="input-group">
+                            <input type="password" id="newPassword" class="form-control" required minlength="8" autocomplete="new-password" placeholder="En az 8 karakter">
+                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="newPassword" tabindex="-1" aria-label="Şifreyi göster/gizle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <!-- Canli sifre guc gostergesi (CSS bar). Backend min: 8 karakter. -->
+                        <div class="password-strength mt-2" id="passwordStrengthWrap" style="display:none;">
+                            <div class="password-strength-bar"><div id="passwordStrengthFill"></div></div>
+                            <small class="text-muted" id="passwordStrengthText">Şifre gücü</small>
+                        </div>
+                    </div>
+
+                    <!-- Yeni Sifre Tekrar -->
+                    <div class="mb-3">
+                        <label for="newPasswordConfirm" class="form-label fw-semibold">Yeni Şifre (Tekrar)</label>
+                        <div class="input-group">
+                            <input type="password" id="newPasswordConfirm" class="form-control" required minlength="8" autocomplete="new-password" placeholder="Yeni şifreyi tekrar yazın">
+                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="newPasswordConfirm" tabindex="-1" aria-label="Şifreyi göster/gizle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small id="passwordMatchFeedback" class="d-block mt-1" style="display:none;"></small>
+                    </div>
+
+                    <!-- Hata/Bilgi mesaji alani -->
+                    <div id="passwordChangeMessage" class="alert" role="alert" style="display:none;"></div>
+
+                    <!-- Bilgi notu -->
+                    <div class="bg-light border rounded-3 p-3 small text-muted mt-3">
+                        <i class="fas fa-circle-info text-primary me-1"></i>
+                        Şifreniz başarıyla güncellendiğinde güvenliğiniz için tekrar giriş yapmanız istenecektir.
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="passwordChangeSubmitBtn">
+                        <i class="fas fa-check me-2"></i>Şifremi Güncelle
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

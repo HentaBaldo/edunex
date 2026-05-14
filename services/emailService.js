@@ -214,4 +214,142 @@ function sendVerificationEmailAsync(to, token) {
     });
 }
 
-module.exports = { sendVerificationEmail, sendVerificationEmailAsync };
+/**
+ * Şifre sıfırlama maili gönderir.
+ *
+ * - HAM token'i URL'e gömerek mail'e koyar. (DB'de hash'lenmiş hali tutulur.)
+ * - sendVerificationEmail ile AYNI hata-yutma kuralina tabi: caller akisini bloklamaz.
+ * - Lacivert (#1e3a8a) + Altin Sarisi (#c9a84c) EduNex kurumsal kimlik renkleri.
+ *
+ * @param {string} to         — Alıcı e-posta adresi
+ * @param {string} resetToken — crypto.randomBytes ile üretilmiş HAM hex token
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendPasswordResetEmail(to, resetToken) {
+  try {
+    if (!FRONTEND_URL) {
+      const msg = 'FRONTEND_URL .env tanimli degil; sifre sifirlama maili gonderilemez.';
+      console.error('[EMAIL SERVICE]', msg);
+      return { ok: false, error: msg };
+    }
+
+    // Frontend route: kullanici buradan token + yeni sifreyi POST /api/auth/reset-password'e iletir.
+    // Eger frontend bu sayfayi henuz olusturmadiysa /auth/index.html'e parametre olarak gider;
+    // ekip ileride dedike bir reset sayfasi (orn: /auth/reset.html) eklerse sadece bu URL'i guncelleriz.
+    const resetUrl = `${FRONTEND_URL}/auth/index.html?reset=${encodeURIComponent(resetToken)}`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Şifre Sıfırlama</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Hesap Güvenliği Bildirimi</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 40px 32px;">
+              <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 16px;">Şifre Sıfırlama Talebi</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+                EduNex Academy hesabınız için bir şifre sıfırlama talebi aldık.
+                Yeni şifrenizi belirlemek için aşağıdaki butona tıklayın.
+              </p>
+              <p style="color:#6b7280;font-size:13px;margin:0 0 32px;">
+                Bu bağlantı <strong>1 saat</strong> süreyle geçerlidir.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${resetUrl}"
+                       style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                      Şifremi Sıfırla
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color:#9ca3af;font-size:12px;margin:32px 0 0;line-height:1.6;">
+                Butona tıklayamıyor musunuz? Aşağıdaki bağlantıyı tarayıcınıza yapıştırın:<br />
+                <a href="${resetUrl}" style="color:#1e3a8a;word-break:break-all;">${resetUrl}</a>
+              </p>
+
+              <div style="margin-top:32px;padding:16px 20px;background:#fef3c7;border-left:4px solid #c9a84c;border-radius:4px;">
+                <p style="color:#78350f;font-size:13px;line-height:1.6;margin:0;">
+                  <strong>Güvenlik Uyarısı:</strong> Bu işlemi siz başlatmadıysanız bu e-postayı
+                  <strong>görmezden gelin</strong>. Şifreniz güvende kalır; hesabınızda herhangi
+                  bir değişiklik yapılmaz. Bağlantı 1 saat sonra otomatik geçersiz olur.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Bu e-posta sadece bilgilendirme amaçlıdır. Lütfen bu adrese yanıt vermeyin.<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+      from: FROM_ADDRESS,
+      to,
+      subject: 'EduNex Academy — Şifre Sıfırlama Talebi',
+      html,
+    });
+    return { ok: true };
+  } catch (err) {
+    // SMTP timeout/auth/network: caller akisini blokleme, sessizce log'la.
+    console.error(`[EMAIL SERVICE] sendPasswordResetEmail(${to}) hatasi:`, err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Fire-and-forget wrapper — Render Health Check (SIGTERM) tetiklenmesin diye
+ * forgot-password akisinda BU kullanilmalidir. response hemen doner, mail bg'de gider.
+ */
+function sendPasswordResetEmailAsync(to, resetToken) {
+  setImmediate(() => {
+    sendPasswordResetEmail(to, resetToken)
+      .then(result => {
+        if (result.ok) console.log(`[EMAIL SERVICE] (bg) Sifre sifirlama maili gonderildi: ${to}`);
+        else console.error(`[EMAIL SERVICE] (bg) Sifre sifirlama maili basarisiz (${to}): ${result.error}`);
+      })
+      .catch(err => console.error('Sifre Sifirlama Kuyruk Hatasi:', {
+        to,
+        name: err && err.name,
+        code: err && err.code,
+        command: err && err.command,
+        message: err && err.message,
+      }));
+  });
+}
+
+module.exports = {
+  sendVerificationEmail,
+  sendVerificationEmailAsync,
+  sendPasswordResetEmail,
+  sendPasswordResetEmailAsync,
+};

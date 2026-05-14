@@ -13,4 +13,8 @@ router.post('/upload-avatar', verifyToken, upload.single('avatar'), profileContr
 
 router.delete('/delete', verifyToken, profileController.deleteAccount);
 
+// Şifre güncelleme — giriş yapmış tüm roller (öğrenci/eğitmen/admin) için.
+// Token bazli forgot-password'dan farkli: oturum gerektirir, mevcut sifre dogrulamasi yapilir.
+router.put('/change-password', verifyToken, profileController.changePassword);
+
 module.exports = router;
