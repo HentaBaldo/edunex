@@ -90,6 +90,18 @@
             .replace(/'/g, '&#39;');
     }
 
+    // Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+    function plainText(html, maxLen) {
+        if (html == null) return '';
+        const d = document.createElement('div');
+        d.innerHTML = String(html);
+        let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+        if (maxLen && text.length > maxLen) {
+            text = text.slice(0, maxLen).trim() + '…';
+        }
+        return escapeHtml(text);
+    }
+
     function timeAgo(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
@@ -235,7 +247,7 @@
                         ${tutarBadge}
                         ${puanBadge}
                     </div>
-                    <p class="feed-desc">${escapeHtml(ev.aciklama || '')}</p>
+                    <p class="feed-desc">${plainText(ev.aciklama, 150)}</p>
                 </div>
                 <div class="feed-meta">
                     <time class="feed-time" datetime="${escapeHtml(ev.tarih || '')}">${escapeHtml(tarihText)}</time>

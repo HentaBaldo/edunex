@@ -1414,7 +1414,7 @@ function renderCourseSessionCard(s) {
                     <div style="color:#64748b; font-size:0.9rem; margin-top:6px;">
                         <i class="far fa-clock"></i> ${dateLabel} · ${s.sure_dakika} dk
                     </div>
-                    ${s.aciklama ? `<p style="color:#475569; margin-top:8px;">${escapeHtmlLS(s.aciklama)}</p>` : ''}
+                    ${s.aciklama ? `<p style="color:#475569; margin-top:8px;">${plainTextLS(s.aciklama, 250)}</p>` : ''}
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <a href="/live/live-room.html?sessionId=${s.id}" target="_blank" class="btn-primary-lg-alt" style="padding:8px 14px; font-size:0.85rem;">
@@ -1577,4 +1577,16 @@ function escapeHtmlLS(text) {
     if (text == null) return '';
     const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' };
     return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+// Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+function plainTextLS(html, maxLen) {
+    if (html == null) return '';
+    const d = document.createElement('div');
+    d.innerHTML = String(html);
+    let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    if (maxLen && text.length > maxLen) {
+        text = text.slice(0, maxLen).trim() + '…';
+    }
+    return escapeHtmlLS(text);
 }

@@ -177,7 +177,7 @@
                 </div>
                 <div class="kurs-kart-govde">
                     <h3 class="kurs-kart-baslik">${_esc(k.baslik)}</h3>
-                    <p class="kurs-kart-alt-baslik">${_esc(k.aciklama || '')}</p>
+                    <p class="kurs-kart-alt-baslik">${_plainText(k.aciklama, 120)}</p>
                     ${yildizHtml(puan, yorum)}
                     <div class="kurs-kart-alt">
                         <span class="kurs-fiyat">${fiyat}</span>
@@ -280,7 +280,7 @@
                 </div>
                 <div style="padding:14px;">
                     <h4 style="margin:0 0 6px 0; color:#1e293b; font-weight:600; font-size:0.95rem;">${_esc(w.baslik)}</h4>
-                    <p style="margin:0 0 10px 0; color:#64748b; font-size:0.8rem; line-height:1.3;">${w.aciklama ? _esc(w.aciklama).substring(0, 60) + '...' : 'Açıklama yok'}</p>
+                    <p style="margin:0 0 10px 0; color:#64748b; font-size:0.8rem; line-height:1.3;">${w.aciklama ? _plainText(w.aciklama, 60) : 'Açıklama yok'}</p>
                     <p style="margin:0 0 10px 0; color:#94a3b8; font-size:0.75rem;"><i class="fas fa-calendar"></i> ${dateStr}</p>
                     <a href="${_esc(w.kayit_video_url)}" target="_blank" class="btn-primary-lg-alt" style="display:inline-block; padding:7px 12px; font-size:0.8rem; text-decoration:none; border-radius:6px; color:#fff; background:var(--primary-color); text-align:center;"><i class="fas fa-play"></i> İzle</a>
                 </div>
@@ -293,6 +293,18 @@
         const d = document.createElement('div');
         d.textContent = String(text);
         return d.innerHTML;
+    }
+
+    // Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+    function _plainText(html, maxLen) {
+        if (html == null) return '';
+        const d = document.createElement('div');
+        d.innerHTML = String(html);
+        let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+        if (maxLen && text.length > maxLen) {
+            text = text.slice(0, maxLen).trim() + '…';
+        }
+        return _esc(text);
     }
 
     function hataMesaji(msg) {

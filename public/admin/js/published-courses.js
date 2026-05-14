@@ -321,6 +321,18 @@ function escapeAttr(s) {
     return escapeHtml(s).replace(/'/g, '&#39;');
 }
 
+// Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
+function plainText(html, maxLen) {
+    if (html == null) return '';
+    const d = document.createElement('div');
+    d.innerHTML = String(html);
+    let text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    if (maxLen && text.length > maxLen) {
+        text = text.slice(0, maxLen).trim() + '…';
+    }
+    return escapeHtml(text);
+}
+
 // ----- KURS ICERIGI MODAL (degismedi, sadece silinmis durumda da calismasi icin esnetildi) -----
 window.viewCourseContent = async (courseId) => {
     const modal = document.getElementById('courseDetailModal');
@@ -398,8 +410,8 @@ window.viewCourseContent = async (courseId) => {
                 html += `
                 <div class="modal-section" style="${secStyle}">
                     <div style="background:${secHidden ? '#fee2e2' : '#f1f5f9'}; padding:12px 15px; border-bottom:1px solid ${secHidden ? '#fca5a5' : '#cbd5e1'};">
-                        <h4 style="margin:0; font-size:0.95rem; color:#1e293b;"><i class="fas fa-folder-open" style="color:${secHidden ? '#991b1b' : '#3b82f6'};"></i> ${sec.sira_numarasi}. Bölüm: ${sec.baslik}${secBadge}</h4>
-                        <p style="margin:4px 0 0; font-size:0.75rem; color:#64748b;">${sec.aciklama || 'Bölüm açıklaması yok.'}</p>
+                        <h4 style="margin:0; font-size:0.95rem; color:#1e293b;"><i class="fas fa-folder-open" style="color:${secHidden ? '#991b1b' : '#3b82f6'};"></i> ${sec.sira_numarasi}. Bölüm: ${escapeHtml(sec.baslik)}${secBadge}</h4>
+                        <p style="margin:4px 0 0; font-size:0.75rem; color:#64748b;">${sec.aciklama ? plainText(sec.aciklama, 200) : 'Bölüm açıklaması yok.'}</p>
                     </div>
                     <div style="padding:5px;">
                         ${(sec.Lessons || []).map(les => {
@@ -429,9 +441,9 @@ window.viewCourseContent = async (courseId) => {
                             return `
                                 <div style="${lesRowStyle}">
                                     <div style="flex:1;">
-                                        <div style="font-weight:600; color:${lesHidden ? '#991b1b' : '#334155'}; font-size:0.85rem; ${lesHidden ? 'text-decoration:line-through;' : ''}">${les.sira_numarasi}. ${les.baslik}${lesBadge}</div>
-                                        <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">${les.aciklama || 'Ders açıklaması yok.'}</div>
-                                        ${les.kaynak_url ? `<div style="font-size:0.65rem; color:#94a3b8; font-family:monospace; margin-top:4px;">Link: ${les.kaynak_url}</div>` : ''}
+                                        <div style="font-weight:600; color:${lesHidden ? '#991b1b' : '#334155'}; font-size:0.85rem; ${lesHidden ? 'text-decoration:line-through;' : ''}">${les.sira_numarasi}. ${escapeHtml(les.baslik)}${lesBadge}</div>
+                                        <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">${les.aciklama ? plainText(les.aciklama, 200) : 'Ders açıklaması yok.'}</div>
+                                        ${les.kaynak_url ? `<div style="font-size:0.65rem; color:#94a3b8; font-family:monospace; margin-top:4px;">Link: ${escapeHtml(les.kaynak_url)}</div>` : ''}
                                     </div>
                                     <div style="display:flex; gap:5px; flex-shrink:0;">${actionButtons}</div>
                                 </div>
