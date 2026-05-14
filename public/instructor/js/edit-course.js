@@ -715,7 +715,148 @@ window.switchTab = (tabId) => {
         window._liveSessionsLoaded = true;
         loadCourseLiveSessions();
     }
+    if (tabId === 'indirim') {
+        loadCourseDiscount();
+    }
 };
+
+// ═══════════════════════════════════════════════════
+// İNDİRİM SEKMESİ — Eğitmen kendi kursuna indirim ekler
+// ═══════════════════════════════════════════════════
+window._myDiscountId = null;
+
+async function loadCourseDiscount() {
+    if (!window.editingCourseId) return;
+    try {
+        const res = await ApiService.get(`/discounts/instructor/${window.editingCourseId}`);
+        const rows = res.data || [];
+        renderCourseDiscounts(rows);
+    } catch (err) {
+        console.error('[DISCOUNT] yukleme hatasi:', err);
+    }
+}
+
+function renderCourseDiscounts(rows) {
+    const userId = (JSON.parse(localStorage.getItem('edunex_user') || '{}'))?.id;
+    const myActive = rows.find(d => d.finansman_tarafi === 'egitmen' && d.olusturan_id === userId && d.aktif_mi);
+    const platformActive = rows.find(d => d.finansman_tarafi === 'platform' && d.aktif_mi);
+
+    // Platform kampanya banner
+    const banner = document.getElementById('disc_platformBanner');
+    const bannerText = document.getElementById('disc_platformBannerText');
+    if (platformActive) {
+        const desc = platformActive.yuzde_indirim
+            ? `%${platformActive.yuzde_indirim}`
+            : `₺${platformActive.sabit_indirim}`;
+        bannerText.textContent = `EduNex tarafından şu an "${platformActive.baslik}" kampanyası uygulanıyor (${desc} indirim).`;
+        banner.style.display = 'block';
+    } else {
+        banner.style.display = 'none';
+    }
+
+    // Kendi indirimim
+    const existingArea = document.getElementById('disc_existingArea');
+    const formArea = document.getElementById('disc_formArea');
+    const details = document.getElementById('disc_existingDetails');
+
+    if (myActive) {
+        window._myDiscountId = myActive.id;
+        const indir = myActive.yuzde_indirim ? `%${myActive.yuzde_indirim}` : `₺${myActive.sabit_indirim}`;
+        const baslangic = myActive.baslangic ? new Date(myActive.baslangic).toLocaleString('tr-TR') : 'Hemen';
+        const bitis = myActive.bitis ? new Date(myActive.bitis).toLocaleString('tr-TR') : 'Süresiz';
+        details.innerHTML = `
+            <p style="margin:4px 0;"><strong>Başlık:</strong> ${escapeHtmlLS(myActive.baslik)}</p>
+            <p style="margin:4px 0;"><strong>İndirim:</strong> ${indir}</p>
+            <p style="margin:4px 0;"><strong>Süre:</strong> ${baslangic} → ${bitis}</p>
+            ${myActive.aciklama ? `<p style="margin:4px 0;"><strong>Açıklama:</strong> ${escapeHtmlLS(myActive.aciklama)}</p>` : ''}
+        `;
+        existingArea.style.display = 'block';
+        formArea.style.display = 'none';
+    } else {
+        window._myDiscountId = null;
+        existingArea.style.display = 'none';
+        formArea.style.display = 'block';
+        // formu sifirla
+        document.getElementById('disc_baslik').value = '';
+        document.getElementById('disc_yuzde').value = '';
+        document.getElementById('disc_sabit').value = '';
+        document.getElementById('disc_baslangic').value = '';
+        document.getElementById('disc_bitis').value = '';
+        document.getElementById('disc_aciklama').value = '';
+        document.getElementById('disc_preview').style.display = 'none';
+    }
+}
+
+// Form input'larina dinleyici - onizleme guncelle
+function bindDiscountPreview() {
+    const yuzde = document.getElementById('disc_yuzde');
+    const sabit = document.getElementById('disc_sabit');
+    if (!yuzde || !sabit) return;
+
+    function updatePreview() {
+        const y = parseInt(yuzde.value, 10);
+        const s = parseFloat(sabit.value);
+        const preview = document.getElementById('disc_preview');
+        const text = document.getElementById('disc_previewText');
+        const courseFiyat = parseFloat(document.getElementById('mf_fiyat')?.value) || 0;
+
+        if ((y && y >= 1 && y <= 99) || (s && s > 0)) {
+            let net = courseFiyat;
+            let label = '';
+            if (y) { net = courseFiyat * (1 - y / 100); label = `%${y}`; }
+            else if (s) { net = Math.max(courseFiyat - s, courseFiyat * 0.05); label = `₺${s}`; }
+            text.innerHTML = ` ${label} indirim → <s>${courseFiyat.toFixed(2)} ₺</s> <strong>${net.toFixed(2)} ₺</strong>`;
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+    yuzde.addEventListener('input', updatePreview);
+    sabit.addEventListener('input', updatePreview);
+}
+
+window.saveMyDiscount = async () => {
+    const baslik = document.getElementById('disc_baslik').value.trim();
+    const yuzde = parseInt(document.getElementById('disc_yuzde').value, 10) || null;
+    const sabit = parseFloat(document.getElementById('disc_sabit').value) || null;
+    const baslangic = document.getElementById('disc_baslangic').value || null;
+    const bitis = document.getElementById('disc_bitis').value || null;
+    const aciklama = document.getElementById('disc_aciklama').value.trim() || null;
+
+    if (baslik.length < 3) return alert('Başlık en az 3 karakter olmalıdır.');
+    if (!yuzde && !sabit) return alert('Yüzde veya sabit indirimden en az birini girin.');
+    if (yuzde && sabit) return alert('Sadece birini doldurun: yüzde ya da sabit.');
+
+    try {
+        await ApiService.post('/discounts', {
+            ders_id: window.editingCourseId,
+            baslik, yuzde_indirim: yuzde, sabit_indirim: sabit,
+            baslangic, bitis, aciklama,
+            finansman_tarafi: 'egitmen',
+        });
+        alert('İndirim oluşturuldu.');
+        await loadCourseDiscount();
+    } catch (err) {
+        alert('Hata: ' + (err.message || 'Indirim olusturulamadi.'));
+    }
+};
+
+window.deleteMyDiscount = async () => {
+    if (!window._myDiscountId) return;
+    if (!confirm('İndirimi kaldırmak istediğinize emin misiniz?')) return;
+    try {
+        await ApiService.delete(`/discounts/${window._myDiscountId}`);
+        alert('İndirim kaldırıldı.');
+        await loadCourseDiscount();
+    } catch (err) {
+        alert('Hata: ' + (err.message || 'Silme basarisiz.'));
+    }
+};
+
+// Sayfa yuklendikten sonra preview binding'i
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(bindDiscountPreview, 500);
+});
 
 window.showSectionModal = () => {
     document.getElementById('bolumEkleModal').style.display = 'flex';

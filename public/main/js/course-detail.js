@@ -43,7 +43,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('courseTitle').innerText = course.baslik;
         document.getElementById('courseSubTitle').innerText = course.alt_baslik || '';
         document.getElementById('courseInstructor').innerHTML = `<i class="fas fa-chalkboard-teacher"></i> Eğitmen: ${escapeHtml(course.Egitmen?.ad)} ${escapeHtml(course.Egitmen?.soyad)}`;
-        document.getElementById('coursePrice').innerText = course.fiyat > 0 ? `${course.fiyat} ₺` : 'Ücretsiz';
+        // İndirim kontrol et ve fiyatı buna göre göster
+        await renderCoursePrice(course);
 
         // Açıklama (HTML destekli — eğitmen kontrolündeki içerik)
         const descEl = document.getElementById('courseDescription');
@@ -439,6 +440,40 @@ function escapeHtml(text) {
     if (text === null || text === undefined) return '';
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
     return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+// Kurs fiyatını indirim varsa "üzeri çizili eski → yeni" şeklinde göster
+async function renderCoursePrice(course) {
+    const priceEl = document.getElementById('coursePrice');
+    if (!priceEl) return;
+
+    const original = Number(course.fiyat) || 0;
+    if (original <= 0) {
+        priceEl.innerHTML = 'Ücretsiz';
+        return;
+    }
+
+    try {
+        const res = await ApiService.get(`/discounts/course/${course.id}`);
+        const p = res.data;
+        if (p && p.indirimVar && p.netFiyat < p.originalFiyat) {
+            const etiketler = (p.etiketler || []).map(e =>
+                `<span style="display:inline-block; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:6px; font-size:0.75rem; font-weight:600; margin-right:4px;">${escapeHtml(e)}</span>`
+            ).join('');
+            priceEl.innerHTML = `
+                <div>
+                    <div style="font-size:0.85rem; color:#94a3b8; text-decoration:line-through;">${p.originalFiyat.toFixed(2)} ₺</div>
+                    <div style="font-size:1.6rem; font-weight:800; color:#10b981;">${p.netFiyat.toFixed(2)} ₺</div>
+                    <div style="margin-top:6px;">${etiketler}</div>
+                </div>
+            `;
+        } else {
+            priceEl.innerText = `${original.toFixed(2)} ₺`;
+        }
+    } catch (err) {
+        // İndirim sorgusu başarısızsa fallback: orijinal fiyat
+        priceEl.innerText = `${original.toFixed(2)} ₺`;
+    }
 }
 
 // Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir

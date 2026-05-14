@@ -31,6 +31,7 @@ const InstructorFollower = require('./InstructorFollower')(sequelize, DataTypes)
 const Notification = require('./Notification')(sequelize, DataTypes);
 const SupportTicket = require('./SupportTicket')(sequelize, DataTypes);
 const SupportMessage = require('./SupportMessage')(sequelize, DataTypes);
+const Discount = require('./Discount')(sequelize, DataTypes);
 
 // --- PROFİL İLİŞKİLERİ ---
 Profile.hasOne(StudentDetail, { foreignKey: 'kullanici_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -205,6 +206,12 @@ SupportMessage.belongsTo(SupportTicket, { foreignKey: 'talep_id', onDelete: 'CAS
 Profile.hasMany(SupportMessage, { foreignKey: 'gonderen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 SupportMessage.belongsTo(Profile, { as: 'Gonderen', foreignKey: 'gonderen_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+// --- INDIRIM ILISKILERI ---
+// Kursa ait indirimler (ders_id NULL ise global / tum dersler).
+// constraints:false -> ders_id NULL kabul edilebilsin.
+Course.hasMany(Discount, { foreignKey: 'ders_id', constraints: false });
+Discount.belongsTo(Course, { foreignKey: 'ders_id', constraints: false });
+
 module.exports = {
   sequelize,
   Profile,
@@ -237,4 +244,5 @@ module.exports = {
   Notification,
   SupportTicket,
   SupportMessage,
+  Discount,
 };

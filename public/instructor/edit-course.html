@@ -60,6 +60,9 @@
                     <button type="button" onclick="window.switchTab('canli_dersler')">
                         <i class="fas fa-video"></i> Canlı Dersler
                     </button>
+                    <button type="button" onclick="window.switchTab('indirim')">
+                        <i class="fas fa-tag"></i> İndirim
+                    </button>
                 </nav>
             </aside>
 
@@ -205,6 +208,81 @@
 
                     <div id="canliOturumListesi" class="curriculum-container">
                         <p class="loading-text">Canlı oturumlar yükleniyor...</p>
+                    </div>
+                </article>
+
+                <!-- Sekme 6: İndirim -->
+                <article id="indirim" class="tab-content form-card">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="form-section-title"><i class="fas fa-tag"></i> İndirim</h2>
+                            <p class="subtitle">Bu kursa süreli indirim uygulayın. İndirim sizin gelirinizden düşülür.</p>
+                        </div>
+                    </div>
+
+                    <!-- Platform kampanya bildirimi -->
+                    <div id="disc_platformBanner" style="display:none; background:#dbeafe; border:1px solid #93c5fd; color:#1e3a8a; padding:12px 16px; border-radius:8px; margin-bottom:18px;">
+                        <i class="fas fa-bullhorn"></i> <strong id="disc_platformBannerText"></strong>
+                        <p style="margin:6px 0 0; font-size:0.85rem; color:#1e40af;">Siz de kendi indiriminizi ekleyerek toplam indirimi artırabilirsiniz; öğrenciye birleşik olarak gözükür.</p>
+                    </div>
+
+                    <!-- Mevcut indirim ozeti -->
+                    <div id="disc_existingArea" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; padding:16px; border-radius:8px; margin-bottom:18px;">
+                        <h4 style="margin:0 0 12px; color:#1e293b;"><i class="fas fa-check-circle" style="color:#10b981;"></i> Aktif İndiriminiz</h4>
+                        <div id="disc_existingDetails"></div>
+                        <div style="display:flex; gap:8px; margin-top:12px;">
+                            <button type="button" class="btn-logout-alt" onclick="window.deleteMyDiscount()">
+                                <i class="fas fa-trash"></i> Kaldır
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Indirim formu -->
+                    <div id="disc_formArea">
+                        <div class="form-group">
+                            <label class="form-label">Başlık *</label>
+                            <input type="text" id="disc_baslik" class="form-control" placeholder="Örn: Yaz Kampanyası" maxlength="120">
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Yüzde İndirim (%)</label>
+                                <input type="number" id="disc_yuzde" class="form-control" min="1" max="99" placeholder="örn. 20">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">veya Sabit İndirim (₺)</label>
+                                <input type="number" id="disc_sabit" class="form-control" min="1" step="0.01" placeholder="örn. 100">
+                            </div>
+                        </div>
+                        <p style="font-size:0.82rem; color:#64748b; margin:-8px 0 16px;">İkisinden sadece birini doldurun. Yüzde önerilen yöntemdir.</p>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Başlangıç (opsiyonel)</label>
+                                <input type="datetime-local" id="disc_baslangic" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bitiş (opsiyonel)</label>
+                                <input type="datetime-local" id="disc_bitis" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Açıklama (opsiyonel)</label>
+                            <textarea id="disc_aciklama" class="form-control" rows="2" maxlength="500" placeholder="Öğrencilere kısa bir not..."></textarea>
+                        </div>
+
+                        <!-- Onizleme -->
+                        <div id="disc_preview" style="display:none; background:#ecfdf5; border:1px solid #6ee7b7; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+                            <strong style="color:#065f46;">Önizleme:</strong>
+                            <span id="disc_previewText" style="color:#047857; font-size:0.95rem;"></span>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary-lg-alt" onclick="window.saveMyDiscount()">
+                                <i class="fas fa-save"></i> İndirimi Kaydet
+                            </button>
+                        </div>
                     </div>
                 </article>
 
