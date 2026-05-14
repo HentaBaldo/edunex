@@ -682,12 +682,15 @@ let _resolvedDuration = 0;
 
 function initLessonTracking(lesson, mainMedia) {
     _stopTracking();
-    if (lesson.tamamlandi_mi) return;
 
     if (mainMedia === 'document' || mainMedia === 'youtube' || mainMedia === 'vimeo') {
-        console.log('[TRACKING] Belge/Harici Kaynak: 5 saniye sonra tamamlandı sayılacak.');
-        setTimeout(() => { markLessonComplete(lesson.id, true); }, 5000);
+        if (!lesson.tamamlandi_mi) {
+            console.log('[TRACKING] Belge/Harici Kaynak: 5 saniye sonra tamamlandı sayılacak.');
+            setTimeout(() => { markLessonComplete(lesson.id, true); }, 5000);
+        }
     } else if (mainMedia === 'bunny') {
+        // Tamamlanmış derslerde de video oynatılmalı (gözden geçirme),
+        // sadece takip ve seek kısıtlaması devre dışı kalacak.
         trackBunnyVideo(lesson);
     }
 }
@@ -743,13 +746,10 @@ function trackBunnyVideo(lesson) {
     if (!videoEl) { console.error('[TRACKING] Video elementi bulunamadı!'); return; }
 
     _activeVideoEl = videoEl;
-    maxWatchedSeconds = 0;
-    videoCompleted = false;
-    seekLock = false;
     currentLessonId = lesson.id;
-    _resolvedDuration = lesson.sure_saniye || 0;
+    const isAlreadyCompleted = !!lesson.tamamlandi_mi;
 
-    // HLS stream URL'i
+    // HLS stream URL'i — tamamlanmış olsa bile yüklenir
     const hlsSrc = `https://${bunnyCdnHostname}/${lesson.video_saglayici_id}/playlist.m3u8`;
 
     if (window.Hls && Hls.isSupported()) {
@@ -757,12 +757,23 @@ function trackBunnyVideo(lesson) {
         _activeHls.loadSource(hlsSrc);
         _activeHls.attachMedia(videoEl);
     } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari: yerleşik HLS desteği
         videoEl.src = hlsSrc;
     } else {
         console.error('[TRACKING] Bu tarayıcı HLS oynatmayı desteklemiyor.');
         return;
     }
+
+    // Tamamlanmış ders: video oynatılır ama takip/kısıtlama YOK (özgür gözden geçirme)
+    if (isAlreadyCompleted) {
+        console.log('[TRACKING] Ders tamamlanmış, özgür gözden geçirme modu.');
+        return;
+    }
+
+    // Tamamlanmamış ders: tam takip + seek engeli
+    maxWatchedSeconds = 0;
+    videoCompleted = false;
+    seekLock = false;
+    _resolvedDuration = lesson.sure_saniye || 0;
 
     // Metadata yüklenince: süreyi güncelle, kaldığı yerden devam et
     videoEl.addEventListener('loadedmetadata', function onMeta() {
