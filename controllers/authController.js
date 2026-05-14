@@ -2,7 +2,25 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sequelize, Profile, StudentDetail, InstructorDetail } = require('../models');
-const { sendVerificationEmailAsync } = require('../services/emailService');
+const { sendVerificationEmailAsync, sendPasswordResetEmailAsync } = require('../services/emailService');
+
+// === Şifre Sıfırlama Sabitleri ===
+// 1 saatlik gecerlilik (kullanici talebi). Daha kisa = guvenli ama UX kotu;
+// daha uzun = phishing penceresi acik kalir. 1 saat sektor standardi.
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+// Yeni sifre minimum karakter sayisi — register/login akisinda enforce edilmiyor olabilir
+// ama sifre RESET zaten guvenlik akisi oldugu icin burada hard-enforce ediyoruz.
+const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * Ham reset token'i SHA-256 ile hash'ler. Mail'e HAM, DB'ye HASH gider.
+ * Sebep: DB sizintisi durumunda saldirgan tokenlari dogrudan kullanamasin.
+ * bcrypt yerine SHA-256 secimi bilincli — token zaten 256-bit entropy'ye sahip,
+ * brute-force pratik degil; hashing sadece "data-at-rest" korumasi icin.
+ */
+function hashResetToken(rawToken) {
+    return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
 
 /**
  * Kullanıcı Kayıt Olma (Register)
@@ -341,6 +359,141 @@ exports.verifyEmail = async (req, res, next) => {
 
     } catch (error) {
         console.error('[AUTH] E-posta doğrulama hatası:', error.message);
+        next(error);
+    }
+};
+
+/**
+ * Şifre Sıfırlama Talebi — Mail Gönderimi
+ * @route POST /api/auth/forgot-password
+ * body: { eposta }
+ *
+ * GUVENLIK MODELI:
+ *  - E-posta enumeration: kullanici var/yok fark etmeksizin AYNI generic 200 mesaji
+ *    doner. Aksi halde saldirgan "bu eposta sistemde kayitli mi?" sorusunu cevaplar.
+ *  - Token: 32 byte (256-bit) random hex; mail'e HAM, DB'ye SHA-256 hash gider.
+ *  - TTL: 1 saat. Eski token aktifken yeni talep gelirse uzerine yazilir (idempotent).
+ *  - Mail gonderimi fire-and-forget — response 200 hemen doner, mail bg'de gider
+ *    (Render Health Check SIGTERM tetiklenmesin diye).
+ */
+exports.forgotPassword = async (req, res, next) => {
+    try {
+        const { eposta } = req.body;
+
+        if (!eposta) {
+            const error = new Error('E-posta zorunludur.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        console.log(`[AUTH] Sifre sifirlama talebi: ${eposta}`);
+
+        const user = await Profile.findOne({ where: { eposta } });
+
+        // === Enumeration koruması ===
+        // Kullanici yoksa veya henuz dogrulanmamis bir hesapsa generic 200 doneriz.
+        // (Dogrulanmamis hesaba reset linki gondermek anlamsiz; oncelik verify maili.)
+        if (!user || !user.eposta_onayli_mi) {
+            if (!user) console.log(`[AUTH] Sifre sifirlama — kayitli olmayan eposta: ${eposta}`);
+            else console.log(`[AUTH] Sifre sifirlama — dogrulanmamis hesap: ${eposta}`);
+
+            return res.status(200).json({
+                success: true,
+                message: 'Eğer bu e-posta sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.'
+            });
+        }
+
+        // === Token uret & DB'ye HASH'li olarak yaz ===
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = hashResetToken(rawToken);
+        const expires = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+
+        await user.update({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: expires,
+        });
+
+        // Fire-and-forget — Render Health Check'i bekletmeyiz.
+        sendPasswordResetEmailAsync(eposta, rawToken);
+        console.log(`[AUTH] Sifre sifirlama maili kuyruga alindi: ${eposta}`);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Eğer bu e-posta sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.'
+        });
+
+    } catch (error) {
+        console.error('[AUTH] forgotPassword hatasi:', error.message);
+        next(error);
+    }
+};
+
+/**
+ * Şifre Sıfırlama — Yeni Şifre Belirleme
+ * @route POST /api/auth/reset-password
+ * body: { token, newPassword }
+ *
+ * GUVENLIK MODELI:
+ *  - DB'de hash tutuldugu icin gelen ham token SHA-256 ile hash'lenip aranir.
+ *    (Frontend daima HAM token gonderir — mail linkindeki query param.)
+ *  - Token bulunsa bile resetPasswordExpires kontrolu yapilir.
+ *  - Basari sonrasi token alanlari NULL'a cekilir — replay attack onlenir.
+ *  - Generic hata mesaji ('Geçersiz veya süresi dolmuş bağlantı') — token vs.
+ *    expire ayrimi yapmiyoruz, saldirgana bilgi sizmaz.
+ */
+exports.resetPassword = async (req, res, next) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        // === Input Validasyonu ===
+        if (!token || !newPassword) {
+            const error = new Error('Token ve yeni şifre zorunludur.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+            const error = new Error(`Yeni şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.`);
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // === Token'i hash'leyip DB'de ara ===
+        const hashedToken = hashResetToken(token);
+
+        const user = await Profile.findOne({
+            where: { resetPasswordToken: hashedToken }
+        });
+
+        // Token bulunamadi VEYA suresi dolmus -> ayni generic mesaj (info leak yok)
+        if (!user || !user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+            const error = new Error('Şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş. Lütfen yeni bir talep oluşturun.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // === Yeni sifreyi hash'le ve guncelle ===
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await user.update({
+            sifre: hashedPassword,
+            // Token alanlarini temizle — replay attack ve token reuse engelle.
+            resetPasswordToken: null,
+            resetPasswordExpires: null,
+        });
+
+        console.log(`[AUTH] Sifre basariyla sifirlandi: ${user.eposta}`);
+
+        // NOT: JWT stateless oldugu icin aktif tokenlari sunucu tarafindan invalidate
+        // edemiyoruz; ileride blacklist veya "password_changed_at" kontrolu eklenirse
+        // burasi tetikleme noktasi olur. Su an: kullanici yeniden login olmali.
+        return res.status(200).json({
+            success: true,
+            message: 'Şifreniz başarıyla güncellendi. Lütfen yeni şifrenizle giriş yapın.'
+        });
+
+    } catch (error) {
+        console.error('[AUTH] resetPassword hatasi:', error.message);
         next(error);
     }
 };

@@ -177,6 +177,22 @@ sequelize.sync(syncOptions)
             } else {
                 console.log('[DB CHECK] profiller.phone & profiller.identity_number mevcut.');
             }
+
+            // --- Sifre Sifirlama Migration (Faz: 2026-05-15) ---
+            // production'da sync({alter:true}) kapali oldugu icin yeni eklenen
+            // resetPasswordToken / resetPasswordExpires kolonlari DB'ye duzmuyor.
+            // Sequelize Profile.findOne calistirdiginda model attribute'larini SELECT
+            // clause'a koydugu icin "Unknown column" hatasi atip register/login akisini
+            // patlatiyor. Idempotent ALTER ile garanti altina aliyoruz.
+            if (!desc.resetPasswordToken || !desc.resetPasswordExpires) {
+                const colsToAdd = [];
+                if (!desc.resetPasswordToken)   colsToAdd.push('ADD COLUMN resetPasswordToken VARCHAR(64) NULL DEFAULT NULL');
+                if (!desc.resetPasswordExpires) colsToAdd.push('ADD COLUMN resetPasswordExpires DATETIME NULL DEFAULT NULL');
+                await sequelize.query(`ALTER TABLE profiller ${colsToAdd.join(', ')}`);
+                console.log(`[PASSWORD RESET MIGRATION] profiller tablosuna eklendi: ${colsToAdd.length} kolon.`);
+            } else {
+                console.log('[PASSWORD RESET MIGRATION] resetPasswordToken & resetPasswordExpires zaten mevcut.');
+            }
         } catch (descErr) {
             console.error('[DB CHECK] profiller tablosu sema kontrolu yapilamadi:', descErr.message);
         }

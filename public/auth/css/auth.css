@@ -143,3 +143,40 @@
     color: #166534;
     border: 1px solid #bbf7d0;
 }
+
+.message-box.info {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+/* Auth Link Row (Sifremi unuttum, Geri don gibi inline aksiyon linkleri) */
+.auth-link-row {
+    margin-top: 16px;
+    text-align: center;
+}
+
+/* "link-btn" = native <button> ama text-link gibi gorunur. Sebep: <a href=""> ile
+   tab davranisini bozup form submit'i tetiklemesin diye. type="button" zorunlu. */
+.link-btn {
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+    color: var(--primary-color, #2563eb);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.2s, opacity 0.2s;
+}
+
+.link-btn:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.link-btn:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, 0.35);
+    outline-offset: 2px;
+    border-radius: 4px;
+}

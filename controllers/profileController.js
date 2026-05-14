@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
 const {
     Profile,
     StudentDetail,
@@ -10,6 +11,11 @@ const {
     CourseEnrollment
 } = require('../models');
 const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
+
+// Sifre minimum uzunluk — register akisinda enforce edilmiyor olabilir, ama bilincli
+// olarak SADECE bu islemde (change-password) enforce ediyoruz; ekibin diger akislari
+// bozulmasin diye baska yere dokunmuyoruz.
+const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Avatar dosyasını Bunny Storage'a yüklemeyi dener; başarısızsa
@@ -362,5 +368,94 @@ exports.deleteAccount = async (req, res) => {
     } catch (error) {
         console.error('[ACCOUNT DELETE ERROR]', error);
         return res.status(500).json({ success: false, message: 'Hesap silinirken bir hata oluştu.' });
+    }
+};
+
+/**
+ * Giriş yapmış kullanıcının kendi şifresini güncellemesi.
+ * @route PUT /api/profile/change-password
+ * body: { currentPassword, newPassword, newPasswordConfirm }
+ *
+ * AKIS:
+ *  1) Tum alanlarin dolulugunu ve newPassword === confirm esitligini dogrula.
+ *  2) Yeni sifrenin minimum uzunluk kriterini sagladigini dogrula.
+ *  3) DB'den kullaniciyi cek (req.user.id'den geliyor; auth middleware garanti eder).
+ *  4) bcrypt.compare ile mevcut sifreyi kontrol et (timing-safe).
+ *  5) Yeni sifre eski ile ayniysa reddet (UX/guvenlik).
+ *  6) bcrypt.hash ile yenisini hash'le ve guncelle.
+ *
+ * TUM ROLLER (ogrenci/egitmen/admin) icin tek endpoint — Profile tablosu merkezi.
+ */
+exports.changePassword = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const { currentPassword, newPassword, newPasswordConfirm } = req.body;
+
+        // === ADIM 1: Input Validasyonu ===
+        if (!currentPassword || !newPassword || !newPasswordConfirm) {
+            const error = new Error('Mevcut şifre, yeni şifre ve yeni şifre tekrarı alanları zorunludur.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+            const error = new Error(`Yeni şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.`);
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (newPassword !== newPasswordConfirm) {
+            const error = new Error('Yeni şifre ile şifre tekrarı eşleşmiyor.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // === ADIM 2: Kullaniciyi Cek ===
+        // Sadece gerekli sutunlar — N+1 / agir join'lere gerek yok.
+        const user = await Profile.findByPk(userId, { attributes: ['id', 'eposta', 'sifre'] });
+        if (!user) {
+            const error = new Error('Kullanıcı bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // === ADIM 3: Mevcut Sifre Dogrulamasi ===
+        // bcrypt.compare timing-safe oldugu icin yan-kanal saldirilarina karsi guvenli.
+        const isCurrentValid = await bcrypt.compare(currentPassword, user.sifre);
+        if (!isCurrentValid) {
+            const error = new Error('Mevcut şifre hatalı.');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        // === ADIM 4: Yeni Sifre Eski Sifreyle Ayni mi? ===
+        // Ayniysa update etmenin anlami yok; ayrica kullaniciya net feedback verelim.
+        const isSameAsOld = await bcrypt.compare(newPassword, user.sifre);
+        if (isSameAsOld) {
+            const error = new Error('Yeni şifre mevcut şifreyle aynı olamaz.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // === ADIM 5: Hash & Update ===
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await user.update({ sifre: hashedPassword });
+
+        console.log(`[PROFILE] Sifre guncellendi: ${user.eposta} (${userId})`);
+
+        // NOT: JWT stateless; aktif tokenlari sunucudan invalidate edemiyoruz.
+        // Frontend "guvenligin icin tekrar giris yap" mesajiyla logout etmeli.
+        return res.status(200).json({
+            success: true,
+            message: 'Şifreniz başarıyla güncellendi. Güvenliğiniz için lütfen tekrar giriş yapın.'
+        });
+
+    } catch (error) {
+        // 4xx hatalarini istemciye orijinal mesajla doneriz (frontend yakalar).
+        if (error.statusCode && error.statusCode < 500) {
+            return res.status(error.statusCode).json({ success: false, message: error.message });
+        }
+        console.error('[CHANGE PASSWORD ERROR]', error);
+        next(error);
     }
 };

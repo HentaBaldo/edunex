@@ -632,3 +632,323 @@ function activateTabFromHash() {
     }
 }
 window.addEventListener('hashchange', activateTabFromHash);
+
+
+// ==========================================
+// 5. SIFRE DEGISTIRME MODAL'I (Bootstrap)
+// ==========================================
+//
+// Mimari Notu (cok onemli):
+//   passwordChangeForm, profileForm'un DISINDA. Bootstrap modal'lari Bootstrap
+//   tarafindan body'ye tasinsa da, kaynak HTML'de ic ice koymadik — boylece
+//   profileForm submit listener'i password modal submit'iyle CAKISMAZ.
+//
+// Akis:
+//   1) "Sifremi Degistir" butonuna basilir -> modal acilir.
+//   2) Kullanici uc alani doldurur (mevcut, yeni, yeni-tekrar).
+//   3) Frontend savunma katmani: bos kontrol, esitlik, min 8 karakter, eski==yeni kontrol.
+//   4) PUT /api/profile/change-password -> backend bcrypt.compare ile dogrular.
+//   5) Basarili olunca toast goster + 1.6 sn sonra auth sayfasina yonlendir (token temizlenir).
+//
+// Defansif kabuller:
+//   - Bootstrap yuklenmemis ise (CDN cokmesi vs.) alert ile fallback.
+//   - Token yoksa (oturum suresi dolmus) /auth'a yonlendir.
+//   - 429 (rate-limit) ve 401 (token gecersiz) hatalari NET mesajla gosterilir.
+
+document.addEventListener('DOMContentLoaded', () => {
+    initPasswordChangeModal();
+});
+
+function initPasswordChangeModal() {
+    const openBtn = document.getElementById('openPasswordChangeBtn');
+    const modalEl = document.getElementById('passwordChangeModal');
+    const form = document.getElementById('passwordChangeForm');
+
+    // Sayfa baska bir context'te de yuklenebilir (profil yerine baska bir sayfaya
+    // dahil edilirse vb.) — element yoksa sessizce cik.
+    if (!openBtn || !modalEl || !form) return;
+
+    // === MODAL ACMA ===
+    openBtn.addEventListener('click', () => {
+        if (typeof bootstrap === 'undefined') {
+            profilToast('Bootstrap yuklenemedi, sayfayi yenileyin.', 'error');
+            return;
+        }
+        // Form'u her acilista temizle — eski input'lar sessizce kaymasin.
+        resetPasswordChangeForm();
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+        // Modal acildiktan sonra ilk input'a odaklan (UX)
+        setTimeout(() => document.getElementById('currentPassword')?.focus(), 250);
+    });
+
+    // === SIFRE GOSTER/GIZLE (eye icon toggle) ===
+    // Tum input-group icindeki .toggle-password-btn butonlari icin event delegation:
+    form.querySelectorAll('.toggle-password-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            const willShow = input.type === 'password';
+            input.type = willShow ? 'text' : 'password';
+            // Icon swap (FontAwesome)
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-eye', !willShow);
+                icon.classList.toggle('fa-eye-slash', willShow);
+            }
+        });
+    });
+
+    // === SIFRE GUCU CANLI GOSTERGE ===
+    const newPwInput = document.getElementById('newPassword');
+    const confirmInput = document.getElementById('newPasswordConfirm');
+
+    if (newPwInput) {
+        newPwInput.addEventListener('input', () => {
+            updatePasswordStrengthIndicator(newPwInput.value);
+            updatePasswordMatchFeedback();
+        });
+    }
+    if (confirmInput) {
+        confirmInput.addEventListener('input', updatePasswordMatchFeedback);
+    }
+
+    // === FORM SUBMIT ===
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handlePasswordChangeSubmit();
+    });
+}
+
+/**
+ * Sifre gucu skoru (basit ama yararli heuristic):
+ *   - >= 8 karakter: +1
+ *   - kucuk + buyuk harf: +1
+ *   - rakam icerir: +1
+ *   - sembol icerir: +1
+ *   - uzunluk >= 12: +1
+ * Skor 0-2 = weak, 3 = medium, 4-5 = strong.
+ */
+function updatePasswordStrengthIndicator(password) {
+    const wrap = document.getElementById('passwordStrengthWrap');
+    const text = document.getElementById('passwordStrengthText');
+    if (!wrap || !text) return;
+
+    if (!password) {
+        wrap.style.display = 'none';
+        return;
+    }
+    wrap.style.display = 'block';
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (password.length >= 12) score++;
+
+    wrap.classList.remove('weak', 'medium', 'strong');
+    if (score <= 2) {
+        wrap.classList.add('weak');
+        text.textContent = 'Zayıf şifre';
+    } else if (score === 3) {
+        wrap.classList.add('medium');
+        text.textContent = 'Orta seviye şifre';
+    } else {
+        wrap.classList.add('strong');
+        text.textContent = 'Güçlü şifre';
+    }
+}
+
+/**
+ * Yeni sifre + tekrar alani esit mi? Eslesince yesil, eslesmezken kirmizi feedback.
+ */
+function updatePasswordMatchFeedback() {
+    const newPw = document.getElementById('newPassword')?.value || '';
+    const confirm = document.getElementById('newPasswordConfirm')?.value || '';
+    const feedback = document.getElementById('passwordMatchFeedback');
+    if (!feedback) return;
+
+    // Tekrar alani henuz bos -> feedback gosterme (gurultu yapma).
+    if (!confirm) {
+        feedback.style.display = 'none';
+        feedback.textContent = '';
+        return;
+    }
+
+    feedback.style.display = 'block';
+    if (newPw === confirm) {
+        feedback.textContent = '✓ Şifreler eşleşiyor';
+        feedback.className = 'd-block mt-1 password-match-ok';
+    } else {
+        feedback.textContent = '✗ Şifreler eşleşmiyor';
+        feedback.className = 'd-block mt-1 password-match-bad';
+    }
+}
+
+/**
+ * Form alanlarini sifirlar — modal her acildiginda temiz baslar.
+ */
+function resetPasswordChangeForm() {
+    const form = document.getElementById('passwordChangeForm');
+    if (form) form.reset();
+
+    // Input type'larini password'e dondur (kullanici gosterip kapatmadan modal'i kapatmis olabilir)
+    ['currentPassword', 'newPassword', 'newPasswordConfirm'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.type = 'password';
+    });
+    document.querySelectorAll('#passwordChangeForm .toggle-password-btn i').forEach(icon => {
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    });
+
+    const msg = document.getElementById('passwordChangeMessage');
+    if (msg) {
+        msg.style.display = 'none';
+        msg.textContent = '';
+        msg.className = 'alert';
+    }
+
+    const strengthWrap = document.getElementById('passwordStrengthWrap');
+    if (strengthWrap) {
+        strengthWrap.style.display = 'none';
+        strengthWrap.classList.remove('weak', 'medium', 'strong');
+    }
+
+    const matchFb = document.getElementById('passwordMatchFeedback');
+    if (matchFb) {
+        matchFb.style.display = 'none';
+        matchFb.textContent = '';
+    }
+
+    togglePasswordSubmitButton(false);
+}
+
+/**
+ * Modal icindeki mesaj alanini gosterir (alert-success / alert-danger / alert-info).
+ */
+function setPasswordModalMessage(text, type = 'danger') {
+    const msg = document.getElementById('passwordChangeMessage');
+    if (!msg) return;
+    msg.textContent = text;
+    msg.className = `alert alert-${type}`;
+    msg.style.display = 'block';
+}
+
+/**
+ * Submit butonunu disabled + loading metni durumuna alir.
+ */
+function togglePasswordSubmitButton(isLoading) {
+    const btn = document.getElementById('passwordChangeSubmitBtn');
+    if (!btn) return;
+    btn.disabled = isLoading;
+    btn.innerHTML = isLoading
+        ? '<span class="spinner-border spinner-border-sm me-2"></span>Guncelleniyor...'
+        : '<i class="fas fa-check me-2"></i>Şifremi Güncelle';
+}
+
+/**
+ * Submit ana akisi — validation, API cagrisi, basari/hata handler.
+ */
+async function handlePasswordChangeSubmit() {
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const newPasswordConfirm = document.getElementById('newPasswordConfirm').value;
+
+    // === FRONTEND SAVUNMA KATMANI ===
+    // Backend her kosulda ayni kontrolleri tekrar yapar; bu sadece UX hizlandirma.
+    if (!currentPassword || !newPassword || !newPasswordConfirm) {
+        setPasswordModalMessage('Tüm alanları doldurun.', 'danger');
+        return;
+    }
+    if (newPassword.length < 8) {
+        setPasswordModalMessage('Yeni şifre en az 8 karakter olmalıdır.', 'danger');
+        document.getElementById('newPassword')?.focus();
+        return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+        setPasswordModalMessage('Yeni şifre ile şifre tekrarı eşleşmiyor.', 'danger');
+        document.getElementById('newPasswordConfirm')?.focus();
+        return;
+    }
+    if (newPassword === currentPassword) {
+        setPasswordModalMessage('Yeni şifre mevcut şifreyle aynı olamaz.', 'danger');
+        document.getElementById('newPassword')?.focus();
+        return;
+    }
+
+    // === TOKEN KONTROLU ===
+    const token = localStorage.getItem('edunex_token');
+    if (!token) {
+        // Oturum dusmus — direkt auth sayfasina at.
+        window.location.href = '/auth/index.html';
+        return;
+    }
+
+    togglePasswordSubmitButton(true);
+    setPasswordModalMessage('Şifre güncelleniyor, lütfen bekleyin...', 'info');
+
+    try {
+        const response = await fetch('/api/profile/change-password', {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                currentPassword,
+                newPassword,
+                newPasswordConfirm
+            })
+        });
+
+        // 5xx'te response.json() patlayabilir (HTML error page); fallback ekliyoruz.
+        let result;
+        try {
+            result = await response.json();
+        } catch (_) {
+            result = { success: false, message: `Sunucu hatasi: ${response.status}` };
+        }
+
+        if (response.ok && result.success) {
+            // BASARILI — toast goster + 1.6 sn sonra auth'a at (oturum yenileme).
+            setPasswordModalMessage(
+                result.message || 'Şifreniz başarıyla güncellendi. Tekrar giriş yapın.',
+                'success'
+            );
+            profilToast('Şifreniz güncellendi. Tekrar giriş yapın.');
+
+            // Token'i hemen temizle (modal acikken bile baska bir API cagrisi yapilirsa cope atilsin).
+            localStorage.removeItem('edunex_token');
+
+            setTimeout(() => {
+                if (typeof ApiService !== 'undefined' && ApiService.logoutUser) {
+                    ApiService.logoutUser();
+                } else {
+                    // ApiService yoksa minimal logout: localStorage temizle ve auth'a git.
+                    localStorage.clear();
+                    window.location.href = '/auth/index.html';
+                }
+            }, 1600);
+            return;
+        }
+
+        // BASARISIZ — backend mesajini birebir goster (frontend yakalayabilsin).
+        // 401 'Mevcut sifre hatali', 400 'Yeni sifre en az 8...', 429 'Cok fazla istek', vs.
+        setPasswordModalMessage(result.message || 'Şifre güncellenemedi.', 'danger');
+
+        // 401 mevcut sifre hatali ise current input'a odaklan
+        if (response.status === 401) {
+            document.getElementById('currentPassword')?.focus();
+            document.getElementById('currentPassword')?.select();
+        }
+
+    } catch (error) {
+        console.error('[PASSWORD CHANGE] Hata:', error);
+        setPasswordModalMessage('Sunucu ile baglantı kurulamadı. Lütfen tekrar deneyin.', 'danger');
+    } finally {
+        togglePasswordSubmitButton(false);
+    }
+}

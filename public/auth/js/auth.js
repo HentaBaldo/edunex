@@ -8,7 +8,30 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuthTabs();
     initRegistration();
     initLogin();
+    initForgotPassword();
+    initResetPassword();
+    autoOpenResetFromUrl();
 });
+
+// --- Section/Tab Navigator (login/register tablari + forgot/reset paneleri) ---
+// Mevcut tab sistemi sadece login<->register tab'i icin yapilmis; forgot ve reset
+// tab'i degil, AYRI panellerdir. Tum panelleri tek noktadan kontrol icin bu helper.
+function showAuthPanel(targetSectionId) {
+    const sectionIds = ['loginSection', 'registerSection', 'forgotSection', 'resetSection'];
+    sectionIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', id === targetSectionId);
+    });
+
+    // Login/Register tab gorsel state'i — forgot/reset acikken iki tab da pasif gozuksun
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    if (tabLogin && tabRegister) {
+        tabLogin.classList.toggle('active', targetSectionId === 'loginSection');
+        tabRegister.classList.toggle('active', targetSectionId === 'registerSection');
+        // forgot/reset aktif iken tab bar hala gorunur ama hicbiri 'active' degil
+    }
+}
 
 // --- UI State Management Helpers ---
 function setFormMessage(elementId, message, type = 'info') {
@@ -137,4 +160,151 @@ function initLogin() {
             toggleSubmitButton('loginSubmitBtn', false);
         }
     });
+}
+
+// --- Forgot Password Logic ---
+// Akis: Kullanici "Sifremi Unuttum" linkine basar -> forgot panel acilir -> eposta
+// gonderir -> backend (POST /auth/forgot-password) generic 200 doner -> kullaniciya
+// "mail kontrol edin" mesaji gosteririz. Backend enumeration koruma mantigi sayesinde
+// kullanici kayitli olmasa dahi ayni mesaj doner; bu BILINCLI bir tasarim.
+function initForgotPassword() {
+    const openBtn = document.getElementById('openForgotBtn');
+    const backBtn = document.getElementById('backToLoginFromForgotBtn');
+    const forgotForm = document.getElementById('forgotForm');
+
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            const forgotMsg = document.getElementById('forgotMessage');
+            if (forgotMsg) forgotMsg.className = 'message-box';
+            const epostaInput = document.getElementById('forgotEposta');
+            // Login formundan eposta'yi onceden tasi (UX ozeni)
+            const logEposta = document.getElementById('logEposta');
+            if (epostaInput && logEposta?.value) epostaInput.value = logEposta.value.trim();
+            showAuthPanel('forgotSection');
+        });
+    }
+
+    if (backBtn) {
+        backBtn.addEventListener('click', () => showAuthPanel('loginSection'));
+    }
+
+    if (!forgotForm) return;
+
+    forgotForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        setFormMessage('forgotMessage', 'Talebiniz iletiliyor...', 'info');
+        toggleSubmitButton('forgotSubmitBtn', true, 'Gonderiliyor...');
+
+        const payload = {
+            eposta: document.getElementById('forgotEposta').value.trim()
+        };
+
+        try {
+            const result = await ApiService.post('/auth/forgot-password', payload);
+            // Backend her durumda generic 200 mesaji doner — basari mesajini direkt gosteririz.
+            setFormMessage(
+                'forgotMessage',
+                result.message || 'Eger bu e-posta kayitliysa, sifre sifirlama bagantisi gonderildi. Lutfen gelen kutunuzu (ve spam klasorunuzu) kontrol edin.',
+                'success'
+            );
+            forgotForm.reset();
+        } catch (error) {
+            console.error('[AUTH MODULE] Forgot password error:', error.message);
+            // 429 (rate limit) veya 400 (eposta eksik) gibi hatalar buraya duser.
+            setFormMessage('forgotMessage', error.message || 'Talep gonderilirken bir hata olustu.', 'error');
+        } finally {
+            toggleSubmitButton('forgotSubmitBtn', false);
+        }
+    });
+}
+
+// --- Reset Password Logic ---
+// Akis: Mail linkinden gelinir -> URL'de ?reset=<token> bulunur -> resetSection acilir
+// -> kullanici yeni sifreyi iki kere girer -> backend (POST /auth/reset-password) sifreyi
+// guncellestirir -> 1.5 sn sonra login paneline doner. Token'i localStorage'a YAZMAYIZ
+// (oturum acmaz; sadece sifre guncellemesi). Kullanici yeniden login olur.
+function initResetPassword() {
+    const backBtn = document.getElementById('backToLoginFromResetBtn');
+    const resetForm = document.getElementById('resetForm');
+
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            // Token'i URL'den temizleyerek panel degis — geri donulurse istemeden tekrar acilmasin
+            window.history.replaceState({}, document.title, window.location.pathname);
+            showAuthPanel('loginSection');
+        });
+    }
+
+    if (!resetForm) return;
+
+    resetForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const newPassword = document.getElementById('resetNewPassword').value;
+        const newPasswordConfirm = document.getElementById('resetNewPasswordConfirm').value;
+
+        // Frontend savunma katmani — backend ZATEN ayni kontrolleri yapiyor ama
+        // kullaniciya tek tikta net feedback verelim, gereksiz network gidisini ondelelim.
+        if (newPassword.length < 8) {
+            setFormMessage('resetMessage', 'Yeni sifre en az 8 karakter olmalidir.', 'error');
+            return;
+        }
+        if (newPassword !== newPasswordConfirm) {
+            setFormMessage('resetMessage', 'Sifreler eslesmiyor. Lutfen tekrar deneyin.', 'error');
+            return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('reset');
+
+        if (!token) {
+            setFormMessage('resetMessage', 'Sifirlama bagantisi gecersiz veya eksik. Lutfen mailinizdeki butonu kullanin.', 'error');
+            return;
+        }
+
+        setFormMessage('resetMessage', 'Sifreniz guncelleniyor...', 'info');
+        toggleSubmitButton('resetSubmitBtn', true, 'Guncelleniyor...');
+
+        try {
+            const result = await ApiService.post('/auth/reset-password', {
+                token,
+                newPassword
+            });
+
+            setFormMessage(
+                'resetMessage',
+                result.message || 'Sifreniz basariyla guncellendi. Giris ekranina yonlendiriliyorsunuz...',
+                'success'
+            );
+            resetForm.reset();
+
+            // URL'deki token'i temizle (yenileme bombosu)
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                showAuthPanel('loginSection');
+            }, 1800);
+
+        } catch (error) {
+            console.error('[AUTH MODULE] Reset password error:', error.message);
+            // Backend 'Sifre sifirlama bagantisi gecersiz veya suresi dolmus...' net mesaj doner.
+            setFormMessage('resetMessage', error.message || 'Sifre guncellenirken bir hata olustu.', 'error');
+        } finally {
+            toggleSubmitButton('resetSubmitBtn', false);
+        }
+    });
+}
+
+// --- URL'de ?reset=<token> varsa otomatik reset panelini ac ---
+// Sayfa ilk yuklendiginde calisir; token yoksa hicbir sey yapmaz (default login acik kalir).
+function autoOpenResetFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('reset');
+    if (token && token.length >= 16) {
+        showAuthPanel('resetSection');
+    }
+    // verified=true query'si (email dogrulama redirect) icin login ekraninda generic bilgi mesaji
+    if (urlParams.get('verified') === 'true') {
+        setFormMessage('logMessage', 'E-posta adresiniz dogrulandi. Lutfen giris yapin.', 'success');
+    }
 }

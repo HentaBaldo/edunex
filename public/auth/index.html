@@ -36,8 +36,61 @@
                 </div>
 
                 <button type="submit" class="btn-primary" id="loginSubmitBtn">Giris Yap</button>
+
+                <div class="auth-link-row">
+                    <button type="button" class="link-btn" id="openForgotBtn">Sifremi Unuttum</button>
+                </div>
             </form>
             <div id="logMessage" class="message-box" role="alert" aria-live="polite"></div>
+        </section>
+
+        <!-- ŞIFREMI UNUTTUM: Email isteyip POST /api/auth/forgot-password gonderir -->
+        <section class="auth-section" id="forgotSection" role="tabpanel" aria-labelledby="forgotHeader">
+            <header class="auth-header">
+                <h2 id="forgotHeader">Sifre Sifirlama</h2>
+                <p class="subtitle">Kayitli e-posta adresinizi girin. Size sifre sifirlama bagantisi gondericegiz.</p>
+            </header>
+
+            <form id="forgotForm">
+                <div class="form-group">
+                    <label for="forgotEposta">E-posta Adresi</label>
+                    <input type="email" id="forgotEposta" class="form-control" placeholder="name@domain.com" required autocomplete="email">
+                </div>
+
+                <button type="submit" class="btn-primary" id="forgotSubmitBtn">Sifirlama Linki Gonder</button>
+
+                <div class="auth-link-row">
+                    <button type="button" class="link-btn" id="backToLoginFromForgotBtn">&larr; Giris Ekranina Don</button>
+                </div>
+            </form>
+            <div id="forgotMessage" class="message-box" role="alert" aria-live="polite"></div>
+        </section>
+
+        <!-- ŞIFRE SIFIRLAMA: ?reset=<token> ile mail uzerinden gelinirse otomatik acilir -->
+        <section class="auth-section" id="resetSection" role="tabpanel" aria-labelledby="resetHeader">
+            <header class="auth-header">
+                <h2 id="resetHeader">Yeni Sifre Belirle</h2>
+                <p class="subtitle">Lutfen yeni sifrenizi belirleyin. Bagantinin gecerlilik suresi 1 saattir.</p>
+            </header>
+
+            <form id="resetForm">
+                <div class="form-group">
+                    <label for="resetNewPassword">Yeni Sifre</label>
+                    <input type="password" id="resetNewPassword" class="form-control" placeholder="En az 8 karakter" required minlength="8" autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="resetNewPasswordConfirm">Yeni Sifre (Tekrar)</label>
+                    <input type="password" id="resetNewPasswordConfirm" class="form-control" placeholder="Sifreyi tekrar yazin" required minlength="8" autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn-primary" id="resetSubmitBtn">Sifremi Guncelle</button>
+
+                <div class="auth-link-row">
+                    <button type="button" class="link-btn" id="backToLoginFromResetBtn">&larr; Giris Ekranina Don</button>
+                </div>
+            </form>
+            <div id="resetMessage" class="message-box" role="alert" aria-live="polite"></div>
         </section>
 
         <section class="auth-section" id="registerSection" role="tabpanel">
