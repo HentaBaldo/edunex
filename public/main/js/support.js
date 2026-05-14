@@ -219,7 +219,9 @@ const SupportUser = (() => {
             const resp = await createTicket({ konu, mesaj, kategori });
             const newId = resp?.data?.id;
             document.getElementById('newKonu').value = '';
-            document.getElementById('newMesaj').value = '';
+            const newMesaj = document.getElementById('newMesaj');
+            newMesaj.value = '';
+            updateCounter(newMesaj, document.getElementById('newMesajCounter'), 1000);
             document.getElementById('newKategori').value = 'diger';
             showToast('Destek talebiniz oluşturuldu.', 'success');
             await reloadList(true);
@@ -240,6 +242,7 @@ const SupportUser = (() => {
         try {
             await sendReply(state.currentTicket.id, mesaj);
             ta.value = '';
+            updateCounter(ta, document.getElementById('dthComposerCounter'), 1000);
             const detail = await fetchTicketDetail(state.currentTicket.id);
             if (detail) renderThread(detail);
             await reloadList(true);
@@ -263,12 +266,21 @@ const SupportUser = (() => {
             showEmpty();
         });
         // Composer: Enter -> gonder, Shift+Enter -> yeni satir
-        document.getElementById('dthComposerInput').addEventListener('keydown', (e) => {
+        const dthInput = document.getElementById('dthComposerInput');
+        const dthCounter = document.getElementById('dthComposerCounter');
+        dthInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 document.getElementById('dthComposerForm').requestSubmit();
             }
         });
+        dthInput.addEventListener('input', () => updateCounter(dthInput, dthCounter, 1000));
+
+        // Yeni ticket mesaj sayacı
+        const newMesaj = document.getElementById('newMesaj');
+        const newMesajCounter = document.getElementById('newMesajCounter');
+        newMesaj.addEventListener('input', () => updateCounter(newMesaj, newMesajCounter, 1000));
+
         document.querySelectorAll('.ut-tab').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.ut-tab').forEach(b => b.classList.remove('active'));
@@ -277,6 +289,16 @@ const SupportUser = (() => {
                 reloadList();
             });
         });
+    }
+
+    // Karakter sayacı (uyarı renkleri ile)
+    function updateCounter(textarea, counterEl, max) {
+        if (!textarea || !counterEl) return;
+        const len = textarea.value.length;
+        counterEl.textContent = `${len} / ${max}`;
+        counterEl.classList.remove('warn', 'danger');
+        if (len >= max) counterEl.classList.add('danger');
+        else if (len >= max * 0.9) counterEl.classList.add('warn');
     }
 
     async function init() {

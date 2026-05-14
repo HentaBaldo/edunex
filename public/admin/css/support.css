@@ -425,3 +425,14 @@
     .support-thread { min-height: 60vh; }
 }
 
+/* ─── Karakter Sayacı (mesaj composer) ───────────────────────── */
+.composer-counter {
+    text-align: right;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    padding: 4px 16px 8px;
+    user-select: none;
+}
+.composer-counter.warn { color: #f59e0b; }
+.composer-counter.danger { color: #ef4444; font-weight: 600; }
+

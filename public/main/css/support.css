@@ -482,3 +482,14 @@
     .ticket-list-pane { max-height: none; }
     .form-row-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── Karakter Sayacı (mesaj composer) ───────────────────────── */
+.composer-counter {
+    text-align: right;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    padding: 4px 12px 4px;
+    user-select: none;
+}
+.composer-counter.warn { color: #f59e0b; }
+.composer-counter.danger { color: #ef4444; font-weight: 600; }
