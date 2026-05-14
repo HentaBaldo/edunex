@@ -528,13 +528,10 @@ function updateLessonInfo(lesson) {
             ${escapeHtml(lesson.aciklama || 'Açıklama bulunmamaktadır.')}
         </div>
         <div class="lesson-actions">
-            ${lesson.icerik_tipi === 'video'
-                ? (isCompleted
-                    ? `<span class="btn-mark-complete completed" style="cursor:default;"><i class="fas fa-check-circle"></i> Tamamlandı</span>`
-                    : `<span class="btn-mark-complete" style="cursor:default; opacity:0.55;" title="Video %95 izlenince otomatik tamamlanır"><i class="fas fa-clock"></i> İzlemeye devam edin</span>`)
-                : `<button class="btn-mark-complete ${isCompleted ? 'completed' : ''}" onclick="markLessonComplete('${lesson.id}')">
-                        <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-play'}"></i>
-                        ${isCompleted ? 'Tamamlandı' : 'Tamamlandı Olarak İşaretle'}
+            ${isCompleted
+                ? `<span class="btn-mark-complete completed" style="cursor:default;"><i class="fas fa-check-circle"></i> Tamamlandı</span>`
+                : `<button class="btn-mark-complete" onclick="markLessonComplete('${lesson.id}')">
+                        <i class="fas fa-check"></i> Tamamlandı Olarak İşaretle
                    </button>`}
         </div>
     `;
