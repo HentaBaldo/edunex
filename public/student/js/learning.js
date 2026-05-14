@@ -348,18 +348,14 @@ function loadLessonContent(lesson) {
     // 2. Ana Sahneyi Çiz
     // learning.js içindeki loadLessonContent fonksiyonunun ilgili kısmı
         if (mainMedia === 'bunny') {
-            const videoId = kaynak1;
-            // controls=false → Bunny kendi seek bar ve butonlarını gizler
-            // Kullanıcı yalnızca bizim custom player UI ile etkileşime girer
             htmlContent += `
-                <div style="position: relative; flex-grow: 1; min-height: 400px; display: flex;">
-                    <iframe 
-                        id="bunnyIframe" 
-                        src="https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${videoId}?autoplay=false&api=true" 
-                        allowfullscreen 
-                        allow="autoplay; fullscreen"
-                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;">
-                    </iframe>
+                <div style="position: relative; flex-grow: 1; min-height: 400px; background: #000; display: flex; align-items: center; justify-content: center;">
+                    <video
+                        id="bunnyNativePlayer"
+                        controls
+                        controlsList="nodownload"
+                        style="width: 100%; height: 100%; object-fit: contain; display: block;">
+                    </video>
                 </div>`;
         } else if (mainMedia === 'youtube') {
         const ytId = extractYoutubeId(kaynak2);
@@ -676,15 +672,12 @@ if (!document.querySelector('style[data-toast-animations]')) {
 // Iframe değiştiğinde dinleyici temizlenir → null referans hatası olmaz.
 // ==========================================
 
-let bunnyPlayer = null;
+let _activeHls = null;        // HLS.js instance
+let _activeVideoEl = null;    // Native <video> elementi
 let maxWatchedSeconds = 0;
 let videoCompleted = false;
-let lastTimeUpdatePos = -1;
 let seekLock = false;
-let _activeIframe = null;
-let _msgHandler = null;
 let _resolvedDuration = 0;
-let _pollInterval = null;   // getCurrentTime polling interval
 
 function initLessonTracking(lesson, mainMedia) {
     _stopTracking();
@@ -699,34 +692,15 @@ function initLessonTracking(lesson, mainMedia) {
 }
 
 function _stopTracking() {
-    if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
-    if (_msgHandler) {
-        window.removeEventListener('message', _msgHandler);
-        _msgHandler = null;
+    if (_activeHls) {
+        try { _activeHls.destroy(); } catch(e) {}
+        _activeHls = null;
     }
-    if (bunnyPlayer) {
-        try { bunnyPlayer.off('ended'); } catch(e) {}
-        bunnyPlayer = null;
-    }
-    _activeIframe = null;
+    _activeVideoEl = null;
     _resolvedDuration = 0;
     maxWatchedSeconds = 0;
     videoCompleted = false;
-    lastTimeUpdatePos = -1;
     seekLock = false;
-}
-
-function _safeSend(player, iframe, method, value) {
-    if (!player || !iframe || !iframe.contentWindow) return;
-    try {
-        if (value !== undefined) {
-            player[method](value);
-        } else {
-            player[method]();
-        }
-    } catch(e) {
-        console.warn('[TRACKING] _safeSend hata (' + method + '):', e.message);
-    }
 }
 
 // ─── LocalStorage yardımcıları: nerede kaldığını hatırla ───────────────────
@@ -740,7 +714,8 @@ function _clearResumePos(lessonId) {
     try { localStorage.removeItem('resume_' + lessonId); } catch(e) {}
 }
 
-// ─── Ortak timeupdate işleyici (hem player.on hem window.message'dan çağrılır) ─
+// ─── timeupdate işleyici: pozisyon kaydet + %95 tamamlama ─────────────────────
+// Seek engeli ayrıca native 'seeked' event'inde yapılıyor (trackBunnyVideo).
 function _handleTimeUpdate(seconds, duration) {
     if (seekLock) return;
     if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) return;
@@ -752,22 +727,6 @@ function _handleTimeUpdate(seconds, duration) {
         _saveResumePos(currentLessonId, seconds);
     }
 
-    // Seek tespiti: son bilinen konumdan 3s'den fazla ileri sıçrama
-    if (lastTimeUpdatePos >= 0) {
-        const jump = seconds - lastTimeUpdatePos;
-        if (jump > 3 && seconds > maxWatchedSeconds + 3) {
-            seekLock = true;
-            try { bunnyPlayer.setCurrentTime(maxWatchedSeconds); } catch(e) {}
-            showNotification('Eğitim bütünlüğü için dersi ileri saramazsınız.', 'error');
-            setTimeout(function() {
-                seekLock = false;
-                lastTimeUpdatePos = maxWatchedSeconds;
-            }, 1500);
-            return;
-        }
-    }
-
-    lastTimeUpdatePos = seconds;
     if (seconds > maxWatchedSeconds) maxWatchedSeconds = seconds;
 
     // %95 tamamlama kontrolü
@@ -779,99 +738,69 @@ function _handleTimeUpdate(seconds, duration) {
 }
 
 function trackBunnyVideo(lesson) {
-    const iframe = document.getElementById('bunnyIframe');
-    if (!iframe) { console.error('[TRACKING] Iframe bulunamadi!'); return; }
+    const videoEl = document.getElementById('bunnyNativePlayer');
+    if (!videoEl) { console.error('[TRACKING] Video elementi bulunamadı!'); return; }
 
-    _activeIframe = iframe;
+    _activeVideoEl = videoEl;
     maxWatchedSeconds = 0;
     videoCompleted = false;
-    lastTimeUpdatePos = -1;
     seekLock = false;
     currentLessonId = lesson.id;
     _resolvedDuration = lesson.sure_saniye || 0;
 
-    if (typeof playerjs === 'undefined') {
-        console.error('[TRACKING] player.js yuklu degil!');
+    // HLS stream URL'i
+    const hlsSrc = `https://video-${bunnyLibraryId}.mediadelivery.net/${lesson.video_saglayici_id}/playlist.m3u8`;
+
+    if (window.Hls && Hls.isSupported()) {
+        _activeHls = new Hls();
+        _activeHls.loadSource(hlsSrc);
+        _activeHls.attachMedia(videoEl);
+    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari: yerleşik HLS desteği
+        videoEl.src = hlsSrc;
+    } else {
+        console.error('[TRACKING] Bu tarayıcı HLS oynatmayı desteklemiyor.');
         return;
     }
 
-    bunnyPlayer = new playerjs.Player(iframe);
-
-    // iframe'e doğrudan player.js protokolü ile mesaj gönder
-    function _iframeSend(method, value, listener) {
-        if (!_activeIframe || !_activeIframe.contentWindow) return;
-        const msg = { context: 'player.js', method };
-        if (value !== undefined) msg.value = value;
-        if (listener)           msg.listener = listener;
-        try { _activeIframe.contentWindow.postMessage(JSON.stringify(msg), '*'); } catch(e) {}
-    }
-
-    // Bunny postMessage olaylarını dinle
-    _msgHandler = function(e) {
-        let data;
-        try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(ex) { return; }
-        if (!data || data.context !== 'player.js') return;
-
-        const ev  = data.event;
-        const val = data.value;
-
-        if (ev === 'ready') {
-            // player.js API
-            try { bunnyPlayer.on('timeupdate', function(v) { _handleTimeUpdate(v.seconds||v||0, v.duration||0); }); } catch(e) {}
-            try { bunnyPlayer.on('ended', function() { if (!videoCompleted) { videoCompleted=true; _clearResumePos(currentLessonId); markLessonComplete(currentLessonId); } }); } catch(e) {}
-            try { bunnyPlayer.getDuration(function(d) { if (d > 0) _resolvedDuration = d; }); } catch(e) {}
-
-            // Doğrudan postMessage (yedek)
-            _iframeSend('addEventListener', 'timeupdate');
-            _iframeSend('addEventListener', 'ended');
-            _iframeSend('getDuration', undefined, 'cb_dur');
-
-            // Kaldığı yerden devam
-            const resumePos = _loadResumePos(lesson.id);
-            if (resumePos > 5 && !lesson.tamamlandi_mi) {
-                console.log('[TRACKING] Kaldığı yerden devam: ' + resumePos + 's');
-                _iframeSend('setCurrentTime', resumePos);
-                maxWatchedSeconds = resumePos;
-                lastTimeUpdatePos = resumePos;
-            }
-            return;
+    // Metadata yüklenince: süreyi güncelle, kaldığı yerden devam et
+    videoEl.addEventListener('loadedmetadata', function onMeta() {
+        videoEl.removeEventListener('loadedmetadata', onMeta);
+        if (videoEl.duration && isFinite(videoEl.duration)) {
+            _resolvedDuration = videoEl.duration;
         }
-
-        if (ev === 'cb_dur' || ev === 'getDuration') {
-            const d = typeof val === 'number' ? val : parseFloat(val);
-            if (d > 0) _resolvedDuration = d;
-            return;
+        const resumePos = _loadResumePos(lesson.id);
+        if (resumePos > 5 && !lesson.tamamlandi_mi) {
+            console.log('[TRACKING] Kaldığı yerden devam: ' + resumePos + 's');
+            videoEl.currentTime = resumePos;
+            maxWatchedSeconds = resumePos;
         }
+    });
 
-        if (ev === 'timeupdate') {
-            const s = typeof val === 'object' ? (val.seconds ?? 0) : (Number(val) || 0);
-            const d = typeof val === 'object' ? (val.duration ?? 0) : 0;
-            _handleTimeUpdate(s, d);
-            return;
+    // Timeupdate: pozisyon kaydet + %95 tamamlama
+    videoEl.addEventListener('timeupdate', function() {
+        _handleTimeUpdate(videoEl.currentTime, videoEl.duration || _resolvedDuration);
+    });
+
+    // Seeked: ileri atlama engelle
+    videoEl.addEventListener('seeked', function() {
+        if (seekLock) return;
+        if (videoEl.currentTime > maxWatchedSeconds + 2) {
+            seekLock = true;
+            videoEl.currentTime = maxWatchedSeconds;
+            showNotification('Eğitim bütünlüğü için dersi ileri saramazsınız.', 'error');
+            setTimeout(function() { seekLock = false; }, 1000);
         }
+    });
 
-        if (ev === 'cb_poll' || ev === 'getCurrentTime') {
-            const t = typeof val === 'number' ? val : parseFloat(val);
-            if (!isNaN(t) && t >= 0) _handleTimeUpdate(t, _resolvedDuration);
-            return;
+    // Ended: tamamlandı
+    videoEl.addEventListener('ended', function() {
+        if (!videoCompleted) {
+            videoCompleted = true;
+            _clearResumePos(currentLessonId);
+            markLessonComplete(currentLessonId);
         }
-
-        if (ev === 'ended') {
-            if (!videoCompleted) {
-                videoCompleted = true;
-                _clearResumePos(currentLessonId);
-                markLessonComplete(currentLessonId);
-            }
-        }
-    };
-    window.addEventListener('message', _msgHandler);
-
-    // Polling: her 2 saniyede getCurrentTime iste (timeupdate gelmese bile çalışır)
-    if (_pollInterval) clearInterval(_pollInterval);
-    _pollInterval = setInterval(function() {
-        if (!_activeIframe || videoCompleted) { clearInterval(_pollInterval); _pollInterval = null; return; }
-        _iframeSend('getCurrentTime', undefined, 'cb_poll');
-    }, 2000);
+    });
 }
 
 // ═══════════════════════════════════════════════════
