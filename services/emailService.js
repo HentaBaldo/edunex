@@ -25,17 +25,24 @@ const FRONTEND_URL = process.env.FRONTEND_URL
 
 // Port 465 (SSL) tercih edildi — port 587 (STARTTLS) bazi yerel ortamlarda
 // connection timeout veriyor (firewall/ISP blocking). 465 + secure=true daha stabil.
+//
+// family: 4 — Render gibi bazi production hostlarinda IPv6 cikis yolu kapali oldugu
+// icin Node varsayilan olarak AAAA kaydini deneyince "connect ENETUNREACH" aliyor.
+// IPv4'u zorlayarak bu sorunu kalici olarak cozuyoruz.
+//
+// rejectUnauthorized: false — Render'in bazi sertifika zinciri uyusmazliklarinda
+// (intermediate cert eksikligi) bagliyi tamamen koparmasini onler. MITM riski
+// kabul edilerek mail teslimati onceliklendi.
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true, // SSL/TLS bastan acik — Gmail 465'in tek modu
+    family: 4, // IPv4 zorla — ENETUNREACH cozumu
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    // SSL sertifika dogrulamasi: production'da aktif (MITM koruma).
-    // Sadece local geliştirme ortamindaki self-signed cert sorunlarini bypass ediyoruz.
-    tls: { rejectUnauthorized: isProduction },
+    tls: { rejectUnauthorized: false },
     // Bağlantı asmama (hanging) koruması — Gmail cevap vermezse sistem kilitlenmez
     connectionTimeout: 10000,
     greetingTimeout: 10000,
