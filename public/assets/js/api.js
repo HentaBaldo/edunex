@@ -138,6 +138,48 @@ const ApiService = {
     },
 
     /**
+     * PATCH isteği (kısmi güncelleme — örn. ticket durum değişimi)
+     */
+    async patch(endpoint, body) {
+        const token = this.getActiveToken();
+        const headers = { 'Content-Type': 'application/json' };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        try {
+            const response = await fetch(`/api${endpoint}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                data = {
+                    message: `Server Error: ${response.status}`,
+                    statusCode: response.status
+                };
+            }
+
+            if (!response.ok) {
+                const error = new Error(data.message || `HTTP ${response.status}`);
+                error.statusCode = response.status;
+                throw error;
+            }
+
+            return data;
+
+        } catch (error) {
+            console.error(`[API Error] [${endpoint}]:`, error.message);
+            throw error;
+        }
+    },
+
+    /**
      * DELETE isteği (opsiyonel body ile - ornegin sebep alani icin)
      */
     async delete(endpoint, body) {

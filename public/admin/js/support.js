@@ -240,6 +240,7 @@ const SupportAdmin = (() => {
             await sendReply(state.selectedId, mesaj);
             ta.value = '';
             autoGrowComposer();
+            updateCounter(ta, document.getElementById('composerCounter'), 1000);
             // Detayi yeniden cek (yeni mesaj + durum 'cevaplandi' yansisin).
             const detail = await fetchTicketDetail(state.selectedId);
             if (detail) renderThread(detail);
@@ -258,7 +259,7 @@ const SupportAdmin = (() => {
         if (state.currentTicket.durum === 'kapali') return;
         if (!confirm('Bu bileti kapatmak istediğinize emin misiniz? Kullanıcı yeni mesaj ekleyemeyecek.')) return;
         try {
-            await ApiService.put(`/admin/support/tickets/${state.currentTicket.id}/status`, { durum: 'kapali' });
+            await ApiService.patch(`/admin/support/tickets/${state.currentTicket.id}/status`, { durum: 'kapali' });
             showToast('Bilet kapatıldı.', 'success');
             const detail = await fetchTicketDetail(state.currentTicket.id);
             if (detail) renderThread(detail);
@@ -292,7 +293,9 @@ const SupportAdmin = (() => {
         const composer = document.getElementById('composerForm');
         composer.addEventListener('submit', handleSubmit);
         const ta = document.getElementById('composerInput');
+        const counter = document.getElementById('composerCounter');
         ta.addEventListener('input', autoGrowComposer);
+        ta.addEventListener('input', () => updateCounter(ta, counter, 1000));
         ta.addEventListener('keydown', (e) => {
             // Enter -> gonder, Shift+Enter -> yeni satir
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -302,6 +305,16 @@ const SupportAdmin = (() => {
         });
         // Kapat butonu
         document.getElementById('btnCloseTicket').addEventListener('click', handleCloseTicket);
+    }
+
+    // Karakter sayacı (uyarı renkleri ile)
+    function updateCounter(textarea, counterEl, max) {
+        if (!textarea || !counterEl) return;
+        const len = textarea.value.length;
+        counterEl.textContent = `${len} / ${max}`;
+        counterEl.classList.remove('warn', 'danger');
+        if (len >= max) counterEl.classList.add('danger');
+        else if (len >= max * 0.9) counterEl.classList.add('warn');
     }
 
     async function init() {

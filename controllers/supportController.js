@@ -21,7 +21,7 @@ const VALID_KATEGORI = ['finans', 'teknik', 'kurs_onay', 'diger'];
 const KONU_MIN = 5;
 const KONU_MAX = 255;
 const MESAJ_MIN = 2;
-const MESAJ_MAX = 5000;
+const MESAJ_MAX = 1000;
 
 // Bildirimde admin paneline veya kullanici sayfasina yonlendirmek icin URL kalibi.
 // contact.html artik dinamik destek merkezi (Faz 3); ?ticket=ID detay panelini acar.
