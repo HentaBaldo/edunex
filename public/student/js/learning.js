@@ -778,35 +778,54 @@ function trackBunnyVideo(lesson) {
         }
     });
 
-    // Seeking/seeked: ileri atlama engeli
-    // seeking → seek başlamadan önce güvenli pozisyonu yakala
-    // (timeupdate, seeked'den önce yeni pozisyonla tetiklenebileceği için
-    //  maxWatchedSeconds'ı seeking sırasında güncellemiyoruz)
-    let _isSeeking = false;
-    let _posBeforeSeek = 0;
+    // Timeupdate: konum takibi + seek engeli + %95 tamamlama
+    // Strateji: timeupdate her ~250ms'de tetiklenir. Normal oynatmada
+    // ardışık iki güncelleme arası < 1.5s'dir. Daha büyük sıçrama → seek.
+    // Bu sayede seeking/seeked race condition'ı tamamen ortadan kalkar.
+    let _lastPos = -1;
 
-    videoEl.addEventListener('seeking', function() {
-        if (!seekLock) {
-            _isSeeking = true;
-            _posBeforeSeek = maxWatchedSeconds;
+    videoEl.addEventListener('timeupdate', function() {
+        if (seekLock) return;
+        const seconds = videoEl.currentTime;
+        const dur = videoEl.duration || _resolvedDuration;
+        if (dur > 0 && isFinite(dur)) _resolvedDuration = dur;
+
+        // Normal oynatma mı, seek mi?
+        const isNormal = _lastPos < 0 ||
+            (seconds >= _lastPos && seconds - _lastPos < 1.5);
+
+        if (!isNormal && seconds > maxWatchedSeconds + 0.5) {
+            // İleri atlama → engelle
+            seekLock = true;
+            videoEl.currentTime = maxWatchedSeconds;
+            showNotification('Eğitim bütünlüğü için dersi ileri saramazsınız.', 'error');
+            setTimeout(function() { seekLock = false; _lastPos = maxWatchedSeconds; }, 1000);
+            return;
+        }
+
+        _lastPos = seconds;
+
+        if (isNormal) {
+            if (seconds > maxWatchedSeconds) maxWatchedSeconds = seconds;
+            if (Math.floor(seconds) % 5 === 0) _saveResumePos(currentLessonId, seconds);
+            if (!videoCompleted && _resolvedDuration > 0 && maxWatchedSeconds >= _resolvedDuration * 0.95) {
+                videoCompleted = true;
+                _clearResumePos(currentLessonId);
+                markLessonComplete(currentLessonId);
+            }
         }
     });
 
-    // Timeupdate: pozisyon kaydet + %95 tamamlama (seeking sırasında atla)
-    videoEl.addEventListener('timeupdate', function() {
-        if (_isSeeking) return;
-        _handleTimeUpdate(videoEl.currentTime, videoEl.duration || _resolvedDuration);
-    });
-
-    // Seeked: ileri atlama kontrolü
+    // Seeked: duraklatılmışken ileri atlama — yedek kontrol
     videoEl.addEventListener('seeked', function() {
-        _isSeeking = false;
         if (seekLock) return;
-        if (videoEl.currentTime > _posBeforeSeek + 2) {
+        if (videoEl.currentTime > maxWatchedSeconds + 0.5) {
             seekLock = true;
-            videoEl.currentTime = _posBeforeSeek;
+            videoEl.currentTime = maxWatchedSeconds;
             showNotification('Eğitim bütünlüğü için dersi ileri saramazsınız.', 'error');
-            setTimeout(function() { seekLock = false; }, 1000);
+            setTimeout(function() { seekLock = false; _lastPos = maxWatchedSeconds; }, 1000);
+        } else {
+            _lastPos = videoEl.currentTime;
         }
     });
 
