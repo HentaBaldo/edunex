@@ -441,37 +441,50 @@ async function sonYorumlariYukle() {
     const izgara = document.getElementById('recentReviewsGrid');
     if (!izgara) return;
 
+    let yorumlar = [];
     try {
-        const sonuc    = await ApiService.get('/reviews/recent?limit=6');
-        const yorumlar = sonuc.veri || sonuc.data || [];
-        if (yorumlar.length) {
-            izgara.innerHTML = yorumlar.map(yorumKartiOlustur).join('');
-            return;
-        }
+        const sonuc = await ApiService.get('/reviews/recent?limit=6');
+        yorumlar = sonuc.veri || sonuc.data || [];
     } catch {}
 
-    izgara.innerHTML = [
-        { ad: 'Ahmet Y.', kurs: 'Web Geliştirme Bootcamp', yorum: 'EduNex ile yazılım dünyasına adım attım. Eğitmenler son derece bilgili ve ilgili, içerikler her zaman güncel.', puan: 5 },
-        { ad: 'Selin K.', kurs: 'Python ile Veri Bilimi', yorum: 'Sertifikam işe alım sürecimde gerçekten fark yarattı. Uygulamalı projelerle öğrenme deneyimi olağanüstüydü.', puan: 5 },
-        { ad: 'Murat D.', kurs: 'UI/UX Tasarım Temelleri', yorum: 'Kısa sürede çok şey öğrendim. Modüler yapısı sayesinde kendi hızımda ilerleyebildim.', puan: 5 },
-        { ad: 'Zeynep A.', kurs: 'Dijital Pazarlama', yorum: 'Canlı dersler sayesinde eğitmenle doğrudan iletişim kurabilmek paha biçilemez bir deneyim.', puan: 5 },
-        { ad: 'Emre S.', kurs: 'React ile Modern Web', yorum: 'Projeye dayalı öğrenme yöntemi harika. İlk haftada gerçek bir uygulama yazdım.', puan: 5 },
-        { ad: 'Büşra T.', kurs: 'İngilizce İletişim', yorum: 'Eğitmenin dönütleri ve pratik alıştırmalar sayesinde çok kısa sürede özgüven kazandım.', puan: 5 },
-    ].map(yorumKartiOlustur).join('');
+    if (!yorumlar.length) {
+        // Hiç yorum yoksa demo verilerle doldur
+        yorumlar = [
+            { ad: 'Ahmet Y.', kurs: 'Web Geliştirme Bootcamp', yorum: 'EduNex ile yazılım dünyasına adım attım. Eğitmenler son derece bilgili ve ilgili, içerikler her zaman güncel.', puan: 5 },
+            { ad: 'Selin K.', kurs: 'Python ile Veri Bilimi', yorum: 'Sertifikam işe alım sürecimde gerçekten fark yarattı. Uygulamalı projelerle öğrenme deneyimi olağanüstüydü.', puan: 5 },
+            { ad: 'Murat D.', kurs: 'UI/UX Tasarım Temelleri', yorum: 'Kısa sürede çok şey öğrendim. Modüler yapısı sayesinde kendi hızımda ilerleyebildim.', puan: 5 },
+            { ad: 'Zeynep A.', kurs: 'Dijital Pazarlama', yorum: 'Canlı dersler sayesinde eğitmenle doğrudan iletişim kurabilmek paha biçilemez bir deneyim.', puan: 5 },
+            { ad: 'Emre S.', kurs: 'React ile Modern Web', yorum: 'Projeye dayalı öğrenme yöntemi harika. İlk haftada gerçek bir uygulama yazdım.', puan: 5 },
+            { ad: 'Büşra T.', kurs: 'İngilizce İletişim', yorum: 'Eğitmenin dönütleri ve pratik alıştırmalar sayesinde çok kısa sürede özgüven kazandım.', puan: 5 },
+        ];
+    }
+
+    izgara.innerHTML = yorumlar.map(yorumKartiOlustur).join('');
+
+    // Yorum sayısına göre layout class'ı (1 veya 2 yorum varsa kartlar genişler)
+    izgara.classList.remove('review-count-1', 'review-count-2');
+    if (yorumlar.length === 1) izgara.classList.add('review-count-1');
+    else if (yorumlar.length === 2) izgara.classList.add('review-count-2');
 }
 
 function yorumKartiOlustur(y) {
-    const puan    = y.puan || y.puan_degeri || 5;
-    const ad      = guvenliMetin(y.ad || y.kullanici_adi || 'Öğrenci');
-    const kurs    = guvenliMetin(y.kurs || y.kurs_baslik || '');
-    const yorum   = guvenliMetin(y.yorum || y.icerik || y.yorum_metni || '');
-    const inisyal = ad.charAt(0).toUpperCase() || '?';
-    const yildiz  = '★'.repeat(Math.min(5, Math.max(1, parseInt(puan))));
+    const puan      = y.puan || y.puan_degeri || 5;
+    const ad        = guvenliMetin(y.ad || y.kullanici_adi || 'Öğrenci');
+    const kurs      = guvenliMetin(y.kurs || y.kurs_baslik || '');
+    // Yorum metni HTML içerebilir → düz metne çevir + boşsa fallback
+    const yorumHam  = y.yorum || y.icerik || y.yorum_metni || '';
+    const yorumDuz  = duzMetin(yorumHam, 280);
+    const yorumBos  = !yorumDuz || yorumDuz.trim().length === 0;
+    const yorumHtml = yorumBos
+        ? '<span class="empty">Bu öğrenci henüz yazılı yorum bırakmadı.</span>'
+        : yorumDuz;
+    const inisyal   = ad.charAt(0).toUpperCase() || '?';
+    const yildiz    = '★'.repeat(Math.min(5, Math.max(1, parseInt(puan))));
 
     return `
     <div class="review-card-home">
         <div class="review-quote-icon"><i class="fas fa-quote-left"></i></div>
-        <p class="review-text">${yorum}</p>
+        <p class="review-text ${yorumBos ? 'empty' : ''}">${yorumHtml}</p>
         <div class="review-stars">${yildiz}</div>
         <div class="review-author">
             <div class="review-avatar">${inisyal}</div>
