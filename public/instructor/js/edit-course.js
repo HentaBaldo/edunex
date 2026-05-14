@@ -726,9 +726,9 @@ window.switchTab = (tabId) => {
 window._myDiscountId = null;
 
 async function loadCourseDiscount() {
-    if (!window.editingCourseId) return;
+    if (!courseId) return;
     try {
-        const res = await ApiService.get(`/discounts/instructor/${window.editingCourseId}`);
+        const res = await ApiService.get(`/discounts/instructor/${courseId}`);
         const rows = res.data || [];
         renderCourseDiscounts(rows);
     } catch (err) {
@@ -829,7 +829,7 @@ window.saveMyDiscount = async () => {
 
     try {
         await ApiService.post('/discounts', {
-            ders_id: window.editingCourseId,
+            ders_id: courseId,
             baslik, yuzde_indirim: yuzde, sabit_indirim: sabit,
             baslangic, bitis, aciklama,
             finansman_tarafi: 'egitmen',
