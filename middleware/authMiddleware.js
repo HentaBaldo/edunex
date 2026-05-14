@@ -123,28 +123,62 @@ exports.isStudent = (req, res, next) => {
 };
 
 /**
- * Finans/Hakedis modulune erisim icin ust dvuzey yetki kontrolu.
+ * Finans/Hakedis modulune erisim icin yetki kontrolu (Super-Admin RBAC).
  *
- * Iki kati guvenlik:
- *   1) JWT'deki rol mutlaka 'admin' olmali (isAdmin'in yaptigi kontrol)
- *   2) DB'den profiller.finans_yetkili = true dogrulanmali
+ * Yetki modeli (sektor standardi):
+ *   1) rol === 'admin'           -> KOK YONETICI: tum modullere otomatik erisim.
+ *                                   profiller.finans_yetkili flag'i kontrol EDILMEZ,
+ *                                   sadece denetim (audit) loguna yazilir.
+ *   2) Gelecekte 'staff' / 'moderator' gibi alt-admin roller eklendiginde,
+ *      onlar icin profiller.finans_yetkili = true sarti opt-in olarak isler.
+ *
+ * Tasarim notu (neden kok admin'in bayragi yok-sayiliyor):
+ *   - "Iki kati savunma" admin kullanicisini DB flag'i unutuldugunda kilitliyordu
+ *     (urun ekibinde tek admin varsa kendini disari atabilir). Endustri pratigi
+ *     kok admin'i super-user kabul edip granular permission'i alt rollere uygulamak.
+ *   - Audit log her finans erisimini izleyebilmek icin tam detayla yaziliyor.
  *
  * NOT: verifyToken middleware'inden sonra kullanilmali.
- * NOT: Bu kontrol her istekte ek 1 DB read yapar (KPI sayfasi gunde 100x acilsa bile dert degil).
  */
 exports.isFinanceAdmin = async (req, res, next) => {
     try {
-        if (!req.user || req.user.rol !== 'admin') {
-            return res.status(403).json({
+        if (!req.user) {
+            return res.status(401).json({
                 success: false,
-                message: 'Bu islem icin yonetici yetkisi gerekiyor.',
+                message: 'Oturum bilgisi cozumlenemedi.',
             });
         }
 
-        // Lazy import: dairesel bagimliligi onlemek icin runtime'da yukle.
+        // Kok admin: dogrudan gecir. Audit icin loglanir (bayrak durumu da kayda alinir).
+        if (req.user.rol === 'admin') {
+            // Lazy import: dairesel bagimliligi onlemek icin runtime'da yukle.
+            // Audit icin finans_yetkili bayrak degerini de yakaliyoruz (DB var ise).
+            try {
+                const { Profile } = require('../models');
+                const profile = await Profile.findByPk(req.user.id, {
+                    attributes: ['id', 'finans_yetkili'],
+                });
+                console.log('[AUDIT] Finance access granted', {
+                    user_id: req.user.id,
+                    rol: req.user.rol,
+                    finans_yetkili_flag: profile ? !!profile.finans_yetkili : 'UNKNOWN',
+                    super_admin_bypass: profile ? !profile.finans_yetkili : true,
+                    method: req.method,
+                    path: req.originalUrl,
+                    ts: new Date().toISOString(),
+                });
+            } catch (auditErr) {
+                // Audit loglamasi DB hatasinda erisimi blokelemez (super-admin kuralinin sebebi).
+                console.warn('[AUDIT] Finance audit log atildi (DB hatasi):', auditErr.message);
+            }
+            return next();
+        }
+
+        // Kok admin degil -> alt-admin rolleri icin granular kontrol.
+        // (Su an EduNex'te 'staff' rolu yok; ileride eklendiginde bu blok aktif rol oynar.)
         const { Profile } = require('../models');
         const profile = await Profile.findByPk(req.user.id, {
-            attributes: ['id', 'finans_yetkili'],
+            attributes: ['id', 'finans_yetkili', 'rol'],
         });
 
         if (!profile) {
@@ -155,16 +189,26 @@ exports.isFinanceAdmin = async (req, res, next) => {
         }
 
         if (!profile.finans_yetkili) {
+            console.log('[AUDIT] Finance access DENIED', {
+                user_id: req.user.id,
+                rol: profile.rol,
+                reason: 'finans_yetkili=false',
+                path: req.originalUrl,
+            });
             return res.status(403).json({
                 success: false,
                 message: 'Finans modulune erisim icin ek yetki gerekiyor. Lutfen sistem yoneticisinden talep edin.',
             });
         }
 
+        console.log('[AUDIT] Finance access granted (staff)', {
+            user_id: req.user.id,
+            rol: profile.rol,
+            path: req.originalUrl,
+        });
         next();
     } catch (error) {
         console.error('[AUTH] isFinanceAdmin hatasi:', error.message);
-        // Kolon yoksa (sync henuz alinmadi): erisimi reddet (fail-safe).
         return res.status(503).json({
             success: false,
             message: 'Yetkilendirme servisi gecici olarak kullanilamiyor.',

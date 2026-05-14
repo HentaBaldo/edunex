@@ -65,21 +65,37 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             ));
         }
 
+        // --- Pazaryeri (Marketplace) basket kalemleri ---
+        // iyzico bir islemi Alt Uye Isyeri (SubMerchant) olarak kayitlamak icin HER
+        // basket item'da SU 3 ALANIN aynı anda dolu olmasini sart kosar:
+        //   - subMerchantKey   : eğitmenin iyzico Alt Uye Isyeri anahtari
+        //   - subMerchantPrice : eğitmenin net hak edis tutari (string, "0.00" format)
+        //   - price            : kalemin brut fiyati (string, "0.00" format)
+        // Komisyon hesabi KURUS bazli yapilir; toFixed(2) ile string'e cevirilir
+        // (floating-point sapmasini ve iyzico'nun esitlik kontrolunu garantilemek icin).
+        // Toplam dogrulamasi: SUM(item.subMerchantPrice) + SUM(item.platform_kesintisi) == request.price.
         const basketItems = items.map(item => {
             const itemKurus = toKurus(item.fiyat);
             const platformKesintiKurus = Math.round(itemKurus * PLATFORM_KOMISYON_ORANI / 100);
             const subMerchantKurus = itemKurus - platformKesintiKurus;
 
-            // Pazaryeri (Marketplace): subMerchantKey ve subMerchantPrice HER item icin
-            // gonderilir. Tek bir item'da bile eksik olursa iyzico tum cagriyi reddeder.
+            // Defansif son kontrol: validation katmanlarini gectiyse bile burada
+            // sifir/negatif submerchant pricing'i tespit edip cagriyi durdururuz.
+            if (subMerchantKurus <= 0) {
+                throw new Error(
+                    `Hak edis hesaplanamadi: "${item.baslik || 'Kurs'}" kursunun komisyon sonrasi net tutari sifir veya negatif. ` +
+                    `(brut=${(itemKurus / 100).toFixed(2)} TRY, komisyon=%${PLATFORM_KOMISYON_ORANI})`
+                );
+            }
+
             return {
                 id: item.id, // OrderItem.id - callback'te itemTransactions ile eslemek icin
                 name: sanitize(item.baslik, 'Kurs'),
                 category1: sanitize(item.kategori || 'Egitim', 'Egitim'),
                 itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
-                price: (itemKurus / 100).toFixed(2),
-                subMerchantKey: item.subMerchantKey,
-                subMerchantPrice: (subMerchantKurus / 100).toFixed(2),
+                price: (itemKurus / 100).toFixed(2),                  // "100.00"
+                subMerchantKey: item.subMerchantKey,                  // eğitmenin Alt Uye Isyeri anahtari
+                subMerchantPrice: (subMerchantKurus / 100).toFixed(2),// "70.00" (komisyon=%30 ornek)
             };
         });
 
@@ -167,13 +183,40 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
             return reject(new Error('iyzico veri dogrulamasi basarisiz: ' + violations.join('; ')));
         }
 
-        // Hassas veri (alici email/telefon/adres) iceren tam payload sadece development'ta loglanir.
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('[IYZICO] CALLBACK URL:', callbackUrl);
-            console.log('--- IYZICO REQUEST PAYLOAD ---', JSON.stringify(request, null, 2));
-        } else {
-            console.log(`[IYZICO] Checkout init basket=${order.id} total=${totalPrice}`);
-        }
+        // ----------------------------------------------------------------
+        // [IYZICO PAYLOAD] LOG (PII-safe)
+        //
+        // SDK cagrisindan HEMEN ONCE tam payload'u terminale yaziyoruz. PII (TCKN,
+        // GSM, email, adres) production loglarinda acik gozukmesin diye redaksiyonlu
+        // bir clone basariz. Marketplace dogrulamasi icin kritik alanlar
+        // (subMerchantKey, subMerchantPrice, price, basketId) acik kalir.
+        // ----------------------------------------------------------------
+        const mask = (s, keep = 2) => {
+            if (s == null) return s;
+            const str = String(s);
+            if (str.length <= keep) return '*'.repeat(str.length);
+            return str.slice(0, keep) + '*'.repeat(Math.max(0, str.length - keep));
+        };
+        const redactedPayload = {
+            ...request,
+            buyer: request.buyer && {
+                ...request.buyer,
+                gsmNumber: mask(request.buyer.gsmNumber, 4),
+                email: request.buyer.email
+                    ? request.buyer.email.replace(/^(.).+(@.+)$/, '$1***$2')
+                    : request.buyer.email,
+                identityNumber: mask(request.buyer.identityNumber, 3),
+                registrationAddress: '***',
+                ip: mask(request.buyer.ip, 3),
+            },
+            shippingAddress: request.shippingAddress && { ...request.shippingAddress, address: '***' },
+            billingAddress: request.billingAddress && { ...request.billingAddress, address: '***' },
+            // basketItems ACIK loglanir — pazaryeri integrasyonunu dogrulayan kritik veri buradadir.
+            basketItems: request.basketItems,
+        };
+        console.log('[IYZICO PAYLOAD]:', JSON.stringify(redactedPayload, null, 2));
+        console.log(`[IYZICO] Checkout init basket=${order.id} total=${totalPrice} items=${basketItems.length}`);
+
         iyzipay.checkoutFormInitialize.create(request, (err, result) => {
             console.log('[DEBUG] IYZICO FULL RESPONSE:', JSON.stringify(result, null, 2));
             if (err) {
