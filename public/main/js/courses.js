@@ -285,12 +285,11 @@
 
     function kursKartiOlustur(kurs) {
         const egitmen = kurs.Egitmen ? `${kurs.Egitmen.ad} ${kurs.Egitmen.soyad}` : 'Eğitmen';
-        const fiyat   = kurs.fiyat > 0 ? `${parseFloat(kurs.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
         const kategori = kurs.Category ? kurs.Category.ad : 'Genel';
         const puan     = kurs.istatistikler?.ortalama_puan || 0;
         const yorum    = kurs.istatistikler?.toplam_yorum  || 0;
-
-        const kapak = kurs.kapak_fotografi || null;
+        const kapak    = kurs.kapak_fotografi || null;
+        const fiyatHtml = _renderPriceTag(kurs);
 
         return `
             <a href="/main/course-detail.html?id=${kurs.id}" class="course-card">
@@ -298,6 +297,7 @@
                     <div class="kurs-kart-kapak">
                         ${kapak ? `<img src="${kapak}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
                         <span class="kurs-kategori-rozet">${kategori}</span>
+                        ${kurs.indirim_var && kurs.indirim_yuzde ? `<span class="kurs-indirim-rozet">-%${kurs.indirim_yuzde}</span>` : ''}
                     </div>
                     <div class="kurs-kart-govde">
                         <h3 class="kurs-kart-baslik">${kurs.baslik}</h3>
@@ -305,13 +305,29 @@
                         <p class="kurs-kart-egitmen"><i class="fas fa-chalkboard-teacher"></i> ${egitmen}</p>
                         ${yildizHtml(puan, yorum)}
                         <div class="kurs-kart-alt">
-                            <span class="kurs-fiyat">${fiyat}</span>
+                            ${fiyatHtml}
                             <span class="kurs-incele">İncele <i class="fas fa-arrow-right"></i></span>
                         </div>
                     </div>
                 </div>
             </a>
         `;
+    }
+
+    // İndirim durumuna göre fiyat etiketini render et
+    function _renderPriceTag(kurs) {
+        const original = parseFloat(kurs.original_fiyat ?? kurs.fiyat) || 0;
+        if (original <= 0) return '<span class="kurs-fiyat">Ücretsiz</span>';
+
+        if (kurs.indirim_var && kurs.net_fiyat != null && kurs.net_fiyat < original) {
+            const net = parseFloat(kurs.net_fiyat).toFixed(2);
+            const eski = original.toFixed(2);
+            return `<span class="kurs-fiyat-wrap">
+                <span class="kurs-fiyat-eski">${eski} ₺</span>
+                <span class="kurs-fiyat kurs-fiyat-indirimli">${net} ₺</span>
+            </span>`;
+        }
+        return `<span class="kurs-fiyat">${original.toFixed(2)} ₺</span>`;
     }
 
     // Zengin metni (HTML içerebilir) düz, kısaltılmış ve güvenli metne çevir

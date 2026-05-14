@@ -18,6 +18,7 @@ const { fn, col, Op } = require('sequelize');
 const { recalculateCourseProgress } = require('../services/progressService');
 const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
 const { sendNotification, notifyMultipleUsers } = require('../services/notificationService');
+const discountService = require('../services/discountService');
 
 /**
  * Tüm Kursları Getir (Sayfalama ile)
@@ -548,6 +549,9 @@ exports.getAllPublishedCourses = async (req, res, next) => {
         });
 
         const totalPages = Math.ceil(count / limit);
+
+        // İndirim bilgisini tek sorguda iliştir (N+1 yok)
+        await discountService.attachPricingToCourses(rows);
 
         // Her kurs için ortalama puanı ve toplam yorum sayısını hesapla
         const coursesWithStats = rows.map(course => {
@@ -1257,10 +1261,13 @@ exports.getPublicCourses = async (req, res) => {
             });
         }
 
+        // İndirim bilgisini tek sorguda iliştir
+        await discountService.attachPricingToCourses(tumKurslar);
+
         const kurslarIsilenmis = tumKurslar.map(kurs => {
             const kursData = kurs.toJSON();
             const yorumlar = kursData.Reviews || [];
-            
+
             // BURASI ÖNEMLİ: Puan hesaplamasını ekledik
             let hesaplananPuan = 0;
             if (yorumlar.length > 0) {
@@ -1276,7 +1283,12 @@ exports.getPublicCourses = async (req, res) => {
                 fiyat: kursData.fiyat,
                 kapak_fotografi: kursData.kapak_fotografi || null,
                 ogrenciSayisi: kursData.ogrenciSayisi || 0, // Modelde yoksa 0 döner
-                ortalamaPuan: parseFloat(hesaplananPuan)
+                ortalamaPuan: parseFloat(hesaplananPuan),
+                // İndirim alanları
+                indirim_var: kursData.indirim_var || false,
+                original_fiyat: kursData.original_fiyat,
+                net_fiyat: kursData.net_fiyat,
+                indirim_yuzde: kursData.indirim_yuzde || 0,
             };
         });
 

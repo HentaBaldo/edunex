@@ -445,6 +445,27 @@
 .kurs-fiyat  { font-weight: 800; font-size: 1.2rem; color: #0f172a; }
 .kurs-incele { color: #2563eb; font-size: 0.88rem; font-weight: 700; }
 
+/* ─── Indirim Gosterimi (Kart) ────────────────────────────── */
+.kurs-fiyat-wrap { display: inline-flex; flex-direction: column; line-height: 1.1; }
+.kurs-fiyat-eski {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    text-decoration: line-through;
+    font-weight: 500;
+}
+.kurs-fiyat-indirimli { color: #10b981; }
+.kurs-indirim-rozet {
+    position: absolute;
+    top: 10px; left: 12px;
+    background: #ef4444;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 /* ─── Öneri Bölümleri (Genel) ────────────────────────────── */
 .oneri-bolumu { padding: 64px 0; }
 .oneri-gri    { background: #f8fafc; }

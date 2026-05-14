@@ -170,9 +170,68 @@ const getEffectivePrice = async (course) => {
   return pricing.netFiyat;
 };
 
+/**
+ * Bir kurs dizisi icin tek sorgu ile aktif indirimleri cekip her kursa
+ * dataValues.indirim_var / original_fiyat / net_fiyat / indirim_yuzde alanlarini
+ * ekler. N+1 sorgu yok.
+ *
+ * @param {Array} courses - Sequelize Course instance dizisi (ya da plain obj)
+ * @returns {Promise<Array>} ayni dizi (in-place update)
+ */
+const attachPricingToCourses = async (courses) => {
+  if (!Array.isArray(courses) || courses.length === 0) return courses;
+  const ids = courses.map((c) => c.id).filter(Boolean);
+  if (ids.length === 0) return courses;
+
+  const now = new Date();
+  const rows = await Discount.findAll({
+    where: {
+      aktif_mi: true,
+      [Op.or]: [
+        { ders_id: { [Op.in]: ids } },
+        { ders_id: null }, // global kampanyalar
+      ],
+      [Op.and]: [
+        { [Op.or]: [{ baslangic: null }, { baslangic: { [Op.lte]: now } }] },
+        { [Op.or]: [{ bitis: null }, { bitis: { [Op.gte]: now } }] },
+      ],
+    },
+  });
+
+  // Grupla
+  const byCourse = {};
+  const globals = [];
+  for (const d of rows) {
+    if (d.ders_id) {
+      if (!byCourse[d.ders_id]) byCourse[d.ders_id] = [];
+      byCourse[d.ders_id].push(d);
+    } else {
+      globals.push(d);
+    }
+  }
+
+  for (const c of courses) {
+    const courseSpecific = byCourse[c.id] || [];
+    const all = [...courseSpecific, ...globals];
+    const original = parseFloat(c.fiyat || 0) || 0;
+    const net = calculateNetPrice(original, all);
+    const agg = aggregateDiscounts(all);
+    const tPct = totalPercent(agg);
+
+    const target = c.dataValues || c;
+    target.indirim_var = all.length > 0 && net < original;
+    target.original_fiyat = Math.round(original * 100) / 100;
+    target.net_fiyat = net;
+    target.indirim_yuzde = tPct;
+  }
+
+  return courses;
+};
+
 module.exports = {
   getActiveDiscountsForCourse,
   calculateNetPrice,
   getCoursePricing,
   getEffectivePrice,
+  attachPricingToCourses,
 };

@@ -4,6 +4,7 @@
  */
 
 const { Cart, CartItem, Course, CourseEnrollment, Profile } = require('../models');
+const discountService = require('../services/discountService');
 
 /**
  * Mevcut kullanıcının sepetini bulur, yoksa oluşturur.
@@ -41,7 +42,16 @@ exports.getCart = async (req, res, next) => {
             order: [['eklenme_tarihi', 'DESC']],
         });
 
-        const toplam = items.reduce((sum, it) => sum + Number(it.Course?.fiyat || 0), 0);
+        // Her kursa indirim bilgisini iliştir (net_fiyat dahil)
+        const courses = items.map(it => it.Course).filter(Boolean);
+        await discountService.attachPricingToCourses(courses);
+
+        // Toplam INDIRIMLI fiyatlardan hesaplanır
+        const toplam = items.reduce((sum, it) => {
+            const c = it.Course;
+            const net = c?.dataValues?.net_fiyat ?? c?.fiyat ?? 0;
+            return sum + Number(net);
+        }, 0);
 
         return res.status(200).json({
             status: 'success',
