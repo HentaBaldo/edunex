@@ -809,11 +809,13 @@ function trackBunnyVideo(lesson) {
 
     // iframe'e doğrudan player.js protokolü ile mesaj gönder
     function _iframeSend(method, value, listener) {
-        if (!_activeIframe || !_activeIframe.contentWindow) return;
+        if (!_activeIframe) { console.warn('[SEND] _activeIframe null'); return; }
+        if (!_activeIframe.contentWindow) { console.warn('[SEND] contentWindow null'); return; }
         const msg = { context: 'player.js', method };
         if (value !== undefined) msg.value = value;
         if (listener)           msg.listener = listener;
-        try { _activeIframe.contentWindow.postMessage(JSON.stringify(msg), '*'); } catch(e) {}
+        console.log('[SEND →]', JSON.stringify(msg));
+        try { _activeIframe.contentWindow.postMessage(JSON.stringify(msg), '*'); } catch(e) { console.error('[SEND ERR]', e.message); }
     }
 
     // Tüm Bunny postMessage'larını yakala ve işle
@@ -834,12 +836,16 @@ function trackBunnyVideo(lesson) {
         if (ev === 'ready') {
             console.log('[TRACKING] Ready alındı → subscribe + polling başlatılıyor.');
 
-            // addEventListener: listener OLMADAN gönder (player.js v0.0.11 protokolü)
+            // YOL A: player.js API üzerinden (player.js zaten ready'yi parse etti)
+            try { bunnyPlayer.on('timeupdate', function(v) { console.log('[PLAYERJS TU]', v); _handleTimeUpdate(v.seconds||v||0, v.duration||0); }); } catch(e) {}
+            try { bunnyPlayer.on('play',  function()  { console.log('[PLAYERJS PLAY]');  }); } catch(e) {}
+            try { bunnyPlayer.on('ended', function()  { console.log('[PLAYERJS ENDED]'); if (!videoCompleted) { videoCompleted=true; _clearResumePos(currentLessonId); markLessonComplete(currentLessonId); } }); } catch(e) {}
+            try { bunnyPlayer.getDuration(function(d) { console.log('[PLAYERJS DUR]', d); if (d > 0) _resolvedDuration = d; }); } catch(e) {}
+
+            // YOL B: doğrudan postMessage (yedek)
             _iframeSend('addEventListener', 'timeupdate');
             _iframeSend('addEventListener', 'play');
             _iframeSend('addEventListener', 'ended');
-
-            // getDuration: listener ile gönder (getter protokolü)
             _iframeSend('getDuration', undefined, 'cb_dur');
 
             // Kaldığı yerden devam
