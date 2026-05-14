@@ -798,7 +798,16 @@ function bindDiscountPreview() {
         const s = parseFloat(sabit.value);
         const preview = document.getElementById('disc_preview');
         const text = document.getElementById('disc_previewText');
-        const courseFiyat = parseFloat(document.getElementById('mf_fiyat')?.value) || 0;
+        // Kurs fiyatini once window.__courseData'dan, yoksa mf_fiyat input'undan al
+        const courseFiyat =
+            parseFloat(window.__courseData?.fiyat) ||
+            parseFloat(document.getElementById('mf_fiyat')?.value) || 0;
+
+        if (courseFiyat <= 0) {
+            text.innerHTML = ' <span style="color:#ef4444;">Kurs fiyatı tanımlı değil — önce "Medya & Fiyat" sekmesinden ayarlayın.</span>';
+            preview.style.display = 'block';
+            return;
+        }
 
         if ((y && y >= 1 && y <= 99) || (s && s > 0)) {
             let net = courseFiyat;
