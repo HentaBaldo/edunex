@@ -171,9 +171,11 @@ exports.checkout = async (req, res, next) => {
                     baslik: course.baslik,
                     kategori: course.Category?.ad || 'Egitim',
                     fiyat: course.fiyat,
-                    // Marketplace: her item kendi egitmeninin SubMerchant'ina yonlendirilir.
-                    // Eski (key'i olmayan) kayitlarda klasik tahsilata duser.
-                    subMerchantKey: course.InstructorDetail?.submerchant_key || null,
+                    // Marketplace: her item ZORUNLU olarak subMerchantKey tasir.
+                    // Eksik anahtar yukarida 400 ile blokeli; burada null fallback yok.
+                    // null gonderirsek iyzico tum cagriyi "butun sepet kirilimlarinda
+                    // subMerchantKey gonderilmelidir" diyerek reddeder.
+                    subMerchantKey: course.InstructorDetail.submerchant_key,
                 })),
                 callbackUrl,
             });
