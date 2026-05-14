@@ -1528,6 +1528,11 @@
 }
 .review-car-track::-webkit-scrollbar { display: none; }
 .review-car-track > .review-card-home { flex: 0 0 calc((100% - 48px) / 3); min-width: 0; }
+/* Az yorum varsa kartları uygun şekilde genişlet */
+.review-car-track.review-count-1 { justify-content: center; }
+.review-car-track.review-count-1 > .review-card-home { flex: 0 0 min(440px, 100%); }
+.review-car-track.review-count-2 { justify-content: center; }
+.review-car-track.review-count-2 > .review-card-home { flex: 0 0 calc(50% - 12px); }
 
 .review-card-home {
     background: white;
@@ -1563,7 +1568,9 @@
 .review-author-kurs { font-size: 0.76rem; color: #64748b; margin-top: 2px; }
 
 @media (max-width: 768px) {
-    .review-car-track > .review-card-home { flex: 0 0 85%; }
+    .review-car-track > .review-card-home,
+    .review-car-track.review-count-1 > .review-card-home,
+    .review-car-track.review-count-2 > .review-card-home { flex: 0 0 85%; }
     .guven-markalar { gap: 20px; }
 }
 
