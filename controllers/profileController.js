@@ -106,34 +106,122 @@ exports.getProfile = async (req, res) => {
 };
 
 /**
+ * TCKN savunmaci dogrulama (backend).
+ * Frontend zaten daha guclu (mod-10) algoritmayi kosuyor; burada sadece
+ * format-katmanli kontrol yapilir (Frontend bypass'a karsi).
+ * @returns {string} normalize edilmis 11 haneli TCKN
+ * @throws  format uymazsa Error (statusCode=400)
+ */
+function ensureValidTcknOrThrow(rawTckn) {
+    const v = String(rawTckn || '').replace(/\D/g, '');
+    if (!/^[1-9]\d{10}$/.test(v)) {
+        const err = new Error('T.C. Kimlik Numarası 11 haneli olmalı ve 0 ile başlayamaz.');
+        err.statusCode = 400;
+        throw err;
+    }
+    return v;
+}
+
+/**
+ * IBAN savunmaci dogrulama (backend).
+ * @returns {string} normalize edilmis IBAN (bosluksuz, BUYUK harf)
+ * @throws  format uymazsa Error (statusCode=400)
+ */
+function ensureValidIbanOrThrow(rawIban) {
+    const v = String(rawIban || '').replace(/[\s-]/g, '').toUpperCase();
+    if (!/^TR\d{24}$/.test(v)) {
+        const err = new Error('IBAN "TR" ile başlamalı ve toplam 26 karakter olmalıdır.');
+        err.statusCode = 400;
+        throw err;
+    }
+    return v;
+}
+
+/**
+ * Telefon savunmaci dogrulama: E.164 + Turkiye on eki (+90 + 10 hane).
+ * Bos veya null kabul edilir (zorunlu degil).
+ */
+function normalizeOptionalPhone(rawPhone) {
+    if (!rawPhone) return null;
+    const d = String(rawPhone).replace(/\D/g, '');
+    let normalized;
+    if (d.startsWith('90') && d.length === 12) normalized = '+' + d;
+    else if (d.startsWith('0') && d.length === 11) normalized = '+9' + d;
+    else if (d.length === 10) normalized = '+90' + d;
+    else {
+        const err = new Error('Telefon numarası geçersiz. +90 ülke kodu dahil 12 haneli olmalıdır.');
+        err.statusCode = 400;
+        throw err;
+    }
+    return normalized;
+}
+
+/**
  * Profil ve detay bilgilerini günceller.
  * İlgi alanları (interests) dizisini de senkronize eder.
  */
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        
-        const { 
+
+        const {
             ad, soyad, sehir, website,
+            phone, identity_number,
             linkedin, instagram, x_twitter, youtube, facebook, tiktok,
             profil_herkese_acik_mi, alinan_kurslari_goster,
             biyografi, baslik, unvan, deneyim_yili, iban_no, egitim_seviyesi,
             interests // Frontend'den gelen kategori ID dizisi
         } = req.body;
 
+        // Rol bilgisini cek - egitmen icin TCKN/IBAN zorunlu, ogrenci icin opsiyonel.
+        const existingProfile = await Profile.findByPk(userId, { attributes: ['rol'] });
+        if (!existingProfile) {
+            return res.status(404).json({ success: false, message: 'Profil bulunamadi.' });
+        }
+        const isEgitmen = existingProfile.rol === 'egitmen';
+
+        // --- DEFANSIF VALIDASYON (frontend bypass'ina karsi) ---
+        // Telefonu normalize et; gecersizse 400 fail-fast.
+        const normalizedPhone = normalizeOptionalPhone(phone);
+
+        // TCKN: doluysa katı doğrula; egitmense bos olamaz.
+        let normalizedTckn = null;
+        if (identity_number) {
+            normalizedTckn = ensureValidTcknOrThrow(identity_number);
+        } else if (isEgitmen) {
+            return res.status(400).json({
+                success: false,
+                message: 'Eğitmen hesapları için T.C. Kimlik Numarası zorunludur.',
+            });
+        }
+
+        // IBAN: doluysa katı doğrula; egitmense bos olamaz.
+        let normalizedIban = null;
+        if (iban_no) {
+            normalizedIban = ensureValidIbanOrThrow(iban_no);
+        } else if (isEgitmen) {
+            return res.status(400).json({
+                success: false,
+                message: 'Eğitmen hesapları için IBAN zorunludur.',
+            });
+        }
+
         // 1. Ana profil bilgilerini güncelle
-        await Profile.update(
-            { 
-                ad, soyad, sehir, website,
-                linkedin, instagram, x_twitter, youtube, facebook, tiktok,
-                profil_herkese_acik_mi, alinan_kurslari_goster
-            },
-            { where: { id: userId } }
-        );
+        // Not: phone ve identity_number ALANLARI sadece istek payload'unda mevcutsa
+        // override edilir. Aksi halde (frontend hic gondermemisse) eski deger korunur.
+        const profileUpdatePayload = {
+            ad, soyad, sehir, website,
+            linkedin, instagram, x_twitter, youtube, facebook, tiktok,
+            profil_herkese_acik_mi, alinan_kurslari_goster,
+        };
+        if (phone !== undefined) profileUpdatePayload.phone = normalizedPhone;
+        if (identity_number !== undefined && normalizedTckn) profileUpdatePayload.identity_number = normalizedTckn;
+
+        await Profile.update(profileUpdatePayload, { where: { id: userId } });
 
         // 2. Role göre detay tablolarını ve ilgi alanlarını güncelle
-        const profile = await Profile.findByPk(userId);
-        
+        const profile = existingProfile;
+
         if (profile.rol === 'ogrenci') {
             // Detayları güncelle
             await StudentDetail.update(
@@ -155,16 +243,20 @@ exports.updateProfile = async (req, res) => {
             }
 
         } else if (profile.rol === 'egitmen') {
+            // IBAN normalize edilmis (bosluksuz BUYUK harf) sekilde kayda gider;
+            // boylece iyzicoService.createSubMerchant'ta tekrar temizlemeye gerek kalmaz.
+            const ibanDeger = normalizedIban; // egitmense yukaridaki validasyon sayesinde dolu
+
             // Sadece update yapmak yerine, kaydın varlığını kontrol ediyoruz
             const [detail, created] = await InstructorDetail.findOrCreate({
                 where: { kullanici_id: userId },
-                defaults: { biyografi, baslik, unvan, deneyim_yili, iban_no }
+                defaults: { biyografi, baslik, unvan, deneyim_yili, iban_no: ibanDeger }
             });
-        
+
             // Eğer kayıt zaten varsa (created false ise), verileri güncelle
             if (!created) {
                 await InstructorDetail.update(
-                    { biyografi, baslik, unvan, deneyim_yili, iban_no },
+                    { biyografi, baslik, unvan, deneyim_yili, iban_no: ibanDeger },
                     { where: { kullanici_id: userId } }
                 );
             }
@@ -172,6 +264,10 @@ exports.updateProfile = async (req, res) => {
 
         return res.status(200).json({ success: true, message: 'Profil başarıyla güncellendi.' });
     } catch (error) {
+        // 400 (validasyon) hatalarini istemciye orijinal mesajla doneriz
+        if (error.statusCode === 400) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
         console.error('[PROFILE UPDATE ERROR]', error);
         return res.status(500).json({ success: false, message: 'Güncelleme sırasında hata oluştu.' });
     }

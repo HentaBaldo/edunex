@@ -20,8 +20,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      // Bildirim tipi.
+      // - yeni_kurs / canli_yayin / sistem  : platform mesajlari
+      // - satis / yorum / takip             : egitmene yonelik domain olaylari (Mayis 2026'da eklendi)
       tip: {
-        type: DataTypes.ENUM('yeni_kurs', 'canli_yayin', 'sistem'),
+        type: DataTypes.ENUM(
+          'yeni_kurs',
+          'canli_yayin',
+          'sistem',
+          'satis',
+          'yorum',
+          'takip'
+        ),
         allowNull: false,
         defaultValue: 'sistem',
       },
@@ -34,9 +44,22 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(500),
         allowNull: true,
       },
+      // Bildirimin kaynagi olan domain nesnenin UUID'si (opsiyonel).
+      // Ornek: canli_yayin bildirimi icin LiveSession.id; satis icin Order.id vb.
+      // Statefull dinamik render icin kritik: GET sirasinda kaynak nesneyi join edip
+      // gercek-zamanli durum/metin/url uretebilmek icin tutuyoruz.
+      kaynak_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
       // Sequelize'in default createdAt'ini Turkce kolon adimiza map'liyoruz.
-      // updatedAt kullanmiyoruz; bildirim icerigini retro-aktif degistirmiyoruz.
+      // updatedAt: okundu_mu degisikligini tarihleyebilmek icin acik (sutun: guncelleme_tarihi).
       olusturulma_tarihi: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      guncelleme_tarihi: {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW,
@@ -46,10 +69,12 @@ module.exports = (sequelize, DataTypes) => {
       tableName: 'bildirimler',
       timestamps: true,
       createdAt: 'olusturulma_tarihi',
-      updatedAt: false,
+      updatedAt: 'guncelleme_tarihi',
       indexes: [
         { fields: ['kullanici_id'] },
         { fields: ['kullanici_id', 'okundu_mu'] },
+        { fields: ['olusturulma_tarihi'] },
+        { fields: ['tip', 'kaynak_id'] },
       ],
     }
   );

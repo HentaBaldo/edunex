@@ -203,23 +203,48 @@
             listeEl.innerHTML = liste.map(b => {
                 const ikon = b.tip === 'yeni_kurs'    ? 'fa-graduation-cap'
                            : b.tip === 'canli_yayin' ? 'fa-video'
+                           : b.tip === 'satis'       ? 'fa-shopping-bag'
+                           : b.tip === 'yorum'       ? 'fa-comment-dots'
+                           : b.tip === 'takip'       ? 'fa-user-plus'
                            : 'fa-info-circle';
-                const renk = b.tip === 'canli_yayin' ? '#ef4444' : '#2563eb';
-                const url  = b.hedef_url || '#';
+                const renk = b.tip === 'canli_yayin' ? '#ef4444'
+                           : b.tip === 'satis'       ? '#16a34a'
+                           : b.tip === 'yorum'       ? '#f59e0b'
+                           : b.tip === 'takip'       ? '#8b5cf6'
+                           : '#2563eb';
+                // Stateful: backend hedef_url'i 'canli_yayin' icin dinamik olarak null'a cekebilir
+                // (ders bitince). null/empty ise tiklanamaz hale getiriyoruz.
+                const url       = (b.hedef_url || '').trim();
+                const okunmus   = !!b.okundu_mu;
+                const linkVar   = !!url;
+                const tag       = linkVar ? 'a' : 'div';
+                const hrefAttr  = linkVar ? ` href="${_escAttr(url)}"` : '';
+                const ariaAttr  = linkVar ? '' : ' aria-disabled="true"';
+                const okuClass  = okunmus ? ' bildirim-okundu' : '';
+                const disClass  = linkVar ? '' : ' bildirim-disabled';
+                const opacity   = (okunmus || !linkVar) ? '0.65' : '1';
+                const cursor    = linkVar ? 'pointer' : 'not-allowed';
                 return `
-                    <a href="${_escAttr(url)}" data-bid="${_escAttr(b.id)}" class="bildirim-item"
-                       style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f1f5f9;text-decoration:none;color:#0f172a;">
+                    <${tag}${hrefAttr}${ariaAttr} data-bid="${_escAttr(b.id)}" data-link="${linkVar ? '1' : '0'}" class="bildirim-item${okuClass}${disClass}"
+                       style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f1f5f9;text-decoration:none;color:#0f172a;opacity:${opacity};cursor:${cursor};pointer-events:${linkVar ? 'auto' : 'none'};">
                         <i class="fas ${ikon}" style="color:${renk};font-size:1.1rem;margin-top:3px;"></i>
                         <div style="flex:1;min-width:0;">
                             <div style="font-weight:600;font-size:0.9rem;margin-bottom:2px;">${_escHtml(b.baslik)}</div>
                             <div style="font-size:0.82rem;color:#475569;line-height:1.35;">${_escHtml(b.icerik || '')}</div>
                         </div>
-                    </a>`;
+                    </${tag}>`;
             }).join('');
 
             // Bildirime tiklayinca: read isaretle + yonlendir.
+            // pointer-events:none zaten engelliyor ama defansif olarak burada da kontrol var.
             listeEl.querySelectorAll('.bildirim-item').forEach(el => {
                 el.addEventListener('click', async (e) => {
+                    // Tiklanamaz bildirim: hicbir sey yapma.
+                    if (el.dataset.link !== '1') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
                     const bid = el.dataset.bid;
                     if (!bid) return;
                     try {

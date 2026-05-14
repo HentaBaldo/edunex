@@ -73,6 +73,16 @@
                             <div class="col-md-12"><label class="form-label">E-posta</label><input type="email" id="eposta" class="form-control bg-light" readonly></div>
                             <div class="col-md-6"><label class="form-label">Şehir</label><input type="text" id="sehir" class="form-control"></div>
                             <div class="col-md-6"><label class="form-label">Web</label><input type="url" id="website" class="form-control"></div>
+                            <div class="col-md-6">
+                                <label class="form-label">Telefon Numarası</label>
+                                <input type="tel" id="phone" class="form-control" placeholder="+90 5XX XXX XX XX" autocomplete="tel">
+                                <small class="text-muted">Ülke kodu dahil giriniz. Örn: +905321234567</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">T.C. Kimlik Numarası</label>
+                                <input type="text" id="identity_number" class="form-control" maxlength="11" inputmode="numeric" pattern="[0-9]*" placeholder="11 haneli T.C. Kimlik No" autocomplete="off">
+                                <small class="text-muted">İyzico ödeme altyapısı için zorunludur. KVKK kapsamında şifreli saklanır.</small>
+                            </div>
                         </div>
                     </div>
         
@@ -123,7 +133,11 @@
                             <div class="row g-3">
                                 <div class="col-md-6"><label class="form-label">Unvan</label><input type="text" id="unvan" class="form-control"></div>
                                 <div class="col-md-6"><label class="form-label">Deneyim Yılı</label><input type="number" id="deneyim_yili" class="form-control"></div>
-                                <div class="col-md-12"><label class="form-label">IBAN Numarası</label><input type="text" id="iban_no" class="form-control"></div>
+                                <div class="col-md-12">
+                                    <label class="form-label">IBAN Numarası</label>
+                                    <input type="text" id="iban_no" class="form-control" maxlength="32" placeholder="TR00 0000 0000 0000 0000 0000 00" autocomplete="off">
+                                    <small class="text-muted">"TR" ile başlayan 26 karakterli IBAN. Boşluklu girebilirsiniz; sistem otomatik temizler.</small>
+                                </div>
                             </div>
                         </div>
                         <div class="mt-3"><label class="form-label">Biyografi</label><textarea id="biyografi" class="form-control" rows="4"></textarea></div>
@@ -155,6 +169,32 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Onboarding Modal: ilk girisinde eksik bilgileri yonlendiren karsilama akisi. -->
+<!-- Govde (baslik, mesaj, buton metni) JS tarafindan rol-bazli doldurulur. -->
+<div class="modal fade" id="onboardingModal" tabindex="-1" aria-labelledby="onboardingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <div class="w-100 text-center">
+                    <div id="onboardingIcon" class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary mb-2"
+                         style="width:64px;height:64px;font-size:1.6rem;">
+                        <i class="fas fa-hand-sparkles"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body text-center px-4 pt-2">
+                <h4 id="onboardingTitle" class="fw-bold mb-2">Hoş Geldin!</h4>
+                <p id="onboardingMessage" class="text-muted mb-0">Profilini birlikte tamamlayalım.</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4">
+                <button type="button" id="onboardingCta" class="btn btn-primary px-4 fw-bold rounded-pill shadow-sm">
+                    Devam Et <i class="fas fa-arrow-right ms-1"></i>
+                </button>
+            </div>
         </div>
     </div>
 </div>

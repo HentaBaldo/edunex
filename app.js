@@ -142,9 +142,25 @@ app.get('/canli-ders/:oda_adi', (req, res) => {
 // --- 6. Database Synchronization & Seeding ---
 /**
  * Veritabani semasini modellerle esitler ve baslangic verilerini yukler.
- * alter: true yapilandirmasi mevcut verileri koruyarak tablo yapisini gunceller.
+ *
+ * KRITIK GUVENLIK KURALI:
+ *   - PRODUCTION'da `alter: true` ASLA calismaz. Sequelize'in alter mekanizmasi
+ *     MySQL'de tekrarlanan UNIQUE/INDEX olusturup 64-indeks sinirini patlattigi
+ *     icin (eposta_2..eposta_62 vb. kopyalar) production'da yasaklandi.
+ *     Production'da sema degisikligi sadece elle yazilmis migrations/*.sql ile
+ *     yapilir. (Bkz: cleanup-indexes ile yapilan acil temizlik 2026-05-14.)
+ *   - Geliştirme/test ortamlarinda `alter: true` ile model-DB senkronizasyonu acik.
+ *   - `force: true` HIC BIR ortamda otomatik calismaz (veri silici).
  */
-sequelize.sync({ alter: true })
+const isProd = process.env.NODE_ENV === 'production';
+const syncOptions = isProd ? {} : { alter: true };
+if (isProd) {
+    console.log('[DATABASE] PRODUCTION modu: sequelize.sync alter/force devre disi. Sema degisikleri icin migrations/ kullanin.');
+} else {
+    console.log(`[DATABASE] ${process.env.NODE_ENV || 'development'} modu: sequelize.sync({ alter: true }) aktif.`);
+}
+
+sequelize.sync(syncOptions)
     .then(async () => {
         console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi.');
 
@@ -193,6 +209,44 @@ sequelize.sync({ alter: true })
             }
         } catch (payoutErr) {
             console.error('[PAYOUT BACKFILL] Hata:', payoutErr.message);
+        }
+
+        // --- Notification ENUM Backfill ---
+        // sequelize.sync({alter:true}) MySQL ENUM degisikliklerinde her zaman
+        // dogru ALTER uretmez (ozellikle ENUM'a deger eklemede). Burada idempotent
+        // bir MODIFY COLUMN ile bildirimler.tip enum'unu ve kaynak_id sutununu
+        // garanti altina aliyoruz. Migration dosyasi: migrations/2026-05-14-*.sql
+        try {
+            const bildirimDesc = await sequelize.getQueryInterface().describeTable('bildirimler');
+            if (bildirimDesc.tip) {
+                await sequelize.query(`
+                    ALTER TABLE bildirimler
+                      MODIFY COLUMN tip ENUM(
+                        'yeni_kurs','canli_yayin','sistem','satis','yorum','takip'
+                      ) NOT NULL DEFAULT 'sistem'
+                `);
+                if (!bildirimDesc.kaynak_id) {
+                    await sequelize.query(`
+                        ALTER TABLE bildirimler
+                          ADD COLUMN kaynak_id CHAR(36) NULL AFTER hedef_url
+                    `);
+                    console.log('[NOTIFICATION MIGRATION] kaynak_id sutunu eklendi.');
+                }
+                if (!bildirimDesc.guncelleme_tarihi) {
+                    await sequelize.query(`
+                        ALTER TABLE bildirimler
+                          ADD COLUMN guncelleme_tarihi DATETIME NOT NULL
+                          DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    `);
+                    console.log('[NOTIFICATION MIGRATION] guncelleme_tarihi sutunu eklendi.');
+                }
+                console.log('[NOTIFICATION MIGRATION] bildirimler.tip ENUM senkronize edildi (satis/yorum/takip dahil).');
+            } else {
+                console.warn('[NOTIFICATION MIGRATION] bildirimler tablosu bulunamadi; sync sonrasi yeniden olusturulmus olabilir.');
+            }
+        } catch (notifMigErr) {
+            // KRITIK: Burayi yutmuyoruz; bildirim modulu bu olmadan sessizce coker.
+            console.error('[NOTIFICATION MIGRATION ERROR]', notifMigErr.message);
         }
 
         try {

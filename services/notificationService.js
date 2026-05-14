@@ -5,19 +5,41 @@
  * Cagiran controller'lar bu servisi await ile cagirir ancak HER ZAMAN try/catch
  * icinde olmalidir: bildirim hatasi asil isi (odeme, kurs olusturma vb.) bozmamali.
  *
- * Notification modelimizdeki kolonlar Turkce: baslik, icerik, hedef_url, tip.
- * Dis API'da daha okunaklı alanlar kullanildi (mesaj, baglanti_linki) ve burada map'lenir.
+ * Notification modelimizdeki kolonlar Turkce: baslik, icerik, hedef_url, tip, kaynak_id.
+ * Dis API'da daha okunakli alanlar kullanildi (mesaj, baglanti_linki) ve burada map'lenir.
  *
- * Tip enum'u (Notification.js): 'yeni_kurs' | 'canli_yayin' | 'sistem'
- * Yeni alanlar (yorum, satis, takip) henuz enum'a eklenmedi; bu modulde guvenli fallback ile
- * gecersiz tipleri 'sistem'e dusurup ENUM constraint hatasini onluyoruz.
+ * Tip enum'u (Notification.js):
+ *   'yeni_kurs' | 'canli_yayin' | 'sistem' | 'satis' | 'yorum' | 'takip'
  */
 
 const { Notification } = require('../models');
 
 // Modelimizdeki ENUM ile birebir tutarli olmalidir.
-// Buraya yeni tip eklemeden once Notification.js'deki ENUM'i da migrasyon ile guncelleyin.
-const ALLOWED_TIPS = new Set(['yeni_kurs', 'canli_yayin', 'sistem']);
+// Buraya yeni tip eklemeden once Notification.js'deki ENUM'i ve migrations/ altindaki
+// ALTER TABLE komutunu (veya app.js boot backfill'ini) guncellemeyi unutmayin.
+const ALLOWED_TIPS = new Set([
+    'yeni_kurs',
+    'canli_yayin',
+    'sistem',
+    'satis',
+    'yorum',
+    'takip',
+]);
+
+/**
+ * Hatayi ayrintili logla. Sequelize hatalarinda original.code ve sql parcasini da yakaliyoruz
+ * (ENUM ihlali, FK ihlali gibi tipik durumlar terminalden gorulebilsin diye).
+ */
+function logNotifyError(op, error, ctx = {}) {
+    console.error(`BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] ${op}`, {
+        ...ctx,
+        name: error?.name,
+        message: error?.message,
+        original_code: error?.original?.code,
+        original_message: error?.original?.sqlMessage || error?.original?.message,
+        sql: error?.sql?.slice?.(0, 300),
+    });
+}
 
 /**
  * Tek kullaniciya bildirim olusturur.
@@ -28,9 +50,10 @@ const ALLOWED_TIPS = new Set(['yeni_kurs', 'canli_yayin', 'sistem']);
  * @param {string} [params.mesaj]         - Bildirim govdesi (Notification.icerik kolonuna yazilir)
  * @param {string} [params.tip]           - Bildirim tipi: ENUM disindaysa 'sistem'e dusulur
  * @param {string} [params.baglanti_linki]- Tiklayinca yonlenecek URL (Notification.hedef_url)
+ * @param {string} [params.kaynak_id]     - Kaynak domain nesnenin UUID'si (LiveSession.id, Order.id vb.)
  * @returns {Promise<Notification|null>}  - Olusan kayit; hata olursa null (non-blocking icin)
  */
-exports.sendNotification = async ({ kullanici_id, baslik, mesaj, tip, baglanti_linki } = {}) => {
+exports.sendNotification = async ({ kullanici_id, baslik, mesaj, tip, baglanti_linki, kaynak_id } = {}) => {
     try {
         if (!kullanici_id || !baslik) {
             console.warn('[NOTIFY] sendNotification: kullanici_id veya baslik eksik, atlandi.', {
@@ -39,6 +62,9 @@ exports.sendNotification = async ({ kullanici_id, baslik, mesaj, tip, baglanti_l
             return null;
         }
 
+        if (tip && !ALLOWED_TIPS.has(tip)) {
+            console.warn(`[NOTIFY] Bilinmeyen tip "${tip}" -> 'sistem'e dusuruldu. ENUM'u guncellemek isteyebilirsiniz.`);
+        }
         const guvenliTip = ALLOWED_TIPS.has(tip) ? tip : 'sistem';
 
         return await Notification.create({
@@ -47,13 +73,13 @@ exports.sendNotification = async ({ kullanici_id, baslik, mesaj, tip, baglanti_l
             icerik: mesaj ? String(mesaj).slice(0, 1000) : null,
             tip: guvenliTip,
             hedef_url: baglanti_linki ? String(baglanti_linki).slice(0, 500) : null,
+            kaynak_id: kaynak_id || null,
             okundu_mu: false,
         });
     } catch (error) {
-        // Hatayi yutmak yerine logluyoruz; cagiran tarafa atmiyoruz cunki bildirim NON-BLOCKING.
-        console.error('[NOTIFY ERROR] sendNotification basarisiz:', {
-            kullanici_id, tip, message: error.message,
-        });
+        // Hatayi YUTMUYORUZ — terminalde tam detay basariz. Cagiran tarafa atmiyoruz
+        // cunki bildirim NON-BLOCKING; asil isin (odeme/yorum/takip) durmasini istemiyoruz.
+        logNotifyError('sendNotification', error, { kullanici_id, tip });
         return null;
     }
 };
@@ -63,10 +89,10 @@ exports.sendNotification = async ({ kullanici_id, baslik, mesaj, tip, baglanti_l
  *
  * - Listeyi tekillestirir.
  * - Bos liste durumunda no-op.
- * - bulkCreate hatasi cagriya yansimaz; sadece loglanir.
+ * - bulkCreate hatasi cagriya yansimaz; sadece detayli loglanir.
  *
  * @param {string[]} kullaniciIdListesi - Hedef UUID listesi
- * @param {Object}   payload            - { baslik, mesaj?, tip?, baglanti_linki? }
+ * @param {Object}   payload            - { baslik, mesaj?, tip?, baglanti_linki?, kaynak_id? }
  * @returns {Promise<{ created: number }>}
  */
 exports.notifyMultipleUsers = async (kullaniciIdListesi = [], payload = {}) => {
@@ -77,13 +103,18 @@ exports.notifyMultipleUsers = async (kullaniciIdListesi = [], payload = {}) => {
             return { created: 0 };
         }
 
+        if (payload.tip && !ALLOWED_TIPS.has(payload.tip)) {
+            console.warn(`[NOTIFY] notifyMultipleUsers: bilinmeyen tip "${payload.tip}" -> 'sistem'e dusuruldu.`);
+        }
         const guvenliTip = ALLOWED_TIPS.has(payload.tip) ? payload.tip : 'sistem';
+
         const kayitlar = unique.map(uid => ({
             kullanici_id: uid,
             baslik: String(payload.baslik).slice(0, 255),
             icerik: payload.mesaj ? String(payload.mesaj).slice(0, 1000) : null,
             tip: guvenliTip,
             hedef_url: payload.baglanti_linki ? String(payload.baglanti_linki).slice(0, 500) : null,
+            kaynak_id: payload.kaynak_id || null,
             okundu_mu: false,
         }));
 
@@ -91,9 +122,9 @@ exports.notifyMultipleUsers = async (kullaniciIdListesi = [], payload = {}) => {
         console.log(`[NOTIFY] notifyMultipleUsers: ${created.length} bildirim olusturuldu (tip=${guvenliTip}).`);
         return { created: created.length };
     } catch (error) {
-        console.error('[NOTIFY ERROR] notifyMultipleUsers basarisiz:', {
+        logNotifyError('notifyMultipleUsers', error, {
             count: kullaniciIdListesi?.length || 0,
-            message: error.message,
+            tip: payload?.tip,
         });
         return { created: 0 };
     }

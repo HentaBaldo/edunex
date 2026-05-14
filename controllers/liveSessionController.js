@@ -138,6 +138,12 @@ exports.createSession = async (req, res, next) => {
         // Kural:
         //   - kursa_ozel: SADECE bu kursa kayitli ogrencilere (kurs_kayitlari)
         //   - genel:      egitmenin TUM takipcilerine (egitmen_takipcileri)
+        // Link kurali (Cannot GET /main/live-sessions.html hatasi icin):
+        //   - kursa_ozel -> /main/course-detail.html?id=<kurs_id>  (canli ders sekmesi)
+        //   - genel      -> /main/instructor-profile.html?id=<egitmen_id>  (egitmen profili)
+        //     (live-sessions.html oğrenci tarafinda mevcut degil; bu yuzden eğitmen profili
+        //      veya kursa_ozel detay sayfasi tercih edildi. Tikladiginda ogrenci ilgili yere gider.)
+        // kaynak_id: LiveSession.id -> notificationController GET'inde dinamik durum mapping icin sart.
         // NON-BLOCKING: bildirim hatasi oturum olusturmayi bozmamali.
         try {
             let aliciIdList = [];
@@ -154,9 +160,10 @@ exports.createSession = async (req, res, next) => {
                     mesaj: `Kursunuza yeni bir canlı ders eklendi: "${baslik}".`,
                     tip: 'canli_yayin',
                     baglanti_linki: `/main/course-detail.html?id=${finalKursId}`,
+                    kaynak_id: session.id,
                 };
             } else {
-                // 'genel' (webinar)
+                // 'genel' (webinar) — kurs yok, ogrenciyi egitmen profiline yonlendir.
                 const followers = await InstructorFollower.findAll({
                     where: { egitmen_id: req.user.id },
                     attributes: ['ogrenci_id'],
@@ -166,13 +173,17 @@ exports.createSession = async (req, res, next) => {
                     baslik: 'Yeni Canlı Yayın!',
                     mesaj: `Takip ettiğiniz eğitmen yeni bir canlı yayın planladı: "${baslik}".`,
                     tip: 'canli_yayin',
-                    baglanti_linki: `/main/live-sessions.html`,
+                    baglanti_linki: `/main/instructor-profile.html?id=${req.user.id}`,
+                    kaynak_id: session.id,
                 };
             }
 
             await notifyMultipleUsers(aliciIdList, payload);
         } catch (notifyErr) {
-            console.error('[NOTIFY ERROR] canli_yayin bildirimi olusturulamadi:', notifyErr.message);
+            console.error('BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] canli_yayin bildirimi olusturulamadi:', {
+                message: notifyErr.message,
+                stack: notifyErr.stack,
+            });
         }
 
         return res.status(201).json({ success: true, data: session });

@@ -47,13 +47,16 @@ exports.addOrUpdateReview = async (req, res) => {
                         kullanici_id: course.egitmen_id,
                         baslik: 'Kursunuza Yeni Yorum',
                         mesaj: `"${course.baslik}" kursunuza ${puan} yildizli yeni bir yorum yapildi.`,
-                        tip: 'sistem',
+                        tip: 'yorum',
                         baglanti_linki: `/main/course-detail.html?id=${course.id}#reviews`,
+                        kaynak_id: course.id,
                     });
                 }
             } catch (notifyErr) {
-                console.error('[NOTIFY ERROR] Yorum bildirimi olusturulamadi:', {
-                    kurs_id, ogrenci_id: ogrenciId, message: notifyErr.message,
+                console.error('BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] Yorum bildirimi olusturulamadi:', {
+                    kurs_id, ogrenci_id: ogrenciId,
+                    message: notifyErr.message,
+                    stack: notifyErr.stack,
                 });
             }
         }

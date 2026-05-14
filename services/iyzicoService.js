@@ -52,25 +52,35 @@ exports.initializeCheckoutForm = ({ order, user, items, callbackUrl }) => {
         const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
         const toKurus = (v) => Math.round(Number(v) * 100);
 
+        // --- Marketplace zorunlulugu (KOSULSUZ) ---
+        // iyzico tum sepet kirilimlarinda subMerchantKey gormezse cagriyi tumden
+        // reddeder ("butun sepet kirilimlarinda subMerchantKey gonderilmelidir").
+        // Controller bu kontrolu zaten yapiyor; burada katmanli savunma olarak
+        // tekrarliyoruz — yanlislikla bir endpoint bypass'i olursa iyzico'ya
+        // bozuk payload gondermeyelim.
+        const eksikSubMerchant = items.find(it => !it.subMerchantKey || !String(it.subMerchantKey).trim());
+        if (eksikSubMerchant) {
+            return reject(new Error(
+                `Sepetinizdeki "${eksikSubMerchant.baslik || 'Kurs'}" adlı kursun eğitmeni henüz ödeme altyapısını kurmadığı için bu işlem gerçekleştirilemiyor.`
+            ));
+        }
+
         const basketItems = items.map(item => {
             const itemKurus = toKurus(item.fiyat);
             const platformKesintiKurus = Math.round(itemKurus * PLATFORM_KOMISYON_ORANI / 100);
             const subMerchantKurus = itemKurus - platformKesintiKurus;
 
-            const base = {
+            // Pazaryeri (Marketplace): subMerchantKey ve subMerchantPrice HER item icin
+            // gonderilir. Tek bir item'da bile eksik olursa iyzico tum cagriyi reddeder.
+            return {
                 id: item.id, // OrderItem.id - callback'te itemTransactions ile eslemek icin
                 name: sanitize(item.baslik, 'Kurs'),
                 category1: sanitize(item.kategori || 'Egitim', 'Egitim'),
                 itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
                 price: (itemKurus / 100).toFixed(2),
+                subMerchantKey: item.subMerchantKey,
+                subMerchantPrice: (subMerchantKurus / 100).toFixed(2),
             };
-            // Marketplace alanlari sadece subMerchantKey varsa eklenir.
-            // Yoksa "klasik" tahsilata duser (geriye uyumluluk: eski egitmenler).
-            if (item.subMerchantKey) {
-                base.subMerchantKey = item.subMerchantKey;
-                base.subMerchantPrice = (subMerchantKurus / 100).toFixed(2);
-            }
-            return base;
         });
 
         const totalKurus = basketItems.reduce((s, b) => s + toKurus(b.price), 0);

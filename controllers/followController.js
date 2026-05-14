@@ -66,12 +66,15 @@ exports.toggleFollow = async (req, res, next) => {
                 kullanici_id: egitmen_id,
                 baslik: 'Yeni Takipçi',
                 mesaj: `${ogrenciAd} sizi takip etmeye başladı.`,
-                tip: 'sistem',
-                baglanti_linki: `/instructor/dashboard.html`,
+                tip: 'takip',
+                baglanti_linki: `/main/instructor-profile.html?id=${egitmen_id}`,
+                kaynak_id: created.id,
             });
         } catch (notifyErr) {
-            console.error('[NOTIFY ERROR] Takipci bildirimi olusturulamadi:', {
-                ogrenci_id, egitmen_id, message: notifyErr.message,
+            console.error('BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] Takipci bildirimi olusturulamadi:', {
+                ogrenci_id, egitmen_id,
+                message: notifyErr.message,
+                stack: notifyErr.stack,
             });
         }
 
