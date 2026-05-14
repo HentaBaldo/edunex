@@ -112,12 +112,14 @@ exports.register = async (req, res, next) => {
         await t.commit();
         console.log(`[AUTH] Kayıt işlemi tamamlandı: ${newUser.id}`);
 
-        // === ADIM 8: Doğrulama Maili Gönder (hata transaction'ı bozmaz) ===
-        try {
-            await sendVerificationEmail(eposta, verifyToken);
+        // === ADIM 8: Doğrulama Maili Gönder ===
+        // sendVerificationEmail throw etmez; { ok, error } doner — register asla bloklanmaz.
+        // Mail gitmezse kullanici resend endpoint'iyle tekrar deneyebilir.
+        const mailResult = await sendVerificationEmail(eposta, verifyToken);
+        if (mailResult.ok) {
             console.log(`[AUTH] Doğrulama maili gönderildi: ${eposta}`);
-        } catch (mailError) {
-            console.error(`[AUTH] Doğrulama maili gönderilemedi (${eposta}):`, mailError.message);
+        } else {
+            console.error(`[AUTH] Doğrulama maili gönderilemedi (${eposta}): ${mailResult.error}`);
         }
 
         // === ADIM 9: Başarılı Yanıt ===
@@ -285,11 +287,13 @@ exports.resendVerification = async (req, res, next) => {
             onay_token_gecerlilik: newExpiry,
         });
 
-        try {
-            await sendVerificationEmail(eposta, newToken);
+        // sendVerificationEmail throw etmez; resend'de hatayi kullaniciya bildirmemiz
+        // gerekiyor (enumeration zaten ustte handle edildi, burada kullanici dogru).
+        const mailResult = await sendVerificationEmail(eposta, newToken);
+        if (mailResult.ok) {
             console.log(`[AUTH] Doğrulama maili yeniden gönderildi: ${eposta}`);
-        } catch (mailError) {
-            console.error(`[AUTH] Resend mail hatasi (${eposta}):`, mailError.message);
+        } else {
+            console.error(`[AUTH] Resend mail hatasi (${eposta}): ${mailResult.error}`);
             const error = new Error('Mail gönderimi sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
             error.statusCode = 502;
             throw error;

@@ -23,16 +23,18 @@ if (isProduction && !process.env.FRONTEND_URL) {
 const FRONTEND_URL = process.env.FRONTEND_URL
     || (isProduction ? null : 'http://localhost:3000');
 
+// Port 465 (SSL) tercih edildi — port 587 (STARTTLS) bazi yerel ortamlarda
+// connection timeout veriyor (firewall/ISP blocking). 465 + secure=true daha stabil.
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // STARTTLS — Gmail 587 ile zorunlu
+    port: 465,
+    secure: true, // SSL/TLS bastan acik — Gmail 465'in tek modu
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    // SSL sertifika dogrulamasi: production'da MUTLAKA aktif (MITM koruma).
-    // Sadece localhost geliştirme ortamindaki self-signed cert sorunlarini bypass ediyoruz.
+    // SSL sertifika dogrulamasi: production'da aktif (MITM koruma).
+    // Sadece local geliştirme ortamindaki self-signed cert sorunlarini bypass ediyoruz.
     tls: { rejectUnauthorized: isProduction },
     // Bağlantı asmama (hanging) koruması — Gmail cevap vermezse sistem kilitlenmez
     connectionTimeout: 10000,
@@ -49,13 +51,21 @@ const FROM_ADDRESS = `EduNex Academy <${process.env.EMAIL_USER}>`;
 
 /**
  * E-posta doğrulama maili gönderir.
- * @param {string} to   — Alıcı e-posta adresi
+ *
+ * ÖNEMLI: Bu fonksiyon ASLA throw etmez ve register/resend gibi ana iş akışını
+ * bloklamaz. Hata durumunda { ok: false, error } doner, caller log'lar.
+ *
+ * @param {string} to    — Alıcı e-posta adresi
  * @param {string} token — crypto.randomBytes ile üretilmiş hex token
+ * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 async function sendVerificationEmail(to, token) {
+  try {
     if (!FRONTEND_URL) {
         // Production'da FRONTEND_URL eksikse mail göndermek anlamsız — kırık link gider.
-        throw new Error('FRONTEND_URL .env tanimli degil; dogrulama maili gonderilemez.');
+        const msg = 'FRONTEND_URL .env tanimli degil; dogrulama maili gonderilemez.';
+        console.error('[EMAIL SERVICE]', msg);
+        return { ok: false, error: msg };
     }
     const verifyUrl = `${FRONTEND_URL}/api/auth/verify?token=${token}`;
 
@@ -135,6 +145,12 @@ async function sendVerificationEmail(to, token) {
         subject: 'EduNex Academy — E-posta Adresinizi Doğrulayın',
         html,
     });
+    return { ok: true };
+  } catch (err) {
+    // SMTP timeout / auth / network — register asla bloklanmasin diye yutuyoruz.
+    console.error(`[EMAIL SERVICE] sendVerificationEmail(${to}) hatasi:`, err.message);
+    return { ok: false, error: err.message };
+  }
 }
 
 module.exports = { sendVerificationEmail };
