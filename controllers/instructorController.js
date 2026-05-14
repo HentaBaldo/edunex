@@ -193,6 +193,65 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
 };
 
 /**
+ * Egitmenin iyzico SubMerchant durumunu (read-only) doner.
+ * Frontend banner gorunurlugunu localStorage'a degil bu canli endpoint'e baglar;
+ * boylece hesap degisiminde (logout/login) durum dogru render edilir.
+ *
+ * @route GET /api/instructor/payment/submerchant/status
+ * @response {
+ *   connected: boolean,           // submerchant_key DB'de dolu mu
+ *   iban_ok:   boolean,           // InstructorDetail.iban_no var mi
+ *   tckn_ok:   boolean,           // Profile.identity_number gercek mi
+ *   ready:     boolean,           // connect tetiklenebilir mi (her on kosul tamam)
+ *   needs_approval: boolean,      // (Future-proof) admin onayi gerekli mi
+ *   missing:   string[]           // eksik on kosullarin etiketleri
+ * }
+ */
+exports.getSubMerchantStatus = async (req, res, next) => {
+    try {
+        const egitmenId = req.user.id;
+        const profile = await Profile.findByPk(egitmenId, {
+            attributes: ['id', 'identity_number', 'rol'],
+            include: [{ model: InstructorDetail, attributes: ['iban_no', 'submerchant_key'] }],
+        });
+        if (!profile || profile.rol !== 'egitmen') {
+            const err = new Error('Egitmen kaydi bulunamadi.');
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const submerchantKey = profile.InstructorDetail?.submerchant_key || null;
+        const ibanOk = !!profile.InstructorDetail?.iban_no;
+        // varsayilan deger 11111111111 olarak yaratiliyor; gercek TCKN olarak kabul etmiyoruz.
+        const tcknOk = !!profile.identity_number && profile.identity_number !== '11111111111';
+
+        const connected = !!submerchantKey;
+        // EduNex'te su an admin onay akisi yok; alani false sabitliyoruz ki frontend
+        // ileride backend'i degistirmeden de onay-kapisi UX'ini destekleyebilsin.
+        const needsApproval = false;
+
+        const missing = [];
+        if (!ibanOk) missing.push('iban');
+        if (!tcknOk) missing.push('tckn');
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                connected,
+                iban_ok: ibanOk,
+                tckn_ok: tcknOk,
+                ready: !connected && ibanOk && tcknOk && !needsApproval,
+                needs_approval: needsApproval,
+                missing,
+            },
+        });
+    } catch (error) {
+        console.error('[SUBMERCHANT STATUS]', { message: error.message });
+        next(error);
+    }
+};
+
+/**
  * Egitmenin iyzico Pazaryeri Alt Uye Isyeri (SubMerchant) kaydini olusturur.
  * Idempotent: zaten bir submerchant_key varsa yeniden olusturmaz.
  * Ucret tahsilatinda her basket item bu key uzerinden eslenecek.

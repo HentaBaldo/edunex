@@ -8,6 +8,8 @@ router.get('/dashboard/stats', verifyToken, isInstructor, instructorController.g
 
 // --- iyzico Pazaryeri (Marketplace) Alt Uye Isyeri Kaydi ---
 // Egitmenin satislardan dogrudan tahsilat alabilmesi icin gerekli tek seferlik kayit.
+// Status: dashboard banner gorunurlugu BU endpoint'e bagli, localStorage'a degil.
+router.get('/payment/submerchant/status', verifyToken, isInstructor, instructorController.getSubMerchantStatus);
 router.post('/payment/submerchant', verifyToken, isInstructor, instructorController.registerSubMerchant);
 
 router.get('/test', (req, res) => {

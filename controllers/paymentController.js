@@ -82,11 +82,14 @@ exports.checkout = async (req, res, next) => {
                 err.statusCode = 400;
                 throw err;
             }
-            // Marketplace zorunlulugu: env flag ile sert mod.
-            // STRICT_MARKETPLACE=true ise submerchant_key olmayan kursa odeme acilmaz.
-            if (process.env.STRICT_MARKETPLACE === 'true' && !ci.Course.InstructorDetail?.submerchant_key) {
-                const err = new Error(`"${ci.Course.baslik}" egitmeni odeme almak icin profil kurulumunu tamamlamamis.`);
-                err.statusCode = 409;
+            // Marketplace zorunlulugu (KOSULSUZ): iyzico, sepetteki TUM kalemlerde
+            // subMerchantKey gormezse "butun sepet kirilimlarinda subMerchantKey
+            // gonderilmelidir" diyerek tum cagriyi reddeder. Bu yuzden hic bir item
+            // bos olamaz; bu kontrolu env flag arkasinda gizlemiyoruz.
+            const submerchantKey = ci.Course.InstructorDetail?.submerchant_key;
+            if (!submerchantKey || !String(submerchantKey).trim()) {
+                const err = new Error(`Sepetinizdeki "${ci.Course.baslik}" adlı kursun eğitmeni henüz ödeme altyapısını kurmadığı için bu işlem gerçekleştirilemiyor.`);
+                err.statusCode = 400;
                 throw err;
             }
         }
@@ -435,14 +438,16 @@ exports.callback = async (req, res) => {
                     kullanici_id: d.egitmen_id,
                     baslik: 'Tebrikler! Yeni Bir Satış',
                     mesaj: `"${d.kurs_baslik}" kursunuz ${ogrenciAd} tarafından satın alındı. Net hakediş: ${d.net_tutar} TRY.`,
-                    tip: 'sistem',
+                    tip: 'satis',
                     baglanti_linki: `/instructor/dashboard.html`,
+                    kaynak_id: order.id,
                 })
             ));
         } catch (notifyErr) {
-            console.error('[NOTIFY ERROR] Satis bildirimleri olusturulamadi:', {
+            console.error('BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] Satis bildirimleri olusturulamadi:', {
                 order_id: order.id,
                 message: notifyErr.message,
+                stack: notifyErr.stack,
             });
         }
 

@@ -223,11 +223,38 @@ const ApiService = {
     },
 
     /**
+     * Oturum verilerini koklu temizler.
+     * Sadece bilinen anahtarlari degil, edunex_* on ekli HER anahtari hem
+     * localStorage hem de sessionStorage'dan kaldirir. Boylece "iyzico_baglandi"
+     * gibi gelecekteki flag'ler bile A->B hesap gecisinde sizmaz.
+     *
+     * @param {'user'|'admin'} [scope] - 'admin' verilirse admin anahtarlari da temizlenir.
+     */
+    _clearAllEdunexStorage(scope = 'user') {
+        const sil = (store) => {
+            const silinecek = [];
+            for (let i = 0; i < store.length; i++) {
+                const k = store.key(i);
+                if (!k) continue;
+                // edunex_* tum anahtarlar -- ileride eklenecek flag'leri de kapsar
+                if (k.startsWith('edunex_')) {
+                    // Admin scope'unda da degilsek admin anahtarlarini koruyalim,
+                    // boylece admin sekmesi acikken user logout admin'i atmamis olur.
+                    if (scope !== 'admin' && k.startsWith('edunex_admin_')) continue;
+                    silinecek.push(k);
+                }
+            }
+            silinecek.forEach(k => store.removeItem(k));
+        };
+        try { sil(localStorage); } catch {}
+        try { sil(sessionStorage); } catch {}
+    },
+
+    /**
      * User Logout
      */
     logoutUser() {
-        localStorage.removeItem('edunex_token');
-        localStorage.removeItem('edunex_user');
+        this._clearAllEdunexStorage('user');
         window.location.href = '/auth/index.html';
     },
 
@@ -235,8 +262,7 @@ const ApiService = {
      * Admin Logout
      */
     logoutAdmin() {
-        localStorage.removeItem('edunex_admin_token');
-        localStorage.removeItem('edunex_admin_user');
+        this._clearAllEdunexStorage('admin');
         window.location.href = '/admin/login.html';
     },
 

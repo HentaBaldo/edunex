@@ -1,5 +1,6 @@
 const { CourseEnrollment, Course, Profile, Certificate } = require('../models');
 const { UniqueConstraintError, ValidationError, Op } = require('sequelize');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Öğrenciyi bir kursa kayıt etme
@@ -37,6 +38,36 @@ exports.enrollCourse = async (req, res, next) => {
             ilerleme_yuzdesi: 0,
             kayit_tarihi: new Date()
         });
+
+        // --- UCRETSIZ KAYIT BILDIRIMI (egitmene) ---
+        // Bu endpoint odeme akisini bypass eder (ucretsiz kurs kaydi). paymentController
+        // satis bildirimini sadece odeme callback'inde atiyor, dolayisiyla burada da
+        // egitmene 'satis' tipinde bir bildirim olusturuyoruz ki dashboard'unda
+        // yeni kayitlar gorunsun.
+        // NON-BLOCKING: bildirim hatasi kaydi geri almamali, ogrenciye yine de 201 donmeli.
+        try {
+            if (course.egitmen_id) {
+                const ogrenci = await Profile.findByPk(ogrenci_id, { attributes: ['ad', 'soyad'] });
+                const ogrenciAd = ogrenci
+                    ? `${ogrenci.ad || ''} ${ogrenci.soyad || ''}`.trim() || 'Bir öğrenci'
+                    : 'Bir öğrenci';
+
+                await sendNotification({
+                    kullanici_id: course.egitmen_id,
+                    baslik: 'Yeni Öğrenci Kaydı',
+                    mesaj: `Tebrikler! "${course.baslik}" kursunuza ${ogrenciAd} ücretsiz olarak kayıt oldu.`,
+                    tip: 'satis',
+                    baglanti_linki: `/instructor/dashboard.html`,
+                    kaynak_id: enrollment.id,
+                });
+            }
+        } catch (notifyErr) {
+            console.error('BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] Ucretsiz kayit bildirimi olusturulamadi:', {
+                kurs_id, ogrenci_id, egitmen_id: course.egitmen_id,
+                message: notifyErr.message,
+                stack: notifyErr.stack,
+            });
+        }
 
         return res.status(201).json({
             status: 'success',

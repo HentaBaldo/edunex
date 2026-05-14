@@ -371,24 +371,85 @@ window.loadMyCourses = loadMyCourses;
 // iyzico SubMerchant Kurulum Banner'ı
 // ─────────────────────────────────────────────────────────
 
-const IYZICO_OK_KEY = 'edunex_iyzico_registered';
+// localStorage cache'ini KULLANMIYORUZ.
+// Sebep: hesap A iyzico bagladiktan sonra cikis yapinca tarayicidaki flag silinmiyordu;
+// hesap B aynı tarayicida giris yapinca eski flag okunup banner gizleniyordu (izolasyon hatasi).
+// Artik tek dogruluk kaynagi: GET /api/instructor/payment/submerchant/status.
+// Geri uyumluluk icin eski flag'i acilista temizliyoruz.
+const IYZICO_OK_KEY_LEGACY = 'edunex_iyzico_registered';
 
 /**
- * Sayfa yüklenince SubMerchant durumunu kontrol et.
- * localStorage'da onay varsa banner'ı hiç açma (gereksiz API çağrısı yok).
- * Yoksa banner'ı göster ve buton eventini wire et.
+ * Banner'i tamamen sifirla (eski render'lari DOM'dan sil) ve API'den gelen son
+ * duruma gore yeniden render et. Cagrildigi her seferinde idempotent.
  */
 async function checkSubMerchantBanner() {
-    if (localStorage.getItem(IYZICO_OK_KEY) === '1') return;
+    // Eski cache'i (varsa) sil; banner gorunurlugu artik buna bagli degil.
+    try { localStorage.removeItem(IYZICO_OK_KEY_LEGACY); } catch {}
 
     const banner = document.getElementById('iyzicoSetupBanner');
-    if (!banner) return;
+    const btn = document.getElementById('iyzicoConnectBtn');
+    if (!banner || !btn) return;
+
+    // Onceki state'i komple temizle: stil, class, content, listener.
+    banner.style.display = 'none';
+    banner.style.opacity = '1';
+    btn.disabled = false;
+    btn.classList.remove('success');
+    btn.innerHTML = '<i class="fas fa-plug"></i> <span>iyzico Hesabımı Bağla</span>';
+    // Listener replikasyonunu onlemek icin butonu clone'la (eski event'leri dusurur).
+    const freshBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(freshBtn, btn);
+
+    // Eksik on kosul / onay durumu icin uyari satirini banner govdesine yazariz.
+    const bodyP = banner.querySelector('.iyzico-banner-body p');
+    const defaultBodyText = 'Kurs satışlarından kazanç sağlayabilmek için iyzico Alt Üye İşyeri hesabınızı bağlamanız gerekiyor. Profilinizde IBAN ve T.C. Kimlik Numarası eksiksiz olmalıdır.';
+    if (bodyP) bodyP.textContent = defaultBodyText;
+
+    let status;
+    try {
+        const resp = await ApiService.get('/instructor/payment/submerchant/status');
+        status = resp?.data;
+    } catch (err) {
+        console.warn('[DASHBOARD] iyzico status alinamadi:', err.message);
+        // Hata durumunda banner'i goster ve butonu aktif tut (kullanici deneyince
+        // backend zaten dogru hatayi dondurecek).
+        banner.style.display = 'flex';
+        freshBtn.addEventListener('click', handleSubMerchantConnect);
+        return;
+    }
+
+    // Zaten bagliysa banner'i hic gosterme.
+    if (status?.connected) return;
+
+    // Buradan sonra banner gorunecek.
     banner.style.display = 'flex';
 
-    const btn = document.getElementById('iyzicoConnectBtn');
-    if (!btn) return;
+    // Onay gerekiyorsa (gelecekte) -> butonu kaldirmadan disabled goster + aciklama.
+    if (status?.needs_approval) {
+        freshBtn.disabled = true;
+        freshBtn.title = 'Profiliniz yöneticiler tarafından onaylanmamış.';
+        if (bodyP) {
+            bodyP.innerHTML = '<strong style="color:#9a3412;">⚠ İyzico entegrasyonu için profilinizin yöneticiler tarafından onaylanması gerekmektedir.</strong>';
+        }
+        return;
+    }
 
-    btn.addEventListener('click', handleSubMerchantConnect);
+    // Eksik IBAN/TCKN varsa -> butonu disabled, profil sayfasina link.
+    if (status?.missing?.length) {
+        freshBtn.disabled = true;
+        freshBtn.title = 'Önce profil bilgilerinizi tamamlayın.';
+        const eksik = [];
+        if (status.missing.includes('iban')) eksik.push('IBAN');
+        if (status.missing.includes('tckn')) eksik.push('T.C. Kimlik Numarası');
+        if (bodyP) {
+            bodyP.innerHTML = `<strong style="color:#9a3412;">⚠ ${eksik.join(' ve ')} bilgisi eksik.</strong> `
+                + '<a href="/profile/index.html" style="color:#f97316;font-weight:700;">→ Profilinizi tamamlayın</a>';
+        }
+        return;
+    }
+
+    // Hazir: connect tetiklenebilir.
+    freshBtn.addEventListener('click', handleSubMerchantConnect);
 }
 
 async function handleSubMerchantConnect() {
@@ -404,7 +465,8 @@ async function handleSubMerchantConnect() {
 
         if (result?.success) {
             const banner = document.getElementById('iyzicoSetupBanner');
-            localStorage.setItem(IYZICO_OK_KEY, '1');
+            // localStorage'a flag YAZMIYORUZ. Bir sonraki sayfa yuklemesinde
+            // status endpoint'i DB'den gercek durumu donecek (hesap izolasyonu).
 
             // Butonu başarı görseline dönüştür
             btn.disabled = true;
