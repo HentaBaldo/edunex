@@ -9,6 +9,7 @@ let currentCourseData = null;
 let currentLessonId = null;
 let currentSectionId = null;
 let bunnyLibraryId = '640675';
+let bunnyCdnHostname = 'vz-1e031aea-0f2.b-cdn.net';
 let playerInitTimeout = null;
 
 /**
@@ -749,7 +750,7 @@ function trackBunnyVideo(lesson) {
     _resolvedDuration = lesson.sure_saniye || 0;
 
     // HLS stream URL'i
-    const hlsSrc = `https://video-${bunnyLibraryId}.mediadelivery.net/${lesson.video_saglayici_id}/playlist.m3u8`;
+    const hlsSrc = `https://${bunnyCdnHostname}/${lesson.video_saglayici_id}/playlist.m3u8`;
 
     if (window.Hls && Hls.isSupported()) {
         _activeHls = new Hls();
