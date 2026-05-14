@@ -1538,7 +1538,10 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex; flex-direction: column; gap: 14px;
     height: 100%;
+    min-height: 260px;
+    box-sizing: border-box;
 }
+.review-text.empty { color: #94a3b8; font-style: normal; }
 .review-card-home:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1); }
 
 .review-quote-icon { font-size: 1.6rem; color: #e0e7ff; line-height: 1; }

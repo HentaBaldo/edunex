@@ -461,17 +461,23 @@ async function sonYorumlariYukle() {
 }
 
 function yorumKartiOlustur(y) {
-    const puan    = y.puan || y.puan_degeri || 5;
-    const ad      = guvenliMetin(y.ad || y.kullanici_adi || 'Öğrenci');
-    const kurs    = guvenliMetin(y.kurs || y.kurs_baslik || '');
-    const yorum   = guvenliMetin(y.yorum || y.icerik || y.yorum_metni || '');
-    const inisyal = ad.charAt(0).toUpperCase() || '?';
-    const yildiz  = '★'.repeat(Math.min(5, Math.max(1, parseInt(puan))));
+    const puan      = y.puan || y.puan_degeri || 5;
+    const ad        = guvenliMetin(y.ad || y.kullanici_adi || 'Öğrenci');
+    const kurs      = guvenliMetin(y.kurs || y.kurs_baslik || '');
+    // Yorum metni HTML içerebilir → düz metne çevir + boşsa fallback
+    const yorumHam  = y.yorum || y.icerik || y.yorum_metni || '';
+    const yorumDuz  = duzMetin(yorumHam, 280);
+    const yorumBos  = !yorumDuz || yorumDuz.trim().length === 0;
+    const yorumHtml = yorumBos
+        ? '<span class="empty">Bu öğrenci henüz yazılı yorum bırakmadı.</span>'
+        : yorumDuz;
+    const inisyal   = ad.charAt(0).toUpperCase() || '?';
+    const yildiz    = '★'.repeat(Math.min(5, Math.max(1, parseInt(puan))));
 
     return `
     <div class="review-card-home">
         <div class="review-quote-icon"><i class="fas fa-quote-left"></i></div>
-        <p class="review-text">${yorum}</p>
+        <p class="review-text ${yorumBos ? 'empty' : ''}">${yorumHtml}</p>
         <div class="review-stars">${yildiz}</div>
         <div class="review-author">
             <div class="review-avatar">${inisyal}</div>
