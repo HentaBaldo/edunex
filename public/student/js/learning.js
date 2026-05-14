@@ -687,6 +687,7 @@ let seekLock = false;
 let _activeIframe = null;
 let _msgHandler = null;
 let _resolvedDuration = 0;
+let _pollInterval = null;   // getCurrentTime polling interval
 
 function initLessonTracking(lesson, mainMedia) {
     _stopTracking();
@@ -701,6 +702,7 @@ function initLessonTracking(lesson, mainMedia) {
 }
 
 function _stopTracking() {
+    if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
     if (_msgHandler) {
         window.removeEventListener('message', _msgHandler);
         _msgHandler = null;
@@ -825,18 +827,21 @@ function trackBunnyVideo(lesson) {
     };
     window.addEventListener('message', _msgHandler);
 
-    // ── ANA: player.js üzerinden subscribe (bu olmazsa Bunny event göndermez) ─
+    // ── ANA: player ready → polling başlat ──────────────────────────────────
     bunnyPlayer.on('ready', () => {
-        console.log('[TRACKING] Bunny player hazır → eventler abone ediliyor.');
+        console.log('[TRACKING] Bunny player hazır → polling başlatılıyor.');
 
-        // Süreyi al
+        // 1) Süreyi al
         try {
             bunnyPlayer.getDuration(function(d) {
-                if (typeof d === 'number' && d > 0) _resolvedDuration = d;
+                if (typeof d === 'number' && d > 0) {
+                    _resolvedDuration = d;
+                    console.log('[TRACKING] Süre alındı: ' + d + 's');
+                }
             });
         } catch(e) {}
 
-        // Kaldığı yerden devam: localStorage'dan konumu yükle
+        // 2) Kaldığı yerden devam
         const resumePos = _loadResumePos(lesson.id);
         if (resumePos > 5 && !lesson.tamamlandi_mi) {
             console.log('[TRACKING] Kaldığı yer yükleniyor: ' + resumePos + 's');
@@ -845,26 +850,44 @@ function trackBunnyVideo(lesson) {
             lastTimeUpdatePos = resumePos;
         }
 
-        // timeupdate subscribe — OLMADAN player event göndermez
-        try {
-            bunnyPlayer.on('timeupdate', function(val) {
-                const seconds  = typeof val === 'object' ? (val.seconds  ?? val) : val;
-                const duration = typeof val === 'object' ? (val.duration ?? 0)   : 0;
-                _handleTimeUpdate(seconds, duration);
-            });
-        } catch(e) { console.warn('[TRACKING] timeupdate subscribe hatası:', e); }
-
-        // ended subscribe
+        // 3) ended event (Bunny bunu genellikle gönderir)
         try {
             bunnyPlayer.on('ended', function() {
                 if (!videoCompleted) {
                     videoCompleted = true;
                     _clearResumePos(currentLessonId);
-                    console.log('[TRACKING] Video bitti (player.on ended).');
+                    console.log('[TRACKING] Video bitti (ended event).');
                     markLessonComplete(currentLessonId);
                 }
             });
         } catch(e) {}
+
+        // 4) timeupdate event (opsiyonel — gelirse iyi, gelmezse polling devrede)
+        try {
+            bunnyPlayer.on('timeupdate', function(val) {
+                const s = typeof val === 'object' ? (val.seconds ?? 0) : (val ?? 0);
+                const d = typeof val === 'object' ? (val.duration ?? 0) : 0;
+                _handleTimeUpdate(s, d);
+            });
+        } catch(e) {}
+
+        // 5) Polling: her 1 saniyede getCurrentTime sorgusu
+        //    → timeupdate gelsin ya da gelmesin, hep çalışır.
+        if (_pollInterval) clearInterval(_pollInterval);
+        _pollInterval = setInterval(function() {
+            if (!_activeIframe || videoCompleted) {
+                clearInterval(_pollInterval);
+                _pollInterval = null;
+                return;
+            }
+            try {
+                bunnyPlayer.getCurrentTime(function(t) {
+                    if (typeof t === 'number' && !isNaN(t) && t >= 0) {
+                        _handleTimeUpdate(t, _resolvedDuration);
+                    }
+                });
+            } catch(e) {}
+        }, 1000);
     });
 }
 
