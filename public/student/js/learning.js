@@ -811,7 +811,10 @@ function trackBunnyVideo(lesson) {
         if (e.source !== _activeIframe.contentWindow) return;
         let data;
         try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(ex) { return; }
-        if (!data || !data.event) return;
+        if (!data) return;
+        // RAW LOGGER — hangi mesajların geldiğini görüyoruz
+        console.log('[BUNNY RAW]', JSON.stringify(data).substring(0, 200));
+        if (!data.event) return;
         if (data.event === 'timeupdate') {
             const val = data.value;
             const secs  = typeof val === 'object' ? val.seconds  : val;
