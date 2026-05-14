@@ -330,6 +330,36 @@ const uploadFileToBunnyStorage = async (filePath, remoteName) => {
 };
 
 /**
+ * PDF buffer'ını Bunny Storage'daki certificates/ klasörüne yükler.
+ * @param {Buffer} buffer - PDF içeriği
+ * @param {string} fileName - Hedef dosya adı (örn: "cert_abc123.pdf")
+ * @returns {Promise<string>} Herkese açık CDN URL'si
+ * @throws {Error} Storage yapılandırılmamışsa veya yükleme başarısızsa
+ */
+const uploadCertificate = async (buffer, fileName) => {
+    if (!isBunnyStorageEnabled()) {
+        throw new Error('Bunny Storage yapılandırılmamış (BUNNY_STORAGE_ZONE_NAME / BUNNY_STORAGE_ACCESS_KEY).');
+    }
+
+    const remoteName = `certificates/${fileName}`;
+    const uploadUrl  = `https://storage.bunnycdn.com/${STORAGE_ZONE}/${remoteName}`;
+
+    await axios.put(uploadUrl, buffer, {
+        headers: {
+            AccessKey: STORAGE_KEY,
+            'Content-Type': 'application/pdf',
+        },
+        maxBodyLength:    Infinity,
+        maxContentLength: Infinity,
+        timeout: 30000,
+    });
+
+    const publicUrl = `https://${STORAGE_PULL_ZONE}.b-cdn.net/${remoteName}`;
+    console.log(`[BUNNY STORAGE] Sertifika yüklendi: ${publicUrl}`);
+    return publicUrl;
+};
+
+/**
  * Bunny Storage'dan dosya siler. Hata atmaz (yumuşak silme).
  * publicUrl, ya tam CDN linki ya da remoteName olarak verilebilir.
  *
@@ -378,6 +408,7 @@ module.exports = {
     deleteVideo,
     validateVideoFile,
     uploadFileToBunnyStorage,
+    uploadCertificate,
     deleteFileFromBunnyStorage,
     isBunnyStorageEnabled
 };

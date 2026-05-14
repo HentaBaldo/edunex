@@ -64,30 +64,124 @@ async function approveCourse(courseId) {
     if (!confirm('Bu kursu onaylamak istediğinize emin misiniz?')) return;
 
     try {
-        const response = await ApiService.put(`/admin/approve-course/${courseId}`, {});
-        alert('✓ Kurs başarıyla onaylandı ve yayına alındı!');
+        await ApiService.put(`/admin/approve-course/${courseId}`, {});
+        if (typeof showToast === 'function') showToast('Kurs onaylandı ve yayına alındı.', 'success');
         await fetchPendingCourses();
     } catch (error) {
         console.error('[APPROVE COURSE] Hata:', error);
-        alert('❌ Hata: ' + (error.message || 'Kurs onaylanırken bir hata oluştu'));
+        if (typeof showToast === 'function') showToast(error.message || 'Kurs onaylanırken bir hata oluştu', 'error');
+        else alert('Hata: ' + (error.message || ''));
     }
 }
 
-async function rejectCourse(courseId) {
-    const reason = prompt('Kurs neden reddediliyorsa sebebini kısa yazınız:');
-    if (!reason || reason.trim() === '') {
-        alert('⚠️ Lütfen bir sebep belirtiniz');
-        return;
-    }
+// ───────────────────────────────────────────────────────────────────────────
+// Toast (sag-ust kayan bildirim)
+// ───────────────────────────────────────────────────────────────────────────
+function showToast(message, variant = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) { alert(message); return; }
+    const palette = {
+        success: { bg: '#dcfce7', border: '#86efac', color: '#166534', icon: 'fa-circle-check' },
+        error:   { bg: '#fee2e2', border: '#fca5a5', color: '#991b1b', icon: 'fa-circle-exclamation' },
+        info:    { bg: '#dbeafe', border: '#93c5fd', color: '#1e40af', icon: 'fa-circle-info' },
+    };
+    const p = palette[variant] || palette.info;
+    const el = document.createElement('div');
+    el.style.cssText = `pointer-events:auto;background:${p.bg};border:1px solid ${p.border};color:${p.color};padding:12px 16px;border-radius:10px;display:flex;gap:10px;align-items:flex-start;font-size:0.9rem;box-shadow:0 8px 24px rgba(0,0,0,0.08);min-width:280px;max-width:380px;transform:translateX(120%);transition:transform 0.25s ease;`;
+    el.innerHTML = `<i class="fas ${p.icon}" style="margin-top:2px;"></i><div style="flex:1;line-height:1.4;">${message}</div>`;
+    container.appendChild(el);
+    requestAnimationFrame(() => { el.style.transform = 'translateX(0)'; });
+    setTimeout(() => {
+        el.style.transform = 'translateX(120%)';
+        setTimeout(() => el.remove(), 250);
+    }, 3800);
+}
 
-    try {
-        const response = await ApiService.put(`/admin/reject-course/${courseId}`, { sebep: reason });
-        alert('✓ Kurs başarıyla reddedildi ve eğitmene geri gönderildi!');
-        await fetchPendingCourses();
-    } catch (error) {
-        console.error('[REJECT COURSE] Hata:', error);
-        alert('❌ Hata: ' + (error.message || 'Kurs reddedilirken bir hata oluştu'));
+// ───────────────────────────────────────────────────────────────────────────
+// Reddetme Modali — prompt() yerine sik bir modal
+// ───────────────────────────────────────────────────────────────────────────
+const RejectModal = (() => {
+    let currentCourseId = null;
+
+    const $modal   = () => document.getElementById('rejectModal');
+    const $reason  = () => document.getElementById('rejectReason');
+    const $count   = () => document.getElementById('rejectReasonCount');
+    const $error   = () => document.getElementById('rejectModalError');
+    const $confirm = () => document.getElementById('rejectModalConfirmBtn');
+    const $label   = () => document.getElementById('rejectModalConfirmLabel');
+    const $title   = () => document.getElementById('rejectCourseTitle');
+
+    function open(courseId, courseTitle) {
+        currentCourseId = courseId;
+        const t = $title();
+        if (t) t.textContent = courseTitle || 'Seçili kurs';
+        const r = $reason();
+        if (r) { r.value = ''; r.dispatchEvent(new Event('input')); r.focus(); }
+        const e = $error();
+        if (e) { e.style.display = 'none'; e.textContent = ''; }
+        $modal().style.display = 'flex';
     }
+    function close() {
+        currentCourseId = null;
+        $modal().style.display = 'none';
+    }
+    async function submit() {
+        const sebep = ($reason()?.value || '').trim();
+        const err = $error();
+        if (sebep.length < 10) {
+            if (err) { err.textContent = 'Red sebebi en az 10 karakter olmalıdır.'; err.style.display = 'block'; }
+            $reason()?.focus();
+            return;
+        }
+        if (!currentCourseId) { close(); return; }
+
+        const btn = $confirm(); const lbl = $label();
+        btn.disabled = true;
+        if (lbl) lbl.textContent = 'Gönderiliyor...';
+        try {
+            await ApiService.put(`/admin/reject-course/${currentCourseId}`, { red_sebebi: sebep });
+            close();
+            showToast('Kurs reddedildi ve eğitmene destek bileti ile bildirildi.', 'success');
+            await fetchPendingCourses();
+        } catch (error) {
+            console.error('[REJECT COURSE] Hata:', error);
+            if (err) { err.textContent = error.message || 'Kurs reddedilirken bir hata oluştu.'; err.style.display = 'block'; }
+        } finally {
+            btn.disabled = false;
+            if (lbl) lbl.textContent = 'Reddetmeyi Onayla';
+        }
+    }
+    function bind() {
+        const m = $modal();
+        if (!m || m.dataset.bound === '1') return;
+        m.dataset.bound = '1';
+        document.getElementById('rejectModalCloseBtn')?.addEventListener('click', close);
+        document.getElementById('rejectModalCancelBtn')?.addEventListener('click', close);
+        document.getElementById('rejectModalConfirmBtn')?.addEventListener('click', submit);
+        m.addEventListener('click', (e) => { if (e.target === m) close(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && m.style.display === 'flex') close();
+        });
+        $reason()?.addEventListener('input', () => {
+            const len = $reason().value.length;
+            const c = $count();
+            if (c) c.textContent = `${len} / 2000`;
+            const err = $error();
+            if (err && err.style.display === 'block' && len >= 10) {
+                err.style.display = 'none';
+            }
+        });
+    }
+    return { open, close, bind };
+})();
+
+document.addEventListener('DOMContentLoaded', () => RejectModal.bind());
+
+function rejectCourse(courseId) {
+    // Liste DOM'undan kurs basligini cek (varsa). Yoksa generic baslik.
+    const row = document.querySelector(`button.btn-danger[onclick*="${courseId}"]`)?.closest('tr');
+    const title = row?.querySelector('td:first-child strong')?.textContent?.trim() || '';
+    RejectModal.open(courseId, title);
 }
 
 async function viewCourseDetails(courseId) {

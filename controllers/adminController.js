@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Op, fn, col, literal } = require('sequelize');
+const sequelize = require('../config/database');
 const {
     Profile,
     Course,
@@ -14,7 +15,10 @@ const {
     Review,
     Certificate,
     LiveSession,
+    SupportTicket,
+    SupportMessage,
 } = require('../models');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Yönetici Girişi (Admin Login)
@@ -359,37 +363,114 @@ exports.approveCourse = async (req, res, next) => {
 };
 
 /**
- * Kursu Reddetme İşlemi
+ * Kursu Reddetme İşlemi.
+ *
+ * Akis:
+ *   1) red_sebebi zorunlu (min 10 char) - egitmen bu mesaji bilet uzerinden okuyacak.
+ *   2) Course.durum -> 'taslak', kurslar.red_sebebi alani doldurulur.
+ *   3) Egitmene 'destek' tipinde Notification gonderilir.
+ *   4) Otomatik SupportTicket (kategori='kurs_onay') acilir + ilk mesaj olarak red_sebebi
+ *      yazilir. gonderen_id = admin (req.user.id) — egitmen ticket'i acan degil, sahip.
+ *      kullanici_id = egitmen (Course.egitmen_id) - bilet sahibi.
+ *   Boylece egitmen ticket detay sayfasindan admin'e dogrudan yanit yazabilir.
+ *
+ * Tasarim notu:
+ *   - Ticket olusturma + ilk mesaj + Course update tek transaction'da. Bildirim
+ *     non-blocking (sendNotification kendi try/catch'i icinde).
+ *   - Bildirim hatasi kursu reddetme islemini geri almaz (asil is degisik islemler
+ *     icin atomik kalmali, bildirim son adim).
+ *
  * @route PUT /api/admin/reject-course/:courseId
+ * Body: { sebep: string }  (eski API ile uyumlu; red_sebebi alias'i da kabul edilir.)
  */
 exports.rejectCourse = async (req, res, next) => {
+    const t = await sequelize.transaction();
     try {
         const { courseId } = req.params;
-        const { sebep } = req.body;
-        
-        const course = await Course.findByPk(courseId);
-        
-        if (!course) {
-            return res.status(404).json({
+        const adminId = req.user?.id || null;
+        // Eski ve yeni alan adlarinin ikisini de kabul et (UI'da iki isim de gecmis olabilir).
+        const rawSebep = req.body?.red_sebebi ?? req.body?.sebep ?? '';
+        const sebep = String(rawSebep).trim();
+
+        if (sebep.length < 10) {
+            await t.rollback();
+            return res.status(400).json({
                 success: false,
-                message: 'Kurs bulunamadı'
+                message: 'Red sebebi en az 10 karakter olmali. Egitmen bu mesaji bilet uzerinden okuyacak.',
             });
         }
-        
-        // Kursu taslak haline geri al
-        await course.update({ durum: 'taslak' });
-        
-        console.log(`[ADMIN] Kurs ${courseId} reddedildi. Sebep: ${sebep || 'Belirtilmedi'}`);
-        
+
+        const course = await Course.findByPk(courseId, { transaction: t });
+        if (!course) {
+            await t.rollback();
+            return res.status(404).json({ success: false, message: 'Kurs bulunamadı' });
+        }
+        if (course.silindi_mi) {
+            await t.rollback();
+            return res.status(410).json({ success: false, message: 'Kurs silinmis durumda.' });
+        }
+        if (course.durum !== 'onay_bekliyor') {
+            await t.rollback();
+            return res.status(409).json({
+                success: false,
+                message: `Sadece onay bekleyen kurslar reddedilebilir. Mevcut durum: ${course.durum}`,
+            });
+        }
+
+        // 1) Kursu reddet: durum=taslak + red_sebebi saklanir.
+        await course.update({
+            durum: 'taslak',
+            red_sebebi: sebep,
+        }, { transaction: t });
+
+        // 2) Otomatik destek talebi: kategori='kurs_onay'. Sahip = egitmen.
+        const konuMetni = `Kurs Reddi: ${String(course.baslik || 'Adsiz kurs').slice(0, 200)}`;
+        const ticket = await SupportTicket.create({
+            kullanici_id: course.egitmen_id,
+            konu: konuMetni,
+            kategori: 'kurs_onay',
+            durum: 'cevaplandi', // Admin son mesaji yazdi (red_sebebi) -> egitmenin cevabi bekleniyor.
+        }, { transaction: t });
+
+        // 3) Ilk mesaj: admin'in red gerekcesi.
+        await SupportMessage.create({
+            talep_id: ticket.id,
+            gonderen_id: adminId,
+            mesaj: sebep,
+            okundu_mu: false,
+        }, { transaction: t });
+
+        await t.commit();
+
+        // 4) Bildirim (non-blocking). sendNotification kendi try/catch'inde — fail olsa bile akis dogru.
+        try {
+            await sendNotification({
+                kullanici_id: course.egitmen_id,
+                baslik: 'Kursunuz reddedildi',
+                mesaj: `"${course.baslik}" adli kursunuz reddedildi. Sebep: ${sebep.slice(0, 180)}${sebep.length > 180 ? '…' : ''}`,
+                tip: 'destek',
+                baglanti_linki: `/main/contact.html?ticket=${ticket.id}`,
+                kaynak_id: ticket.id,
+            });
+        } catch (notifyErr) {
+            console.warn('[ADMIN REJECT COURSE] Bildirim atlandi:', notifyErr.message);
+        }
+
+        console.log(`[ADMIN] Kurs ${courseId} reddedildi. ticket=${ticket.id}, admin=${adminId}, sebep_len=${sebep.length}`);
+
         return res.status(200).json({
             success: true,
-            message: 'Kurs reddedildi ve eğitmene geri gönderildi',
-            course
+            message: 'Kurs reddedildi; egitmene destek bileti ile bildirildi.',
+            data: {
+                course_id: course.id,
+                durum: course.durum,
+                ticket_id: ticket.id,
+            },
         });
-        
     } catch (error) {
+        await t.rollback().catch(() => {});
         console.error('[ADMIN REJECT COURSE] Hata:', error.message);
-        const err = new Error('Kurs reddedilirken hata oluştu');
+        const err = new Error('Kurs reddedilirken hata olustu');
         err.statusCode = 500;
         next(err);
     }
