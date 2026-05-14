@@ -1,4 +1,4 @@
-const { CourseEnrollment, Course, Profile, Certificate } = require('../models');
+const { CourseEnrollment, Course, Profile, Certificate, StudentDetail } = require('../models');
 const { UniqueConstraintError, ValidationError, Op } = require('sequelize');
 const { sendNotification } = require('../services/notificationService');
 
@@ -31,13 +31,81 @@ exports.enrollCourse = async (req, res, next) => {
             throw error;
         }
 
-        // 3. Kayıt oluştur (Unique constraint varsa otomatik hata verecek)
-        const enrollment = await CourseEnrollment.create({
-            ogrenci_id,
-            kurs_id,
-            ilerleme_yuzdesi: 0,
-            kayit_tarihi: new Date()
-        });
+        // === FK GUVENLIK KATMANI: kurs_kayitlari.ogrenci_id -> ogrenci_detaylari.kullanici_id ===
+        // Profili olup ogrenci_detaylari satiri olmayan kullanicilar (legacy hesap, rol degisikligi,
+        // manuel olusturulan kayit) icin Sequelize ham ForeignKey hatasi firlatiyor.
+        // Egitmen tarafinda yapilan ayni "Self-healing" mantigini buraya da ekliyoruz:
+        // satir yoksa otomatik bos bir StudentDetail satiri olustur, sonra kayda devam et.
+        try {
+            const studentRow = await StudentDetail.findByPk(ogrenci_id);
+            if (!studentRow) {
+                console.warn(`[ENROLL] StudentDetail satiri eksik (kullanici_id=${ogrenci_id}). Self-heal: bos satir olusturuluyor.`);
+                await StudentDetail.create({
+                    kullanici_id: ogrenci_id,
+                    egitim_seviyesi: null,
+                    baslik: null,
+                    biyografi: null,
+                });
+            }
+        } catch (healErr) {
+            // Self-heal de basarisizsa (Profile hic yoksa vb.) anlasilabilir hata don.
+            console.error('[ENROLL SELF-HEAL ERROR]', {
+                ogrenci_id,
+                name: healErr.name,
+                message: healErr.message,
+                ...(healErr.parent && { parentCode: healErr.parent.code, parentMessage: healErr.parent.sqlMessage }),
+            });
+            const error = new Error('Öğrenci profili eksik. Lütfen önce profilinizi tamamlayın.');
+            error.statusCode = 409;
+            throw error;
+        }
+
+        // 3. Kayıt oluştur — yazma islemini detayli try-catch ile sarmaliyoruz ki
+        // 500 dondurmeden once gercek hata sebebi (FK/Validation/Unique) terminale dusen.
+        let enrollment;
+        try {
+            enrollment = await CourseEnrollment.create({
+                ogrenci_id,
+                kurs_id,
+                ilerleme_yuzdesi: 0,
+                kayit_tarihi: new Date()
+            });
+        } catch (dbErr) {
+            // Sequelize hata tiplerini ayristirip detayli logla.
+            console.error('[ENROLL DB ERROR]', {
+                ogrenci_id,
+                kurs_id,
+                name: dbErr.name,
+                message: dbErr.message,
+                ...(dbErr.errors && { validation: dbErr.errors.map(e => ({ path: e.path, message: e.message, value: e.value })) }),
+                ...(dbErr.fields && { fields: dbErr.fields }),
+                ...(dbErr.parent && {
+                    parentCode: dbErr.parent.code,
+                    parentErrno: dbErr.parent.errno,
+                    parentSqlMessage: dbErr.parent.sqlMessage,
+                    parentSqlState: dbErr.parent.sqlState,
+                }),
+                stack: dbErr.stack,
+            });
+            // Tipe gore istemciye anlamli HTTP cevabi don.
+            if (dbErr.name === 'SequelizeUniqueConstraintError') {
+                const err = new Error('Zaten bu kursa kayıtlısınız.');
+                err.statusCode = 400;
+                throw err;
+            }
+            if (dbErr.name === 'SequelizeForeignKeyConstraintError') {
+                const err = new Error('Kayıt oluşturulamadı: ilgili kullanıcı veya kurs kaydı bulunamadı.');
+                err.statusCode = 409;
+                throw err;
+            }
+            if (dbErr.name === 'SequelizeValidationError') {
+                const err = new Error('Geçersiz veri: ' + dbErr.errors.map(e => e.message).join(', '));
+                err.statusCode = 400;
+                throw err;
+            }
+            // Bilinmeyen hata: orijinal hatayi yukari at, global handler 500 doner.
+            throw dbErr;
+        }
 
         // --- UCRETSIZ KAYIT BILDIRIMI (egitmene) ---
         // Bu endpoint odeme akisini bypass eder (ucretsiz kurs kaydi). paymentController
