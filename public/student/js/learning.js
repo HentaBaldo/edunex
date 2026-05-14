@@ -828,16 +828,19 @@ function trackBunnyVideo(lesson) {
         const val = data.value;
 
         // ── Ready: event'lere abone ol + konumu geri yükle ──────────────────
+        // ── Tüm mesajları logla (debug) ───────────────────────────────────────
+        console.log('[BUNNY MSG]', ev, '|', JSON.stringify(val ?? '').substring(0, 120));
+
         if (ev === 'ready') {
-            console.log('[TRACKING] Ready value:', JSON.stringify(val));
-            console.log('[TRACKING] Ready alındı → doğrudan subscribe gönderiliyor.');
+            console.log('[TRACKING] Ready alındı → subscribe + polling başlatılıyor.');
 
-            // Süreyi iste
+            // addEventListener: listener OLMADAN gönder (player.js v0.0.11 protokolü)
+            _iframeSend('addEventListener', 'timeupdate');
+            _iframeSend('addEventListener', 'play');
+            _iframeSend('addEventListener', 'ended');
+
+            // getDuration: listener ile gönder (getter protokolü)
             _iframeSend('getDuration', undefined, 'cb_dur');
-
-            // timeupdate + ended'e abone ol (player.js bypass)
-            _iframeSend('addEventListener', 'timeupdate', 'cb_tu');
-            _iframeSend('addEventListener', 'ended',      'cb_end');
 
             // Kaldığı yerden devam
             const resumePos = _loadResumePos(lesson.id);
@@ -850,15 +853,15 @@ function trackBunnyVideo(lesson) {
             return;
         }
 
-        // ── getDuration yanıtı ───────────────────────────────────────────────
-        if (ev === 'cb_dur') {
+        // ── getDuration yanıtı (listener adı veya method adıyla gelebilir) ───
+        if (ev === 'cb_dur' || ev === 'getDuration') {
             const d = typeof val === 'number' ? val : parseFloat(val);
             if (d > 0) { _resolvedDuration = d; console.log('[TRACKING] Süre: ' + d + 's'); }
             return;
         }
 
-        // ── timeupdate (subscription yanıtı veya cb_tu event'i) ─────────────
-        if (ev === 'timeupdate' || ev === 'cb_tu') {
+        // ── timeupdate ────────────────────────────────────────────────────────
+        if (ev === 'timeupdate') {
             const s = typeof val === 'object' ? (val.seconds ?? 0) : (Number(val) || 0);
             const d = typeof val === 'object' ? (val.duration ?? 0) : 0;
             _handleTimeUpdate(s, d);
@@ -866,14 +869,14 @@ function trackBunnyVideo(lesson) {
         }
 
         // ── getCurrentTime polling yanıtı ─────────────────────────────────────
-        if (ev === 'cb_poll') {
+        if (ev === 'cb_poll' || ev === 'getCurrentTime') {
             const t = typeof val === 'number' ? val : parseFloat(val);
             if (!isNaN(t) && t >= 0) _handleTimeUpdate(t, _resolvedDuration);
             return;
         }
 
         // ── Ended ─────────────────────────────────────────────────────────────
-        if (ev === 'ended' || ev === 'cb_end') {
+        if (ev === 'ended') {
             if (!videoCompleted) {
                 videoCompleted = true;
                 _clearResumePos(currentLessonId);
