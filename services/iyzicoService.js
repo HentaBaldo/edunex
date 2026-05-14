@@ -393,33 +393,97 @@ exports.refundItem = ({ paymentTransactionId, price, ip, conversationId }) => {
 };
 
 /**
- * Bir basket item'in hakedisini onaylar (Approval).
+ * Bir basket item'in hakedisini onaylar (Approval / Para Aktarimi).
  * Iyzico bu cagri ile parayi havuzdan SubMerchant'in (egitmenin) hesabina aktarir.
- * @param {object} params
- * @param {string} params.paymentTransactionId - siparis_kalemleri.iyzico_item_transaction_id
- * @param {string} [params.conversationId]
+ *
+ * Pazaryeri akiı:
+ *   1) Ogrenci odeme yapar -> para iyzico havuzunda 'on tahsil' olarak durur.
+ *   2) Iade penceresi (T+14) gecince approval cagrilir.
+ *   3) iyzico parayi SubMerchant'in IBAN'ina aktarir, paymentId doner.
+ *
+ * Idempotent: ayni paymentTransactionId icin tekrar cagri yapildiginda iyzico
+ * "BasariliTransactionAlreadyApproved" benzeri bir hata doner — kod tarafinda bunu
+ * approveAlready isaretiyle yakalayip 'paid' kabul edebiliriz (ekstra savunma).
+ *
+ * @param {string} paymentTransactionId   - siparis_kalemleri.iyzico_item_transaction_id
+ * @param {object} [ctx]                  - opsiyonel audit context
+ * @param {string} [ctx.conversationId]   - iz takibi icin
+ * @returns {Promise<{paymentId?:string, status:string, raw:object, alreadyApproved?:boolean}>}
  */
-exports.approveItem = ({ paymentTransactionId, conversationId }) => {
+exports.approvePayment = (paymentTransactionId, ctx = {}) => {
     return new Promise((resolve, reject) => {
         if (!paymentTransactionId) {
-            return reject(new Error('approveItem: paymentTransactionId zorunlu.'));
+            return reject(new Error('approvePayment: paymentTransactionId zorunlu.'));
         }
+        const conversationId = ctx.conversationId || `approve-${paymentTransactionId}`;
         const request = {
             locale: Iyzipay.LOCALE.TR,
-            conversationId: conversationId || `approve-${paymentTransactionId}`,
+            conversationId,
             paymentTransactionId,
         };
+
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[IYZICO APPROVAL REQ]', { paymentTransactionId, conversationId });
+        }
+
         iyzipay.approval.create(request, (err, result) => {
-            if (err) return reject(err);
-            if (!result || result.status !== 'success') {
-                const error = new Error(result?.errorMessage || 'iyzico approval hatasi.');
+            if (err) {
+                console.error('[IYZICO APPROVAL SDK ERROR]', err.message);
+                return reject(err);
+            }
+            if (!result) {
+                return reject(new Error('iyzico approval: bos yanit.'));
+            }
+
+            // Idempotency: iyzico ayni transaction icin tekrar onay istegi gelirse
+            // bazi hatalari "zaten onayli" anlamina gelir; bunu basari kabul ediyoruz.
+            if (result.status !== 'success') {
+                const msg = String(result.errorMessage || '').toLowerCase();
+                const code = String(result.errorCode || '');
+                const alreadyApproved =
+                    /already.*approv/i.test(msg) ||
+                    /onay/i.test(msg) && /zaten/i.test(msg) ||
+                    code === '100001';
+                if (alreadyApproved) {
+                    console.warn('[IYZICO APPROVAL] Zaten onaylanmis, basari kabul edildi.', {
+                        paymentTransactionId, errorCode: code, errorMessage: result.errorMessage,
+                    });
+                    return resolve({
+                        paymentId: result.paymentId || null,
+                        status: 'success',
+                        alreadyApproved: true,
+                        raw: result,
+                    });
+                }
+
+                console.error('[IYZICO APPROVAL FAIL]', {
+                    paymentTransactionId,
+                    status: result.status,
+                    errorCode: result.errorCode,
+                    errorMessage: result.errorMessage,
+                });
+                const error = new Error(result.errorMessage || 'iyzico approval hatasi.');
                 error.iyzicoResult = result;
                 return reject(error);
             }
-            resolve(result);
+
+            resolve({
+                paymentId: result.paymentId || null,
+                status: result.status,
+                alreadyApproved: false,
+                raw: result,
+            });
         });
     });
 };
+
+/**
+ * Geriye uyumluluk: eski cagri sekli `approveItem({ paymentTransactionId, conversationId })`.
+ * Yeni kod approvePayment'i kullanmali.
+ * @deprecated approvePayment kullanin.
+ */
+exports.approveItem = ({ paymentTransactionId, conversationId } = {}) =>
+    exports.approvePayment(paymentTransactionId, { conversationId });
 
 exports.buildAbsoluteUrl = (pathname) => {
     const fallback = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';

@@ -267,11 +267,20 @@
         const isSelectable = state.status === 'available' && ibanCheck.valid;
         const isChecked = state.selected.has(r.egitmen_id);
 
-        const aksiyon = state.status === 'available'
-            ? `<button class="btn-primary btn-sm row-approve-btn" data-egitmen="${escapeHtml(r.egitmen_id)}" ${ibanCheck.valid ? '' : 'disabled title="IBAN gecersiz"'}>
-                   <i class="fas fa-check"></i> Odemeyi Onayla
-               </button>`
-            : '<span class="text-muted">—</span>';
+        // Aksiyon: status'a gore farkli buton:
+        //   - available  -> "Odemeyi Onayla" (modal'a duser, iyzico approval ile odenir)
+        //   - pending    -> "Simdi Onayla (Sure Beklemeden)" (T+14 beklemeden direkt iyzico approval)
+        //   - paid/cancelled/processing -> aksiyon yok
+        let aksiyon = '<span class="text-muted">—</span>';
+        if (state.status === 'available') {
+            aksiyon = `<button class="btn-primary btn-sm row-approve-btn" data-egitmen="${escapeHtml(r.egitmen_id)}" ${ibanCheck.valid ? '' : 'disabled title="IBAN gecersiz"'}>
+                           <i class="fas fa-check"></i> Odemeyi Onayla
+                       </button>`;
+        } else if (state.status === 'pending') {
+            aksiyon = `<button class="btn-warning btn-sm row-approve-now-btn" data-egitmen="${escapeHtml(r.egitmen_id)}" ${ibanCheck.valid ? '' : 'disabled title="IBAN gecersiz"'} title="T+14 iade penceresini bekleme, iyzico'da hemen onayla">
+                           <i class="fas fa-bolt"></i> Simdi Onayla
+                       </button>`;
+        }
 
         return `
             <tr class="${r.acil_mi ? 'row-acil' : ''}" data-egitmen-id="${escapeHtml(r.egitmen_id)}">
@@ -323,10 +332,10 @@
 
     function durumLabel(d) {
         return ({
-            pending: 'Beklemede (T+14)',
+            pending: 'Iade Suresinde (Bekliyor)',
             available: 'Odenebilir',
             processing: 'Islemde',
-            paid: 'Odendi',
+            paid: 'Otomatik Odendi',
             cancelled: 'Iptal',
         })[d] || d;
     }
@@ -431,48 +440,87 @@
         state.approveTargets = [];
     }
 
-    async function confirmApprove() {
-        const dekontNo = document.getElementById('dekontInput').value.trim();
-        if (!dekontNo) {
-            showToast('Dekont numarasi bos olamaz.', 'error');
-            return;
+    /**
+     * "Simdi Onayla" akisi (status='pending' icin admin override).
+     * Modal kullanmadan, direkt bulk-approve'u iyzico modunda cagirir.
+     * Backend payoutApprovalService uzerinden iyzico'da approval atar.
+     */
+    async function approveNowForEgitmen(btn, target) {
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Onaylaniyor...';
+        try {
+            const body = await adminFetch('/api/admin/payouts/bulk-approve', {
+                method: 'POST',
+                body: JSON.stringify({
+                    egitmen_id: target.egitmen_id,
+                    // manual_transfer FALSE -> iyzico approval cagrilir, T+14 bekleme atlanir
+                }),
+            });
+            const d = body.data || {};
+            showToast(
+                `Iyzico onayi: ${d.approved || 0} kalem onaylandi, ${d.failed || 0} hatali, ${d.skipped || 0} atlandi.`,
+                d.failed > 0 ? 'warning' : 'success'
+            );
+            await Promise.all([loadSummary(), loadList()]);
+        } catch (err) {
+            console.error('[PAYOUTS] approve-now hata:', err.message);
+            showToast(`Onaylanamadi: ${err.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
         }
-        if (dekontNo.length > 100) {
+    }
+
+    async function confirmApprove() {
+        // Modal davranisi:
+        //   - dekont alani BOS -> IYZICO OTOMATIK mod (varsayilan, onerilen)
+        //   - dekont alani DOLU -> MANUEL BANKA TRANSFER mod (legacy / iyzico yapilamayan kayitlar icin)
+        const dekontNo = document.getElementById('dekontInput').value.trim();
+        const manualMode = dekontNo.length > 0;
+        if (manualMode && dekontNo.length > 100) {
             showToast('Dekont numarasi 100 karakteri asamaz.', 'error');
             return;
         }
 
         const btn = document.getElementById('confirmApproveBtn');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Onaylaniyor...';
+        btn.innerHTML = manualMode
+            ? '<i class="fas fa-spinner fa-spin"></i> Manuel transfer kaydediliyor...'
+            : '<i class="fas fa-spinner fa-spin"></i> Iyzico\'da onaylaniyor...';
 
         try {
-            // Egitmen bazli toplu odeme: backend her egitmen icin ayri istek
-            // (egitmen_id bazli atomik commit). Burada sirayla atip toplam basariyi sayariz.
-            let toplamOdenenKalem = 0;
+            // Egitmen bazli toplu: backend her egitmen icin ayri istek atilir.
+            let toplamOnaylanan = 0;
+            let toplamHatali = 0;
             for (const t of state.approveTargets) {
                 const body = await adminFetch('/api/admin/payouts/bulk-approve', {
                     method: 'POST',
                     body: JSON.stringify({
                         egitmen_id: t.egitmen_id,
-                        islem_dekont_no: dekontNo,
+                        ...(manualMode
+                            ? { manual_transfer: true, islem_dekont_no: dekontNo }
+                            : {}),
                     }),
                 });
-                toplamOdenenKalem += Number(body.data?.affectedCount || 0);
+                const d = body.data || {};
+                toplamOnaylanan += Number(d.approved ?? d.affectedCount ?? 0);
+                toplamHatali += Number(d.failed || 0);
             }
             showToast(
-                `Basarili: ${state.approveTargets.length} egitmen, ${toplamOdenenKalem} kalem odendi.`,
-                'success'
+                manualMode
+                    ? `Manuel transfer kaydedildi: ${toplamOnaylanan} kalem.`
+                    : `Iyzico onayi: ${toplamOnaylanan} kalem onaylandi${toplamHatali > 0 ? `, ${toplamHatali} hatali` : ''}.`,
+                toplamHatali > 0 ? 'warning' : 'success'
             );
             state.selected.clear();
             closeApproveModal();
-            // Yenile
             await Promise.all([loadSummary(), loadList()]);
         } catch (err) {
             showToast(`Onaylanamadi: ${err.message}`, 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check"></i> Evet, Odendi Olarak Isaretle';
+            btn.innerHTML = '<i class="fas fa-check"></i> Onayla';
         }
     }
 
@@ -570,7 +618,7 @@
                 return;
             }
 
-            // Tek satir onay
+            // Tek satir onay (status='available' - normal akis)
             const approveBtn = e.target.closest('.row-approve-btn');
             if (approveBtn) {
                 const egitmenId = approveBtn.getAttribute('data-egitmen');
@@ -582,6 +630,29 @@
                         return;
                     }
                     openApproveModal([target]);
+                }
+                return;
+            }
+
+            // "Simdi Onayla (Sure Beklemeden)" - status='pending' icin admin override
+            const approveNowBtn = e.target.closest('.row-approve-now-btn');
+            if (approveNowBtn) {
+                const egitmenId = approveNowBtn.getAttribute('data-egitmen');
+                const target = state.rows.find(r => r.egitmen_id === egitmenId);
+                if (target) {
+                    const ibanV = validateTrIban(target.iban_no);
+                    if (!ibanV.valid) {
+                        showToast(`IBAN gecersiz: ${ibanV.reason}`, 'error');
+                        return;
+                    }
+                    const tutar = fmtTRY(target.toplam_net);
+                    const adSoyad = `${target.egitmen?.ad || ''} ${target.egitmen?.soyad || ''}`.trim();
+                    if (!confirm(
+                        `T+14 iade penceresini bekleme atlanacak.\n\n` +
+                        `${adSoyad} icin ${tutar} hakedis, iyzico'da hemen onaylanacak.\n\n` +
+                        `Bu islem geri alinamaz. Devam edilsin mi?`
+                    )) return;
+                    approveNowForEgitmen(approveNowBtn, target);
                 }
                 return;
             }

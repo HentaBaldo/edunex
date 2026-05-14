@@ -107,10 +107,10 @@
                     </div>
 
                     <div class="payouts-status-filters" role="tablist" aria-label="Durum filtresi">
-                        <button class="rating-chip active" data-status="available" type="button"><i class="fas fa-hand-holding-usd"></i> Odenebilir</button>
-                        <button class="rating-chip" data-status="pending" type="button"><i class="fas fa-hourglass-half"></i> Bekleyen</button>
-                        <button class="rating-chip" data-status="paid" type="button"><i class="fas fa-circle-check"></i> Odendi</button>
-                        <button class="rating-chip" data-status="cancelled" type="button"><i class="fas fa-ban"></i> Iptal</button>
+                        <button class="rating-chip active" data-status="available" type="button" title="T+14 doldu, iyzico approval cagrisi atilabilir."><i class="fas fa-hand-holding-usd"></i> Odenebilir</button>
+                        <button class="rating-chip" data-status="pending" type="button" title="Iade penceresinde, henuz odenemiyor (cron T+14 sonrasi otomatik islet)."><i class="fas fa-hourglass-half"></i> Iade Suresinde (Bekliyor)</button>
+                        <button class="rating-chip" data-status="paid" type="button" title="iyzico tarafindan egitmenin SubMerchant hesabina aktarildi."><i class="fas fa-circle-check"></i> Otomatik Odendi</button>
+                        <button class="rating-chip" data-status="cancelled" type="button" title="Iade veya iptal nedeniyle hakedis dustu."><i class="fas fa-ban"></i> Iptal</button>
                     </div>
                 </div>
 
