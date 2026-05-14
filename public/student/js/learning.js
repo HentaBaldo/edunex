@@ -829,6 +829,7 @@ function trackBunnyVideo(lesson) {
 
         // ── Ready: event'lere abone ol + konumu geri yükle ──────────────────
         if (ev === 'ready') {
+            console.log('[TRACKING] Ready value:', JSON.stringify(val));
             console.log('[TRACKING] Ready alındı → doğrudan subscribe gönderiliyor.');
 
             // Süreyi iste
