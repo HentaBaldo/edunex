@@ -778,17 +778,33 @@ function trackBunnyVideo(lesson) {
         }
     });
 
-    // Timeupdate: pozisyon kaydet + %95 tamamlama
+    // Seeking/seeked: ileri atlama engeli
+    // seeking → seek başlamadan önce güvenli pozisyonu yakala
+    // (timeupdate, seeked'den önce yeni pozisyonla tetiklenebileceği için
+    //  maxWatchedSeconds'ı seeking sırasında güncellemiyoruz)
+    let _isSeeking = false;
+    let _posBeforeSeek = 0;
+
+    videoEl.addEventListener('seeking', function() {
+        if (!seekLock) {
+            _isSeeking = true;
+            _posBeforeSeek = maxWatchedSeconds;
+        }
+    });
+
+    // Timeupdate: pozisyon kaydet + %95 tamamlama (seeking sırasında atla)
     videoEl.addEventListener('timeupdate', function() {
+        if (_isSeeking) return;
         _handleTimeUpdate(videoEl.currentTime, videoEl.duration || _resolvedDuration);
     });
 
-    // Seeked: ileri atlama engelle
+    // Seeked: ileri atlama kontrolü
     videoEl.addEventListener('seeked', function() {
+        _isSeeking = false;
         if (seekLock) return;
-        if (videoEl.currentTime > maxWatchedSeconds + 2) {
+        if (videoEl.currentTime > _posBeforeSeek + 2) {
             seekLock = true;
-            videoEl.currentTime = maxWatchedSeconds;
+            videoEl.currentTime = _posBeforeSeek;
             showNotification('Eğitim bütünlüğü için dersi ileri saramazsınız.', 'error');
             setTimeout(function() { seekLock = false; }, 1000);
         }
