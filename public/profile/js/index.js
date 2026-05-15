@@ -451,6 +451,55 @@ window.updateSelectedState = (id, isChecked) => {
 // ==========================================
 // 3. FORM GÜNCELLEME VE KAYIT İŞLEMLERİ
 // ==========================================
+
+/**
+ * Backend'den dönen (veya localStorage'dan okunan) ayar objesini DOM'a uygular.
+ * Sayfa yenilemeden anlık yansıma sağlar.
+ * @param {object} settings
+ */
+function applyUserSettings(settings) {
+    if (!settings) return;
+
+    // Ad/Soyad güncelle
+    if (settings.ad || settings.soyad) {
+        const tamAdEl = document.getElementById('display_tam_ad');
+        if (tamAdEl) {
+            tamAdEl.textContent = `${settings.ad || ''} ${settings.soyad || ''}`.trim();
+        }
+    }
+
+    // Gizlilik switch'leri — DB'deki boolean değerleri checkboxlara yansıt
+    const profilAcikEl = document.getElementById('profil_herkese_acik_mi');
+    if (profilAcikEl && settings.profil_herkese_acik_mi !== undefined) {
+        profilAcikEl.checked = Boolean(settings.profil_herkese_acik_mi);
+    }
+
+    const kurslariGosterEl = document.getElementById('alinan_kurslari_goster');
+    if (kurslariGosterEl && settings.alinan_kurslari_goster !== undefined) {
+        kurslariGosterEl.checked = Boolean(settings.alinan_kurslari_goster);
+    }
+
+    // localStorage cache'ini güncelle
+    try {
+        const mevcutKullanici = JSON.parse(localStorage.getItem('edunex_user') || '{}');
+        if (settings.ad !== undefined) mevcutKullanici.ad = settings.ad;
+        if (settings.soyad !== undefined) mevcutKullanici.soyad = settings.soyad;
+        if (settings.profil_herkese_acik_mi !== undefined) mevcutKullanici.profil_herkese_acik_mi = settings.profil_herkese_acik_mi;
+        if (settings.alinan_kurslari_goster !== undefined) mevcutKullanici.alinan_kurslari_goster = settings.alinan_kurslari_goster;
+        localStorage.setItem('edunex_user', JSON.stringify(mevcutKullanici));
+    } catch (_) {}
+}
+
+// DOMContentLoaded'da localStorage'dan mevcut ayarları uygula (diğer sayfalarda da kullanılabilir)
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const cachedUser = JSON.parse(localStorage.getItem('edunex_user') || '{}');
+        if (cachedUser && Object.keys(cachedUser).length > 0) {
+            applyUserSettings(cachedUser);
+        }
+    } catch (_) {}
+});
+
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('edunex_token');
@@ -544,12 +593,9 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
 
         const result = await response.json();
         if (result.success) {
-            const mevcutKullanici = JSON.parse(localStorage.getItem('edunex_user') || '{}');
-            mevcutKullanici.ad     = formData.ad;
-            mevcutKullanici.soyad  = formData.soyad;
-            localStorage.setItem('edunex_user', JSON.stringify(mevcutKullanici));
-            profilToast('Profiliniz başarıyla güncellendi.');
-            setTimeout(() => window.location.reload(), 1200);
+            // Backend'den dönen güncel veriyi anında DOM'a yansıt (reload yok)
+            applyUserSettings(result.data || formData);
+            profilToast('Ayarlarınız başarıyla kaydedildi.');
         } else {
             profilToast('Güncelleme hatası: ' + result.message, 'error');
         }

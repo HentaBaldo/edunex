@@ -436,7 +436,7 @@ window.openUploadModal = (sessionId, sessionTitle) => {
             uploadForm.style.display = 'none';
 
             try {
-                await ApiService.post(`/live-sessions/${sessionId}/upload-recording`, formData);
+                await ApiService.postFormData(`/live-sessions/${sessionId}/upload-recording`, formData);
                 toast('Kaydı yüklendi.', 'success');
                 document.getElementById('uploadRecordingModal').remove();
                 await loadSessions();

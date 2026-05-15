@@ -3,6 +3,7 @@
  * Jitsi tabanlı canlı ders oturumlarının yönetimi + heartbeat ile yoklama.
  */
 
+const fs = require('fs');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { uploadVideoToBunny } = require('../services/bunnyService');
@@ -703,9 +704,17 @@ exports.getUpcomingForStudent = async (req, res, next) => {
 /**
  * POST /api/live-sessions/:id/upload-recording
  * Canlı ders kaydını Bunny.net'e yükle ve kayit_video_url'yi güncelle.
- * Dosya req.file.path'te multer tarafından sağlanır.
+ * Dosya req.file.path'te multer tarafından sağlanır (absolute path, diskStorage).
+ *
+ * Hata akışı:
+ *  - 400: Dosya eksik veya oturum durumu uygunsuz
+ *  - 403: Eğitmen bu oturuma sahip değil
+ *  - 404: Oturum bulunamadı
+ *  - 500: Bunny upload hatası (temp dosya finally'de temizlenir)
  */
 exports.uploadSessionRecording = async (req, res, next) => {
+    const tempPath = req.file?.path || null;
+
     try {
         const { id } = req.params;
 
@@ -715,6 +724,7 @@ exports.uploadSessionRecording = async (req, res, next) => {
             throw err;
         }
 
+        // 404 kontrolü — oturum var mı?
         const session = await LiveSession.findByPk(id);
         if (!session) {
             const err = new Error('Oturum bulunamadı.');
@@ -722,26 +732,43 @@ exports.uploadSessionRecording = async (req, res, next) => {
             throw err;
         }
 
+        // 403 kontrolü — yalnızca oturum sahibi eğitmen yükleyebilir
         if (session.egitmen_id !== req.user.id) {
             const err = new Error('Bu oturum üzerinde yetkiniz yok.');
             err.statusCode = 403;
             throw err;
         }
 
+        // 400 — tamamlanmamış oturumlara kayıt yüklenmesini engelle
+        if (session.durum !== 'tamamlandi') {
+            const err = new Error('Kayıt yalnızca tamamlanmış oturumlara yüklenebilir.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        console.log(`[UPLOAD-RECORDING] Başlıyor | oturum=${id} | dosya=${req.file.originalname} | boyut=${req.file.size} byte`);
+
         const bunnyResult = await uploadVideoToBunny(
             req.file.path,
             `live-recording-${session.id}-${session.baslik}`
         );
 
+        if (!bunnyResult?.guid) {
+            const err = new Error('Bunny\'den geçerli bir video GUID dönmedi.');
+            err.statusCode = 500;
+            throw err;
+        }
+
         // Bunny Stream izlenebilir embed URL formati:
         //   https://iframe.mediadelivery.net/embed/<LIBRARY_ID>/<VIDEO_GUID>
-        // Eski "https://video.bunnycdn.com/<guid>" yapisi cdn root'una gider, oynatilamaz.
-        // BUNNY_LIBRARY_ID env'i bunny servisi tarafindan zaten dogrulaniyor.
+        // BUNNY_LIBRARY_ID env'i bunny servisi tarafindan dogrulaniyor; eksikse fallback.
         const libraryId = process.env.BUNNY_LIBRARY_ID;
         session.kayit_video_url = libraryId
             ? `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyResult.guid}`
-            : `https://video.bunnycdn.com/${bunnyResult.guid}`; // defansif fallback
+            : `https://video.bunnycdn.com/${bunnyResult.guid}`;
         await session.save();
+
+        console.log(`[UPLOAD-RECORDING] Tamamlandı | oturum=${id} | guid=${bunnyResult.guid}`);
 
         return res.status(200).json({
             success: true,
@@ -752,6 +779,20 @@ exports.uploadSessionRecording = async (req, res, next) => {
             },
         });
     } catch (error) {
+        // Bunny arka planda temizler (başarı durumu); hata durumunda biz temizliyoruz.
+        // uploadVideoToBunny fire-and-forget olduğu için createVideoEntry öncesi hatalarda
+        // temp dosya burada silinmezse diskte kalır.
+        if (tempPath) {
+            try {
+                if (fs.existsSync(tempPath)) {
+                    fs.unlinkSync(tempPath);
+                    console.warn(`[UPLOAD-RECORDING] Hata sonrası temp dosya temizlendi: ${tempPath}`);
+                }
+            } catch (cleanupErr) {
+                console.warn(`[UPLOAD-RECORDING] Temp dosya temizlenemedi: ${cleanupErr.message}`);
+            }
+        }
+        console.error(`[UPLOAD-RECORDING] HATA | oturum=${req.params.id} | ${error.message}`);
         next(error);
     }
 };

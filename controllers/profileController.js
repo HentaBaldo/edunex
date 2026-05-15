@@ -268,7 +268,19 @@ exports.updateProfile = async (req, res) => {
             }
         }
 
-        return res.status(200).json({ success: true, message: 'Profil başarıyla güncellendi.' });
+        // Güncel ayarları client'a döndür — frontend reload olmadan anında uygular.
+        return res.status(200).json({
+            success: true,
+            message: 'Profil başarıyla güncellendi.',
+            data: {
+                ad: profileUpdatePayload.ad,
+                soyad: profileUpdatePayload.soyad,
+                sehir: profileUpdatePayload.sehir,
+                website: profileUpdatePayload.website,
+                profil_herkese_acik_mi: profileUpdatePayload.profil_herkese_acik_mi,
+                alinan_kurslari_goster: profileUpdatePayload.alinan_kurslari_goster,
+            }
+        });
     } catch (error) {
         // 400 (validasyon) hatalarini istemciye orijinal mesajla doneriz
         if (error.statusCode === 400) {
