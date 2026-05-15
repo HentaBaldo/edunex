@@ -419,7 +419,7 @@ async function sendStudentOrderConfirmation(student, order, orderItems) {
             return { ok: false, error: 'Order verisi yok.' };
         }
 
-        const myCoursesUrl = `${FRONTEND_BASE || ''}/student/my-courses.html`;
+        const myCoursesUrl = `${FRONTEND_BASE || ''}/student/dashboard.html`;
         const ogrenciAd = (student.ad || '').trim() || 'Değerli Öğrencimiz';
         const items = Array.isArray(orderItems) ? orderItems : [];
 
