@@ -347,40 +347,55 @@
 .footer { background: #0f172a; color: #94a3b8; padding: 40px 0; text-align: center; }
 .footer-logo { font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 10px; }
 /* ─── Kurs Kartı ─────────────────────────────────────────── */
+/* GÖREV 2 & 4: .edunex-card mantığı — h-full, flex-col, mt-auto footer */
 .course-card {
     text-decoration: none;
     color: inherit;
-    display: block;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-.course-card:hover { transform: translateY(-6px); box-shadow: 0 16px 32px rgba(0,0,0,0.12); }
-
-.kurs-kart-ic {
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #fff;
-    height: 100%;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    transition: all 0.25s ease;
+    height: 100%;                     /* Carousel/grid içinde eşit yükseklik */
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
+.course-card:hover { transform: translateY(-6px); }
+.course-card:hover .kurs-kart-ic {
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+    border-color: #cbd5e1;
+}
+
+.kurs-kart-ic {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);  /* 16px — tüm kartlarla aynı */
+    overflow: hidden;
+    background: #fff;
+    height: 100%;                     /* Anker'in tüm yüksekliğini al */
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    box-shadow: var(--shadow-md);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+/* GÖREV 3: Thumbnail — sabit oran (16/9) + object-cover */
 .kurs-kart-kapak {
-    height: 148px;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;             /* Tüm kart kapaklarının oranı sabit */
     background: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-size: 2.8rem;
-    position: relative;
+    flex-shrink: 0;                   /* Kapak hiçbir koşulda sıkışmasın */
+    overflow: hidden;
 }
 .kurs-kart-kapak-img {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;                /* Bozulmadan kutuyu doldur */
+    display: block;
 }
 .kurs-kategori-rozet {
     position: absolute;
@@ -644,6 +659,7 @@
 
 .car-track {
     display: flex;
+    align-items: stretch;             /* GÖREV 2: tüm kartlar aynı yüksekliğe uzasın */
     gap: 24px;
     overflow-x: auto;
     scroll-behavior: smooth;
@@ -652,13 +668,21 @@
 }
 .car-track::-webkit-scrollbar { display: none; }
 
-/* Her kart: tam 3 adet görünecek şekilde genişlik */
-.car-track > * { flex: 0 0 calc((100% - 48px) / 3); min-width: 0; }
+/* GÖREV 1: Slider içindeki kartlar ASLA sıkışmasın — shrink yasak, min-width sabit */
+.car-track > * {
+    flex: 0 0 calc((100% - 48px) / 3);
+    flex-shrink: 0;                   /* Sıkışmaya karşı kesin kilit */
+    min-width: 280px;                 /* Slider dar olsa bile bu boyuttan küçülme */
+    height: auto;                     /* align-items: stretch'in çalışması için */
+}
 
 /* Yükleniyor / boş / hata durumları tam genişlik kapsasın */
 .car-track > .loading-state,
 .car-track > .bos-durum,
-.car-track > .hata-mesaji { flex: 0 0 100%; }
+.car-track > .hata-mesaji {
+    flex: 0 0 100%;
+    min-width: 0;                     /* Yükleme placeholder'ı min-width 280'i aşmasın */
+}
 
 /* Ok düğmeleri — glassmorphism */
 .car-btn {
@@ -1051,25 +1075,27 @@
 
 .canli-kartlar-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    align-items: stretch;             /* GÖREV 2: eşit kart yüksekliği */
 }
 
 .canli-kart {
     background: white;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);  /* 16px — tüm kartlarla aynı */
     overflow: hidden;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
-    transition: all 0.25s ease;
-    border: 1px solid #e2e8f0;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
+    height: 100%;                     /* Grid hücresinin tüm yüksekliğini al */
 }
 
 .canli-kart:hover {
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.11);
-    transform: translateY(-3px);
-    border-color: #cbd5e0;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+    border-color: #cbd5e1;
 }
 
 .canli-kart-ust {
@@ -1148,7 +1174,8 @@
 .canli-kart-buttons {
     display: flex;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: auto;                 /* GÖREV 2: butonları her zaman en alta yapıştır */
+    padding-top: 12px;
 }
 
 .canli-btn {
@@ -1548,27 +1575,41 @@
     padding: 8px 2px 20px;
 }
 .review-car-track::-webkit-scrollbar { display: none; }
-.review-car-track > .review-card-home { flex: 0 0 calc((100% - 48px) / 3); min-width: 0; }
+.review-car-track {
+    align-items: stretch;             /* Yorum kartları eşit yükseklik */
+}
+.review-car-track > .review-card-home {
+    flex: 0 0 calc((100% - 48px) / 3);
+    flex-shrink: 0;                   /* GÖREV 1: sıkışma yasak */
+    min-width: 300px;                 /* Yorum kartı için minimum genişlik */
+}
 /* Az yorum varsa kartları uygun şekilde genişlet */
 .review-car-track.review-count-1 { justify-content: center; }
 .review-car-track.review-count-1 > .review-card-home { flex: 0 0 min(440px, 100%); }
 .review-car-track.review-count-2 { justify-content: center; }
-.review-car-track.review-count-2 > .review-card-home { flex: 0 0 calc(50% - 12px); }
+.review-car-track.review-count-2 > .review-card-home { flex: 0 0 calc(50% - 12px); min-width: 300px; }
 
 .review-card-home {
     background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);  /* 16px — tüm kartlarla aynı */
     padding: 28px;
-    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
     display: flex; flex-direction: column; gap: 14px;
     height: 100%;
     min-height: 260px;
     box-sizing: border-box;
 }
 .review-text.empty { color: #94a3b8; font-style: normal; }
-.review-card-home:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1); }
+.review-card-home:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: #cbd5e1;
+}
+.review-text {
+    flex: 1 1 auto;                   /* GÖREV 2: footer'ı (yazar bandını) en alta it */
+}
 
 .review-quote-icon { font-size: 1.6rem; color: #e0e7ff; line-height: 1; }
 .review-text {
@@ -1619,7 +1660,8 @@
 }
 .car-track-centered > * {
     flex: 0 0 calc((100% - 48px) / 3);
-    min-width: 0;
+    flex-shrink: 0;
+    min-width: 280px;                 /* Eğitmen kartı için min-width */
 }
 
 /* ─── Kategori Detay - Kapaklı Hero Banner ─────────────────── */
