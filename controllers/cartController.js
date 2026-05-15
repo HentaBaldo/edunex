@@ -107,21 +107,25 @@ exports.addItem = async (req, res, next) => {
 
         const cart = await getOrCreateCart(kullanici_id);
 
-        try {
-            const item = await CartItem.create({ sepet_id: cart.id, kurs_id });
-            return res.status(201).json({
-                status: 'success',
-                message: `"${course.baslik}" sepete eklendi.`,
-                data: { item_id: item.id, kurs_id },
-            });
-        } catch (e) {
-            if (e.name === 'SequelizeUniqueConstraintError') {
-                const err = new Error('Bu kurs zaten sepetinizde.');
-                err.statusCode = 400;
-                return next(err);
-            }
-            throw e;
+        // Atomic: UNIQUE(sepet_id, kurs_id) constraint'i mevcut.
+        // findOrCreate iki paralel istegi race'siz cozer: ikinci istek "found"
+        // doner, UNIQUE ihlali catch'lemeye gerek kalmaz.
+        const [item, created] = await CartItem.findOrCreate({
+            where: { sepet_id: cart.id, kurs_id },
+            defaults: { sepet_id: cart.id, kurs_id },
+        });
+
+        if (!created) {
+            const err = new Error('Bu kurs zaten sepetinizde.');
+            err.statusCode = 400;
+            throw err;
         }
+
+        return res.status(201).json({
+            status: 'success',
+            message: `"${course.baslik}" sepete eklendi.`,
+            data: { item_id: item.id, kurs_id },
+        });
     } catch (error) {
         next(error);
     }
