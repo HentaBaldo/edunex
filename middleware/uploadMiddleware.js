@@ -21,7 +21,13 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${file.originalname}`;
+        // PATH TRAVERSAL KORUMASI: file.originalname saldirgan kontrolunde
+        // '../etc/passwd' veya 'C:\\Windows\\...' gibi yollar gelebilir.
+        // path.basename sadece dosya adi kismini alir, dizin separator'lerini sokmez.
+        const safeOriginal = path.basename(file.originalname || 'upload')
+            .replace(/[^a-zA-Z0-9._-]/g, '_')   // ASCII disi + tehlikeli karakterleri _ yap
+            .slice(0, 80);                       // cok uzun isimleri kirp
+        const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${safeOriginal}`;
         cb(null, uniqueName);
     }
 });
@@ -52,18 +58,22 @@ const fileFilter = (req, file, cb) => {
         // Videolar
         'video/mp4', 'video/x-msvideo', 'video/quicktime', 'video/x-matroska', 'video/webm', 'application/octet-stream',
         // Belgeler
-        'application/pdf', 
-        'application/msword', 
+        'application/pdf',
+        'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-        'application/vnd.ms-powerpoint', 
+        'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
         // Quiz için Resimler
         'image/jpeg', 'image/jpg', 'image/png'
     ];
-    
+
     const validExtensions = /\.(mp4|avi|mov|mkv|webm|pdf|doc|docx|ppt|pptx|jpg|jpeg|png)$/i;
-    
-    if (validLessonMimes.includes(file.mimetype) || validExtensions.test(file.originalname)) {
+
+    // GUVENLIK: MIME *VE* extension her ikisi de eslesmeli (OR yerine AND).
+    // Eski mantik (OR) saldirgana sadece bir tarafi uydurmak yeterliydi:
+    //   - extension=.jpg + icerik=php  -> filter geciyordu
+    //   - mime=image/jpeg + filename=shell.exe -> filter geciyordu
+    if (validLessonMimes.includes(file.mimetype) && validExtensions.test(file.originalname)) {
         cb(null, true);
     } else {
         cb(new Error(`Geçersiz ders dosyası tipi. Video, PDF, Word, PPT veya Resim yükleyebilirsiniz.`), false);

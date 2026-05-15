@@ -20,7 +20,7 @@ const apiLimiter = rateLimit({
     max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => getUserId(req) || 'anonymous',
+    keyGenerator: (req) => getUserId(req) || req.ip,
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -35,7 +35,7 @@ const apiLimiter = rateLimit({
 const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
-    keyGenerator: (req) => getUserId(req) || 'anonymous_uploader',
+    keyGenerator: (req) => getUserId(req) || req.ip,
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -50,7 +50,11 @@ const uploadLimiter = rateLimit({
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
-    keyGenerator: (req) => req.body?.eposta || 'anonymous_login',
+    // Login oncesi user.id yok; email + IP kombinasyonu ile bucket olusturulur.
+    // Sadece email kullanmak: saldirgan farkli email'lerle deneyip ayni hedefin
+    // hesabini kilitleyemez (her email ayri bucket). IP eklenmesi: ayni IP'den
+    // farkli emaillere brute force'u da kisitlar.
+    keyGenerator: (req) => `${req.body?.eposta || ''}|${req.ip}`,
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -65,7 +69,7 @@ const loginLimiter = rateLimit({
 const courseCreateLimiter = rateLimit({
     windowMs: 24 * 60 * 60 * 1000,  // 24 saat
     max: 50,  // ✅ 50 KURS GÜNDE
-    keyGenerator: (req) => getUserId(req) || 'anonymous_creator',
+    keyGenerator: (req) => getUserId(req) || req.ip,
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -80,7 +84,7 @@ const courseCreateLimiter = rateLimit({
 const sectionCreateLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 20,
-    keyGenerator: (req) => getUserId(req) || 'anonymous_section_creator',
+    keyGenerator: (req) => getUserId(req) || req.ip,
     handler: (req, res) => {
         return res.status(429).json({
             success: false,

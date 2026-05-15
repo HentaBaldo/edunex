@@ -990,6 +990,8 @@ window.submitQuizWidget = async () => {
         const d = res.data;
         const gecti = d.gecti_mi;
         const area = document.getElementById('quizWidgetArea');
+        // Guvenlik: lessonId backend'den gelen UUID olsa bile inline onclick'ten
+        // kacinmak best practice -> data-* + event delegation kullaniliyor.
         area.innerHTML = `
             <div style="padding:50px 24px;text-align:center;color:#e2e8f0;">
                 <div style="font-size:3rem;margin-bottom:14px;">${gecti ? '🎉' : '😕'}</div>
@@ -1000,12 +1002,17 @@ window.submitQuizWidget = async () => {
                 </p>
                 ${gecti
                     ? `<p style="color:#6ee7b7;background:#064e3b;padding:10px 20px;border-radius:8px;display:inline-block;font-size:0.9rem;">✅ Bu bölüm tamamlandı!</p>`
-                    : `<button onclick="loadQuizWidget('${lessonId}')" style="padding:12px 28px;background:#8b5cf6;color:white;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fas fa-redo"></i> Tekrar Dene</button>`}
+                    : `<button data-action="retry-quiz" style="padding:12px 28px;background:#8b5cf6;color:white;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fas fa-redo"></i> Tekrar Dene</button>`}
                 <br><br>
-                <button onclick="loadQuizWidget('${lessonId}')" style="padding:7px 18px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;font-size:0.82rem;cursor:pointer;">
+                <button data-action="retry-quiz" style="padding:7px 18px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;font-size:0.82rem;cursor:pointer;">
                     <i class="fas fa-redo"></i> ${gecti ? 'Tekrar Çöz' : 'Tekrar Dene'}
                 </button>
             </div>`;
+
+        // Event delegation: lessonId closure'dan aliniyor, DOM'a yazilmiyor
+        area.querySelectorAll('[data-action="retry-quiz"]').forEach(btn => {
+            btn.addEventListener('click', () => loadQuizWidget(lessonId));
+        });
     } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Quizi Gönder'; }
         alert('Hata: ' + err.message);
