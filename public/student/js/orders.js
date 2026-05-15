@@ -52,6 +52,15 @@ function render(orders) {
     }
 
     root.innerHTML = orders.map(renderOrderCard).join('');
+
+    // Yeni eklenen dekont butonlarını dinleyiciye bağla.
+    // notify: kendi toast yapımız (showOrdersToast) — receipt.js'in default fallback'i
+    // de bunu otomatik yakalar, ama açık geçmek daha okunabilir.
+    if (window.ReceiptDownloader) {
+        ReceiptDownloader.bindButtons(root, {
+            notify: (msg, type) => showOrdersToast(msg, type),
+        });
+    }
 }
 
 function renderOrderCard(order) {
@@ -80,6 +89,13 @@ function renderOrderCard(order) {
                 <div class="right">
                     <div class="amount">${tutar} ${escapeHtml(order.para_birimi || 'TRY')}</div>
                     <span class="status-pill status-${escapeHtml(durum)}">${statusLabel(durum)}</span>
+                    ${(durum === 'tamamlandi' || durum === 'iade_edildi') ? `
+                        <button class="btn-receipt sm" style="margin-top:8px;"
+                                data-order-id="${escapeHtml(order.id)}"
+                                title="Bu siparişin PDF dekontunu indir">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>Dekont İndir</span>
+                        </button>` : ''}
                 </div>
             </header>
             <div class="order-items">

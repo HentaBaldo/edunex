@@ -111,6 +111,7 @@ const followRoutes = require('./routes/followRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const discountRoutes = require('./routes/discountRoutes');
+const receiptRoutes = require('./routes/receiptRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
@@ -132,6 +133,7 @@ app.use('/api/follows', followRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/discounts', discountRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // --- 5. Root Redirection ---
 app.get('/', (req, res) => {

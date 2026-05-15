@@ -1,0 +1,65 @@
+/* ──────────────────────────────────────────────
+   EduNex - Dekont İndirme Butonu (.btn-receipt)
+   Reusable; variables.css tokenlarını kullanır.
+   Hem outline hem solid varyantı vardır.
+   ────────────────────────────────────────────── */
+
+.btn-receipt {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1.5px solid var(--brand-indigo, #4338ca);
+    color: var(--brand-indigo, #4338ca);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: var(--font-ui, system-ui), sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .12s ease;
+    white-space: nowrap;
+    text-decoration: none;
+    user-select: none;
+}
+
+.btn-receipt:hover:not(:disabled),
+.btn-receipt:focus-visible:not(:disabled) {
+    background: var(--brand-indigo, #4338ca);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(67, 56, 202, 0.25);
+    outline: none;
+}
+
+.btn-receipt:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.btn-receipt:disabled,
+.btn-receipt[aria-busy="true"] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Solid varyantı — admin tarafında daha öne çıkması istenen yerler için */
+.btn-receipt.solid {
+    background: var(--brand-indigo, #4338ca);
+    color: #fff;
+}
+.btn-receipt.solid:hover:not(:disabled),
+.btn-receipt.solid:focus-visible:not(:disabled) {
+    background: var(--brand-indigo-2, #6366f1);
+    color: #fff;
+}
+
+/* İkon hizalama (Font Awesome) */
+.btn-receipt .fa-spinner { animation: fa-spin 0.7s linear infinite; }
+
+/* Küçük varyant — kart satırlarında sıkışık alanlarda kullan */
+.btn-receipt.sm {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    border-radius: 6px;
+}

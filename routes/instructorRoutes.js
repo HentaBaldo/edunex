@@ -6,6 +6,9 @@ const upload = require('../middleware/uploadMiddleware'); // Merkezi multer yapÄ
 
 router.get('/dashboard/stats', verifyToken, isInstructor, instructorController.getInstructorDashboardStats);
 
+// --- Satis Gecmisi / Hak Edis (egitmen kendi paneli) ---
+router.get('/earnings/sales-history', verifyToken, isInstructor, instructorController.getMySalesHistory);
+
 // --- iyzico Pazaryeri (Marketplace) Alt Uye Isyeri Kaydi ---
 // Egitmenin satislardan dogrudan tahsilat alabilmesi icin gerekli tek seferlik kayit.
 // Status: dashboard banner gorunurlugu BU endpoint'e bagli, localStorage'a degil.

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNex - Satış Geçmişi & Hak Edişler</title>
+
+    <link rel="stylesheet" href="/assets/css/variables.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/main/css/main.css">
+    <link rel="stylesheet" href="/instructor/css/instructor.css">
+    <link rel="stylesheet" href="/instructor/css/instructor-dashboard.css">
+    <link rel="stylesheet" href="/assets/css/receipt.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* Bu sayfa için lokal stiller; mevcut instructor.css ile çakışmasın diye
+           sınıf isimleri 'sh-' ön ekiyle korunuyor. */
+        .sh-summary-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:28px; }
+        .sh-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:18px 20px; box-shadow: var(--shadow-sm); }
+        .sh-card .label { font-size:0.78rem; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+        .sh-card .value { font-size:1.6rem; font-weight:700; color:#0f172a; }
+        .sh-card.brand .value { color: var(--brand-indigo, #4338ca); }
+
+        .sh-filter-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px; background:#fff; padding:14px; border:1px solid #e5e7eb; border-radius:12px; }
+        .sh-filter-bar select, .sh-filter-bar input { padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.9rem; font-family:inherit; }
+
+        .sh-table-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; }
+        .sh-table { width:100%; border-collapse:collapse; }
+        .sh-table thead th { background:#f8fafc; padding:12px 14px; text-align:left; font-size:0.82rem; font-weight:600; color:#334155; text-transform:uppercase; letter-spacing:0.3px; border-bottom:1px solid #e2e8f0; }
+        .sh-table tbody td { padding:14px; font-size:0.92rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+        .sh-table tbody tr:last-child td { border-bottom:0; }
+        .sh-table tbody tr:hover { background:#f8fafc; }
+        .sh-course-title { font-weight:600; color:#0f172a; }
+        .sh-ref { font-family: monospace; font-size:0.78rem; color:#64748b; }
+        .sh-net { font-weight:700; color: #059669; }
+
+        .sh-pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+        .sh-pill.pending     { background:#fef3c7; color:#92400e; }
+        .sh-pill.available   { background:#dbeafe; color:#1e40af; }
+        .sh-pill.processing  { background:#e0e7ff; color:#3730a3; }
+        .sh-pill.paid        { background:#d1fae5; color:#065f46; }
+        .sh-pill.cancelled   { background:#fee2e2; color:#991b1b; }
+
+        .sh-empty { text-align:center; padding:60px 20px; color:#64748b; }
+        .sh-empty i { font-size:2.5rem; color:#cbd5e1; display:block; margin-bottom:10px; }
+
+        .sh-pagination { display:flex; justify-content:space-between; align-items:center; margin-top:18px; font-size:0.9rem; color:#64748b; }
+        .sh-pagination button { padding:6px 14px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; cursor:pointer; margin:0 4px; font-weight:600; }
+        .sh-pagination button:disabled { opacity:0.45; cursor:not-allowed; }
+
+        /* Toast container (instructor genel pattern'i) */
+        .toast-container { position:fixed; bottom:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+        .toast { background:#1e293b; color:#fff; padding:12px 18px; border-radius:10px; font-size:0.88rem; max-width:360px; box-shadow:0 4px 20px rgba(0,0,0,0.18); pointer-events:all; animation: shToastIn 0.25s ease; }
+        .toast-success { border-left:4px solid #22c55e; }
+        .toast-error   { border-left:4px solid #ef4444; }
+        @keyframes shToastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+        @media (max-width: 720px) {
+            /* Mobilde "Öğrenci" ve "Ref" sütunlarını gizleyip kart düzenini koru */
+            .sh-table thead .col-student,
+            .sh-table tbody .col-student,
+            .sh-table thead .col-ref,
+            .sh-table tbody .col-ref { display:none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="navbar-placeholder"></div>
+
+    <main class="dashboard-container">
+
+        <header class="page-header">
+            <div class="header-text">
+                <h1>Satış Geçmişi & Hak Edişler</h1>
+                <p class="subtitle">Tüm satışlarınızı, EduNex platform komisyonunu ve net kazancınızı buradan takip edin. Her satır için yasal hak ediş dekontunu PDF olarak indirebilirsiniz.</p>
+            </div>
+        </header>
+
+        <!-- ÖZET KARTLARI -->
+        <section class="sh-summary-grid" id="summaryGrid">
+            <div class="sh-card brand">
+                <div class="label">Toplam Net Kazanç</div>
+                <div class="value" id="sumNet">—</div>
+            </div>
+            <div class="sh-card">
+                <div class="label">Brüt Satış</div>
+                <div class="value" id="sumBrut">—</div>
+            </div>
+            <div class="sh-card">
+                <div class="label">Platform Komisyonu</div>
+                <div class="value" id="sumKesinti">—</div>
+            </div>
+            <div class="sh-card">
+                <div class="label">Toplam Satış</div>
+                <div class="value" id="sumAdet">—</div>
+            </div>
+        </section>
+
+        <!-- FİLTRE -->
+        <div class="sh-filter-bar">
+            <label for="durumFilter" style="font-weight:600; color:#334155;">Durum:</label>
+            <select id="durumFilter">
+                <option value="">Tümü</option>
+                <option value="pending">İade Penceresinde</option>
+                <option value="available">Ödeme Bekliyor</option>
+                <option value="processing">İşlemde</option>
+                <option value="paid">Ödendi</option>
+                <option value="cancelled">İptal</option>
+            </select>
+            <button id="refreshBtn" class="btn-receipt" type="button"
+                    style="margin-left:auto;">
+                <i class="fas fa-rotate"></i> <span>Yenile</span>
+            </button>
+        </div>
+
+        <!-- TABLO -->
+        <div class="sh-table-wrap">
+            <table class="sh-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Kurs</th>
+                        <th class="col-student">Öğrenci</th>
+                        <th>Brüt</th>
+                        <th>Komisyon</th>
+                        <th>Net Kazanç</th>
+                        <th>Durum</th>
+                        <th style="text-align:right;">Dekont</th>
+                    </tr>
+                </thead>
+                <tbody id="salesBody">
+                    <tr><td colspan="8" class="sh-empty">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="sh-pagination">
+            <span id="pageInfo">-</span>
+            <div>
+                <button id="prevBtn" type="button">&larr; Önceki</button>
+                <button id="nextBtn" type="button">Sonraki &rarr;</button>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/assets/js/api.js"></script>
+    <script src="/main/js/main.js"></script>
+    <script src="/assets/js/loadNavbar.js"></script>
+    <script src="/assets/js/receipt.js"></script>
+    <script src="/instructor/js/sales-history.js"></script>
+</body>
+</html>

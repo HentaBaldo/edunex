@@ -477,3 +477,100 @@ exports.getPublicProfile = async (req, res, next) => {
         next(error);
     }
 };
+
+// ============================================================
+// SATIS GECMISI / HAK EDIS (Egitmen kendi paneli)
+// ============================================================
+/**
+ * GET /api/instructor/earnings/sales-history
+ *
+ * Eğitmenin kendi satışlarını ve karşılığında oluşmuş hak ediş kayıtlarını listeler.
+ * Veri gizliliği: Yalnızca kendi siparis_kalemleri döner.
+ *
+ * Query: ?page=1&limit=20&durum=available|pending|paid|cancelled (opsiyonel)
+ */
+exports.getMySalesHistory = async (req, res, next) => {
+    try {
+        const egitmenId = req.user.id;
+        const { OrderItem, Order } = require('../models');
+
+        const page  = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+        const offset = (page - 1) * limit;
+
+        const where = { egitmen_id: egitmenId };
+        const validDurum = ['pending', 'available', 'processing', 'paid', 'cancelled'];
+        if (req.query.durum && validDurum.includes(req.query.durum)) {
+            where.durum = req.query.durum;
+        }
+
+        const { rows, count } = await InstructorEarning.findAndCountAll({
+            where,
+            attributes: [
+                'id', 'siparis_kalemi_id', 'brut_tutar', 'komisyon_orani',
+                'platform_kesintisi', 'net_tutar', 'durum',
+                'olusturulma_tarihi', 'odeme_tarihi',
+            ],
+            include: [{
+                model: OrderItem,
+                attributes: ['id', 'siparis_id', 'odenen_fiyat'],
+                required: true,
+                include: [
+                    { model: Course, attributes: ['id', 'baslik'] },
+                    {
+                        model: Order,
+                        attributes: ['id', 'olusturulma_tarihi', 'durum', 'kullanici_id'],
+                        include: [{ model: Profile, attributes: ['ad', 'soyad', 'eposta'], required: false }],
+                    },
+                ],
+            }],
+            order: [['olusturulma_tarihi', 'DESC']],
+            limit,
+            offset,
+            distinct: true,
+        });
+
+        const data = rows.map((r) => {
+            const item   = r.OrderItem;
+            const order  = item?.Order;
+            const cust   = order?.Profile;
+            const adSoyad = cust ? `${cust.ad || ''} ${cust.soyad || ''}`.trim() : '—';
+            return {
+                earning_id: r.id,
+                siparis_id: order?.id || null,
+                siparis_durumu: order?.durum || null,
+                tarih: order?.olusturulma_tarihi || r.olusturulma_tarihi,
+                kurs: item?.Course
+                    ? { id: item.Course.id, baslik: item.Course.baslik }
+                    : { id: null, baslik: 'Silinmiş kurs' },
+                ogrenci: {
+                    ad_soyad: adSoyad || '—',
+                    eposta: cust?.eposta || null,
+                },
+                finans: {
+                    brut: Number(r.brut_tutar || 0),
+                    komisyon_orani: Number(r.komisyon_orani || 0),
+                    platform_kesintisi: Number(r.platform_kesintisi || 0),
+                    net: Number(r.net_tutar || 0),
+                    para_birimi: 'TRY',
+                },
+                durum: r.durum,
+                odeme_tarihi: r.odeme_tarihi,
+            };
+        });
+
+        return res.json({
+            success: true,
+            data,
+            pagination: {
+                total: count,
+                page,
+                limit,
+                pages: Math.ceil(count / limit) || 1,
+            },
+        });
+    } catch (error) {
+        console.error('[INSTRUCTOR SALES HISTORY] hata:', error.message);
+        next(error);
+    }
+};
