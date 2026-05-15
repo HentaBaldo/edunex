@@ -16,6 +16,8 @@
  */
 
 const nodemailer = require('nodemailer');
+const { PassThrough } = require('stream');
+const { streamOrderReceiptPdf } = require('./pdfService');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -348,9 +350,399 @@ function sendPasswordResetEmailAsync(to, resetToken) {
   });
 }
 
+// ──────────────────────────────────────────────────────────────
+// ÖDEME SONRASI BİLDİRİM MAİLLERİ (Sektör Standardı)
+// ──────────────────────────────────────────────────────────────
+//
+// İki ayrı muhatap, iki ayrı tasarım:
+//   • Öğrenci -> "Siparişiniz Alındı" + PDF dekont eki
+//   • Eğitmen -> "Yeni Bir Satış Yaptın" (KVKK gereği öğrenci PII yok)
+//
+// Her ikisi de transaction COMMIT'ten SONRA cagrılır ve fire-and-forget
+// wrapper'ları üzerinden gönderilir; SMTP gecikmesi kullanıcıyı bekletemez.
+
+const FRONTEND_BASE = FRONTEND_URL || (isProduction ? null : 'http://localhost:3000');
+
+const _fmtTRY = (val) => {
+    const n = Number(val || 0);
+    return n.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+};
+
+const _fmtDateTR = (iso) => {
+    if (!iso) return '-';
+    try {
+        return new Date(iso).toLocaleString('tr-TR', { dateStyle: 'long', timeStyle: 'short' });
+    } catch (_) {
+        return String(iso);
+    }
+};
+
+/**
+ * Order Sequelize instance'ından bellek-içi PDF Buffer üretir.
+ * Diske yazmaz; nodemailer.attachments[].content olarak doğrudan eklenir.
+ *
+ * order parametresi: Profile + OrderItems[Course] + PaymentTransactions
+ * include edilmiş tam ilişkili instance olmalı (receiptController'daki
+ * _loadOrderWithRelations sonucu ile aynı şekil).
+ */
+function _generateOrderReceiptBuffer(order) {
+    return new Promise((resolve, reject) => {
+        try {
+            const stream = new PassThrough();
+            const chunks = [];
+            stream.on('data', (c) => chunks.push(c));
+            stream.on('end', () => resolve(Buffer.concat(chunks)));
+            stream.on('error', reject);
+            // streamOrderReceiptPdf zaten doc.end() çağırdığı için stream
+            // kendiliğinden kapanır; biz sadece data/end olaylarını dinliyoruz.
+            streamOrderReceiptPdf({ order, output: stream });
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+/**
+ * Öğrenciye sipariş onay maili — PDF dekont eki ile.
+ *
+ * @param {object} student     — { ad, soyad, eposta } (alıcı)
+ * @param {object} order       — Profile + OrderItems[Course] + PaymentTransactions include edilmiş Sequelize Order instance
+ * @param {Array}  orderItems  — [{ baslik, odenen_fiyat }] (HTML gövdesinde listelenecek kalemler)
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendStudentOrderConfirmation(student, order, orderItems) {
+    try {
+        if (!student?.eposta) {
+            return { ok: false, error: 'Öğrenci e-posta adresi yok.' };
+        }
+        if (!order) {
+            return { ok: false, error: 'Order verisi yok.' };
+        }
+
+        const myCoursesUrl = `${FRONTEND_BASE || ''}/student/my-courses.html`;
+        const ogrenciAd = (student.ad || '').trim() || 'Değerli Öğrencimiz';
+        const items = Array.isArray(orderItems) ? orderItems : [];
+
+        // PDF üret — başarısız olursa maili yine de gönder (eksik ek > eksik mail).
+        // Kullanıcı PDF'ini her zaman GET /api/receipts/download/:orderId üzerinden de indirebilir.
+        let pdfBuffer = null;
+        try {
+            pdfBuffer = await _generateOrderReceiptBuffer(order);
+        } catch (pdfErr) {
+            console.error(`[EMAIL SERVICE] PDF eki üretilemedi (order=${order.id}):`, pdfErr.message);
+        }
+
+        const itemRowsHtml = items.length
+            ? items.map(it => `
+                <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#374151;font-size:14px;">
+                        ${(it.baslik || 'Kurs').replace(/</g, '&lt;')}
+                    </td>
+                    <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#1e3a8a;font-size:14px;font-weight:600;text-align:right;white-space:nowrap;">
+                        ${_fmtTRY(it.odenen_fiyat)}
+                    </td>
+                </tr>
+            `).join('')
+            : `<tr><td colspan="2" style="padding:12px 0;color:#6b7280;font-size:13px;">Sipariş kalemi bulunamadı.</td></tr>`;
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sipariş Onayı</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Siparişiniz Başarıyla Alındı!</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:36px 40px 8px;">
+              <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 12px;">Teşekkürler, ${ogrenciAd.replace(/</g, '&lt;')}!</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 8px;">
+                Ödemeniz başarıyla tamamlandı ve aldığınız kurslara erişiminiz aktif hale geldi.
+                Aşağıda sipariş özetinizi bulabilirsiniz; detaylı dekont bu e-postanın
+                <strong>PDF eki</strong> olarak gönderilmiştir.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px 18px;margin-top:8px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Sipariş No</td>
+                  <td style="color:#1e3a8a;font-size:13px;font-weight:600;text-align:right;">${String(order.id || '-').replace(/</g, '&lt;')}</td>
+                </tr>
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:6px;">Tarih</td>
+                  <td style="color:#0f172a;font-size:13px;text-align:right;padding-top:6px;">${_fmtDateTR(order.olusturulma_tarihi)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <h3 style="color:#0f172a;font-size:15px;margin:0 0 8px;border-bottom:2px solid #1e3a8a;padding-bottom:8px;">Sipariş Kalemleri</h3>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                ${itemRowsHtml}
+                <tr>
+                  <td style="padding:14px 0 0;color:#0f172a;font-size:15px;font-weight:700;">Toplam</td>
+                  <td style="padding:14px 0 0;color:#c9a84c;font-size:18px;font-weight:700;text-align:right;">${_fmtTRY(order.toplam_tutar)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${myCoursesUrl}"
+                       style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                      Eğitime Hemen Başla
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Bağlantı çalışmıyorsa: <a href="${myCoursesUrl}" style="color:#1e3a8a;word-break:break-all;">${myCoursesUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="background:#fef3c7;border-left:4px solid #c9a84c;border-radius:4px;padding:14px 16px;">
+                <p style="color:#78350f;font-size:13px;line-height:1.6;margin:0;">
+                  <strong>İade Hakkınız:</strong> Sipariş tarihinden itibaren <strong>14 gün</strong> içinde
+                  ve kurs ilerlemeniz <strong>%20'nin altında</strong> ise iade talebinde bulunabilirsiniz.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;margin-top:24px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Sorularınız için: destek@edunex.com<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        const mailOptions = {
+            from: FROM_ADDRESS,
+            to: student.eposta,
+            subject: `EduNex Academy — Sipariş Onayınız (#${String(order.id || '').slice(0, 8)})`,
+            html,
+        };
+
+        if (pdfBuffer && pdfBuffer.length > 0) {
+            const safeId = String(order.id || 'siparis').replace(/[^a-zA-Z0-9_-]/g, '');
+            mailOptions.attachments = [{
+                filename: `EduNex_Dekont_${safeId}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf',
+            }];
+        }
+
+        await transporter.sendMail(mailOptions);
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendStudentOrderConfirmation(${student?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Eğitmene satış bildirimi maili. KVKK: öğrenci adı/eposta YOK.
+ *
+ * @param {object} instructor — { ad, soyad, eposta }
+ * @param {string} courseName — Satılan kursun başlığı
+ * @param {number|string} netEarning — Platform komisyonu düşülmüş NET kazanç (TRY)
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendInstructorSaleNotification(instructor, courseName, netEarning) {
+    try {
+        if (!instructor?.eposta) {
+            return { ok: false, error: 'Eğitmen e-posta adresi yok.' };
+        }
+
+        const salesUrl = `${FRONTEND_BASE || ''}/instructor/sales-history.html`;
+        const egitmenAd = (instructor.ad || '').trim() || 'Değerli Eğitmenimiz';
+        const kursAdiSafe = String(courseName || 'Kursunuz').replace(/</g, '&lt;');
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yeni Satış Bildirimi</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Eğitmen Paneli — Satış Bildirimi</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px 40px 16px;text-align:center;">
+              <div style="font-size:56px;line-height:1;margin-bottom:12px;">&#127881;</div>
+              <h2 style="color:#1e3a8a;font-size:24px;margin:0 0 8px;">Tebrikler, ${egitmenAd.replace(/</g, '&lt;')}!</h2>
+              <p style="color:#374151;font-size:16px;line-height:1.6;margin:0;">
+                Yeni bir satış yaptınız &mdash; emekleriniz karşılığını buluyor!
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:8px;">Satılan Kurs</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:16px;font-weight:600;line-height:1.5;padding-bottom:18px;border-bottom:1px dashed #cbd5e1;">
+                    ${kursAdiSafe}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:18px;padding-bottom:6px;">Net Kazancınız</td>
+                </tr>
+                <tr>
+                  <td style="color:#059669;font-size:28px;font-weight:800;letter-spacing:0.5px;">
+                    ${_fmtTRY(netEarning)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="color:#9ca3af;font-size:11px;padding-top:8px;line-height:1.5;">
+                    Platform komisyonu düşülmüş, size ait net tutardır. Net hak ediş, 14 günlük iade
+                    penceresi kapandıktan sonra ödemeye uygun (available) duruma geçer.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${salesUrl}"
+                       style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                      Satış Raporunu İncele
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Bağlantı çalışmıyorsa: <a href="${salesUrl}" style="color:#1e3a8a;word-break:break-all;">${salesUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;margin-top:24px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Bu bildirim, KVKK gereği öğrenci kimlik bilgisi içermez.<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        await transporter.sendMail({
+            from: FROM_ADDRESS,
+            to: instructor.eposta,
+            subject: 'EduNex Academy — Tebrikler, yeni bir satış yaptınız!',
+            html,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendInstructorSaleNotification(${instructor?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Fire-and-forget wrapper'lar — Render Health Check (SIGTERM) tetiklenmesin
+ * diye callback akışında BU kullanılmalıdır. Caller response'u beklemez.
+ */
+function sendStudentOrderConfirmationAsync(student, order, orderItems) {
+    setImmediate(() => {
+        sendStudentOrderConfirmation(student, order, orderItems)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Sipariş onay maili gönderildi: ${student?.eposta} (order=${order?.id})`);
+                else console.error(`[EMAIL SERVICE] (bg) Sipariş onay maili basarisiz (${student?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Sipariş Mail Kuyruk Hatasi:', {
+                to: student?.eposta,
+                order_id: order?.id,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
+function sendInstructorSaleNotificationAsync(instructor, courseName, netEarning) {
+    setImmediate(() => {
+        sendInstructorSaleNotification(instructor, courseName, netEarning)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Eğitmen satış maili gönderildi: ${instructor?.eposta}`);
+                else console.error(`[EMAIL SERVICE] (bg) Eğitmen satış maili basarisiz (${instructor?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Eğitmen Mail Kuyruk Hatasi:', {
+                to: instructor?.eposta,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
 module.exports = {
   sendVerificationEmail,
   sendVerificationEmailAsync,
   sendPasswordResetEmail,
   sendPasswordResetEmailAsync,
+  sendStudentOrderConfirmation,
+  sendStudentOrderConfirmationAsync,
+  sendInstructorSaleNotification,
+  sendInstructorSaleNotificationAsync,
 };
