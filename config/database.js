@@ -1,7 +1,7 @@
 const dotenv = require('dotenv');
 const { Sequelize } = require('sequelize');
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const {
   DB_HOST,

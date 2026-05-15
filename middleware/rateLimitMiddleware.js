@@ -14,13 +14,18 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 // ✅ Helper: User ID al
 const getUserId = (req) => req.user?.id || null;
 
+// ✅ Helper: IPv6-uyumlu IP key uret. express-rate-limit v7+ ham req.ip
+// kullanimini ERR_ERL_KEY_GEN_IPV6 hatasiyla engelliyor; ipKeyGenerator
+// IPv6 adreslerini /64 prefix'e indirir (IPv4 oldugu gibi gecer).
+const getIpKey = (req) => ipKeyGenerator(req.ip) || 'anonymous';
+
 // === GENEL API RATE LIMIT ===
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => getUserId(req) || req.ip,
+    keyGenerator: (req) => getUserId(req) || getIpKey(req),
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -35,7 +40,7 @@ const apiLimiter = rateLimit({
 const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
-    keyGenerator: (req) => getUserId(req) || req.ip,
+    keyGenerator: (req) => getUserId(req) || getIpKey(req),
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -54,7 +59,7 @@ const loginLimiter = rateLimit({
     // Sadece email kullanmak: saldirgan farkli email'lerle deneyip ayni hedefin
     // hesabini kilitleyemez (her email ayri bucket). IP eklenmesi: ayni IP'den
     // farkli emaillere brute force'u da kisitlar.
-    keyGenerator: (req) => `${req.body?.eposta || ''}|${req.ip}`,
+    keyGenerator: (req) => `${req.body?.eposta || ''}|${getIpKey(req)}`,
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -69,7 +74,7 @@ const loginLimiter = rateLimit({
 const courseCreateLimiter = rateLimit({
     windowMs: 24 * 60 * 60 * 1000,  // 24 saat
     max: 50,  // ✅ 50 KURS GÜNDE
-    keyGenerator: (req) => getUserId(req) || req.ip,
+    keyGenerator: (req) => getUserId(req) || getIpKey(req),
     handler: (req, res) => {
         return res.status(429).json({
             success: false,
@@ -84,7 +89,7 @@ const courseCreateLimiter = rateLimit({
 const sectionCreateLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 20,
-    keyGenerator: (req) => getUserId(req) || req.ip,
+    keyGenerator: (req) => getUserId(req) || getIpKey(req),
     handler: (req, res) => {
         return res.status(429).json({
             success: false,

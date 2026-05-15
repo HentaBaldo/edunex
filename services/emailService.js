@@ -68,8 +68,9 @@ const transporter = nodemailer.createTransport({
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 10000,
-    debug: true,
-    logger: true,
+    // SMTP debug/logger sadece development'ta ac. Production'da log spam yaratir.
+    debug: process.env.NODE_ENV !== 'production',
+    logger: process.env.NODE_ENV !== 'production',
 });
 
 console.log(`[EMAIL SERVICE] SMTP transport hazirlaniyor: ${SMTP_HOST}:${SMTP_PORT} (${SMTP_SECURE ? 'SSL' : 'STARTTLS'})`);
