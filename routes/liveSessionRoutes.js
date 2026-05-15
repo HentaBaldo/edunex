@@ -1,10 +1,31 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const liveSessionController = require('../controllers/liveSessionController');
 const { verifyToken, isInstructor } = require('../middleware/authMiddleware');
 
-const upload = multer({ dest: 'uploads/recordings/' });
+// Kayıt dosyaları için mutlak yol — process.cwd() bağımsız, her zaman proje kökü.
+const recordingsDir = path.join(__dirname, '..', 'uploads', 'recordings');
+if (!fs.existsSync(recordingsDir)) {
+    fs.mkdirSync(recordingsDir, { recursive: true });
+}
+
+const recordingStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, recordingsDir),
+    filename: (req, file, cb) => {
+        const safe = path.basename(file.originalname || 'recording')
+            .replace(/[^a-zA-Z0-9._-]/g, '_')
+            .slice(0, 80);
+        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${safe}`);
+    },
+});
+
+const upload = multer({
+    storage: recordingStorage,
+    limits: { fileSize: 4 * 1024 * 1024 * 1024 }, // 4 GB
+});
 
 // ============================================
 // SPESIFIK ROUTE'LAR (ÖNCE - /:id catch'inden önce olmalı)
