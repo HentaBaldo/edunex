@@ -4,7 +4,7 @@
  * ve sunucu yasam dongusunun (lifecycle) guvenli yonetimini barindirir.
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const app = require('./app');
 const { sequelize } = require('./models');
 const payoutCron = require('./cron/payoutCron');
