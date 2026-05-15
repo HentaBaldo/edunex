@@ -112,6 +112,13 @@ async function loadOrders() {
         }
 
         body.innerHTML = items.map(renderRow).join('');
+
+        // Liste satırlarındaki yeni dekont butonlarını bağla.
+        if (window.ReceiptDownloader) {
+            ReceiptDownloader.bindButtons(body, {
+                notify: (msg, type) => showAdminToast(msg, type),
+            });
+        }
     } catch (err) {
         body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#ef4444;">${escapeHtml(err.message)}</td></tr>`;
     }
@@ -128,7 +135,13 @@ function renderRow(o) {
             <td>${kalem}</td>
             <td><b>${fmtTry(o.toplam_tutar)}</b></td>
             <td><span class="pill ${escapeHtml(o.durum || '')}">${statusLabel(o.durum)}</span></td>
-            <td style="text-align:right;"><button class="btn-view" onclick="openDetail('${o.id}')"><i class="fas fa-eye"></i> İncele</button></td>
+            <td style="text-align:right;">
+                ${(o.durum === 'tamamlandi' || o.durum === 'iade_edildi') ? `
+                    <button class="btn-receipt sm" data-order-id="${o.id}" title="PDF dekont indir" style="margin-right:6px;">
+                        <i class="fas fa-file-pdf"></i> <span>Dekont</span>
+                    </button>` : ''}
+                <button class="btn-view" onclick="openDetail('${o.id}')"><i class="fas fa-eye"></i> İncele</button>
+            </td>
         </tr>`;
 }
 
@@ -141,6 +154,13 @@ async function openDetail(id) {
     try {
         const result = await ApiService.get(`/admin/orders/${encodeURIComponent(id)}`);
         body.innerHTML = renderDetail(result.data);
+
+        // Modal içindeki dekont butonunu bağla.
+        if (window.ReceiptDownloader) {
+            ReceiptDownloader.bindButtons(body, {
+                notify: (msg, type) => showAdminToast(msg, type),
+            });
+        }
     } catch (err) {
         body.innerHTML = `<p style="color:#ef4444;">${escapeHtml(err.message)}</p>`;
     }
@@ -156,6 +176,14 @@ function renderDetail(o) {
     const p = o.Profile || {};
     const items = Array.isArray(o.OrderItems) ? o.OrderItems : [];
     const txs = Array.isArray(o.PaymentTransactions) ? o.PaymentTransactions : [];
+
+    const receiptBtn = (o.durum === 'tamamlandi' || o.durum === 'iade_edildi')
+        ? `<div style="margin-bottom:16px;">
+               <button class="btn-receipt solid" data-order-id="${escapeHtml(o.id)}">
+                   <i class="fas fa-file-pdf"></i> <span>Dekont İndir (PDF)</span>
+               </button>
+           </div>`
+        : '';
 
     const metaHtml = `
         <div class="meta-grid">
@@ -196,7 +224,25 @@ function renderDetail(o) {
                     </div>`).join('')}
         </div>`;
 
-    return metaHtml + itemsHtml + txHtml;
+    return receiptBtn + metaHtml + itemsHtml + txHtml;
+}
+
+/**
+ * Admin paneli için hafif toast bildirimi.
+ * #adminToastContainer orders.html'de tanımlı.
+ */
+function showAdminToast(message, type = 'info', durationMs = 5000) {
+    const container = document.getElementById('adminToastContainer');
+    if (!container) { console.warn(message); return; }
+    const el = document.createElement('div');
+    el.className = `admin-toast toast-${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.35s';
+        setTimeout(() => el.remove(), 400);
+    }, durationMs);
 }
 
 function statusLabel(durum) {

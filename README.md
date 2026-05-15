@@ -614,6 +614,6 @@ Bu proje akademik bir proje çalışmasıdır. Tüm hakları geliştirici ekibe 
 
 **🎓 EduNex — Bilgi senin, gelecek hepimizin.**
 
-[Canlı Demo](https://edunex.onrender.com) · [Sorun Bildir](https://github.com/HentaBaldo/edunex/issues) · [Katkı Sağla](https://github.com/HentaBaldo/edunex/pulls)
+[Canlı Demo](https://edunex-m252.onrender.com) · [Sorun Bildir](https://github.com/HentaBaldo/edunex/issues) · [Katkı Sağla](https://github.com/HentaBaldo/edunex/pulls)
 
 </div>

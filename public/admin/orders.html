@@ -11,6 +11,7 @@
 
     <link rel="stylesheet" href="/admin/css/layout.css">
     <link rel="stylesheet" href="/admin/css/dashboard.css">
+    <link rel="stylesheet" href="/assets/css/receipt.css">
 
     <style>
         .orders-summary-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px; }
@@ -58,6 +59,12 @@
         .tx-row:last-child { border-bottom:0; }
         .tx-row .tx-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
         .tx-row code { background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.78rem; }
+        /* --- Toast (admin) --- */
+        #adminToastContainer { position:fixed; bottom:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+        .admin-toast { background:#1e293b; color:#fff; padding:12px 18px; border-radius:10px; font-size:0.88rem; max-width:360px; box-shadow:0 4px 20px rgba(0,0,0,0.18); pointer-events:all; animation: adminToastIn 0.25s ease; }
+        .admin-toast.toast-success { border-left:4px solid #22c55e; }
+        .admin-toast.toast-error   { border-left:4px solid #ef4444; }
+        @keyframes adminToastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     </style>
 </head>
 <body>
@@ -208,7 +215,10 @@
         </div>
     </div>
 
+    <div id="adminToastContainer"></div>
+
     <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/receipt.js"></script>
     <script src="/admin/js/orders.js"></script>
 </body>
 </html>

@@ -119,6 +119,7 @@
                 <a href="/student/orders.html"><i class="fas fa-receipt" style="width:20px;"></i> Siparişlerim</a>` : '';
 
             const egitmenMenusu = egitmenMi ? `
+                <a href="/instructor/sales-history.html"><i class="fas fa-file-invoice-dollar" style="width:20px;color:#059669;"></i> Satış Geçmişi</a>
                 <a href="/instructor/live-sessions.html"><i class="fas fa-video" style="width:20px;color:#ef4444;"></i> Canlı Derslerim</a>` : '';
 
             authEl.innerHTML = `
