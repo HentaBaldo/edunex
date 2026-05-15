@@ -1,6 +1,42 @@
+# === SECRET FILES (TUM env varyantlari) ===
 .env
+.env.*
+!.env.example     # SADECE bu istisna: ornek dosya commit edilebilir
+
+# === DEPENDENCIES ===
 node_modules/
+
+# === UPLOADS (kalici degil, Bunny'e gidiyor) ===
 uploads/temp/
 uploads/lessons/
 uploads/avatars/
+
+# === IDE & EDITOR ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# === LOGS ===
+logs/
+*.log
+npm-debug.log*
+
+# === SERTIFIKA & SECRET FILES ===
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# === CLAUDE CODE WORKTREE ===
 .claude
+.claude/
+
+# === MISC ===
+.cache/
+dist/
+build/
+coverage/
