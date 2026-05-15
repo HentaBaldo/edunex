@@ -22,6 +22,10 @@ const {
 const iyzicoService = require('../services/iyzicoService');
 const { sendNotification } = require('../services/notificationService');
 const discountService = require('../services/discountService');
+const {
+    sendStudentOrderConfirmationAsync,
+    sendInstructorSaleNotificationAsync,
+} = require('../services/emailService');
 
 // Platform komisyon orani: %30 (env ile override edilebilir)
 const PLATFORM_KOMISYON_ORANI = Number(process.env.PLATFORM_KOMISYON_ORANI || 30);
@@ -493,6 +497,106 @@ exports.callback = async (req, res) => {
                 stack: notifyErr.stack,
             });
         }
+
+        // --- E-POSTA TETIKLEYICI (transaction COMMIT sonrasi, FIRE-AND-FORGET) ---
+        // Tum blok setImmediate icinde: DB refetch + Profile.findAll + SMTP cagrilari
+        // arka planda calisir. Kullanici 'odeme basarili' sayfasina BEKLEMEDEN yonlendirilir.
+        //
+        // Hata politikasi (notification blogu ile ayni felsefe):
+        //   - Mail hatasi order durumunu degistirmez,
+        //   - Enrollment'i iptal etmez,
+        //   - iyzico iade tetiklemez.
+        //   Sessizce loglanir; kullanici dekontunu /api/receipts/download endpoint'inden
+        //   her zaman yeniden indirebilir.
+        setImmediate(async () => {
+            try {
+                // PDF + email gövdesi icin tam iliskili order kopyasi (receiptController
+                // ile ayni include grafigi — PDF servisi bu sekli bekliyor).
+                const fullOrder = await Order.findByPk(order.id, {
+                    include: [
+                        {
+                            model: Profile,
+                            attributes: ['id', 'ad', 'soyad', 'eposta'],
+                            required: false,
+                        },
+                        {
+                            model: OrderItem,
+                            include: [{
+                                model: Course,
+                                attributes: ['id', 'baslik', 'egitmen_id'],
+                            }],
+                        },
+                        {
+                            model: PaymentTransaction,
+                            separate: true,
+                            order: [['olusturulma_tarihi', 'ASC']],
+                        },
+                    ],
+                });
+
+                if (!fullOrder) {
+                    console.error('[EMAIL TRIGGER] Mail icin order refetch edilemedi:', order.id);
+                    return;
+                }
+
+                // 1) ÖĞRENCİ ONAY MAILI (PDF dekont ekli)
+                if (fullOrder.Profile?.eposta) {
+                    const itemsForEmail = (fullOrder.OrderItems || []).map(oi => ({
+                        baslik: oi.Course?.baslik || 'Kurs',
+                        odenen_fiyat: oi.odenen_fiyat,
+                    }));
+                    sendStudentOrderConfirmationAsync(fullOrder.Profile, fullOrder, itemsForEmail);
+                } else {
+                    console.warn('[EMAIL TRIGGER] Öğrenci e-posta yok, onay maili atlandı:', order.id);
+                }
+
+                // 2) EĞİTMEN SATIŞ BİLDİRİMLERİ — GÖREV 4: eğitmen bazında grupla
+                // Tek bir siparişte birden fazla eğitmenin kursu olabilir; her birine
+                // SADECE kendi kursunun bilgisi ve net kazanci pass edilir (KVKK + isolation).
+                const itemsByInstructor = new Map();
+                for (const oi of (fullOrder.OrderItems || [])) {
+                    const egitmenId = oi.Course?.egitmen_id;
+                    if (!egitmenId) continue;
+                    if (!itemsByInstructor.has(egitmenId)) itemsByInstructor.set(egitmenId, []);
+                    itemsByInstructor.get(egitmenId).push(oi);
+                }
+
+                if (itemsByInstructor.size > 0) {
+                    // N+1 önleme: tüm farkli egitmen profillerini TEK sorguda al.
+                    const instructorProfiles = await Profile.findAll({
+                        where: { id: Array.from(itemsByInstructor.keys()) },
+                        attributes: ['id', 'ad', 'soyad', 'eposta'],
+                    });
+                    const instructorMap = new Map(instructorProfiles.map(p => [p.id, p]));
+
+                    for (const [egitmenId, items] of itemsByInstructor.entries()) {
+                        const instructor = instructorMap.get(egitmenId);
+                        if (!instructor?.eposta) {
+                            console.warn('[EMAIL TRIGGER] Eğitmen profil/eposta yok, satış maili atlandı:', egitmenId);
+                            continue;
+                        }
+                        // Bu egitmenin satılan her kursu icin ayri mail (function imzasi tek courseName aliyor).
+                        for (const oi of items) {
+                            const brutKurus = toKurus(oi.odenen_fiyat);
+                            const kesintiKurus = Math.round(brutKurus * PLATFORM_KOMISYON_ORANI / 100);
+                            const netKurus = brutKurus - kesintiKurus;
+                            sendInstructorSaleNotificationAsync(
+                                instructor,
+                                oi.Course?.baslik || 'Kursunuz',
+                                fromKurus(netKurus)
+                            );
+                        }
+                    }
+                }
+            } catch (mailErr) {
+                console.error('[EMAIL TRIGGER] Sipariş sonrası mail hazırlığı hatası:', {
+                    order_id: order.id,
+                    name: mailErr.name,
+                    message: mailErr.message,
+                    stack: mailErr.stack,
+                });
+            }
+        });
 
         return res.redirect(successUrl);
     } catch (error) {
