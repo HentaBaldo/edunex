@@ -278,9 +278,20 @@ exports.callback = async (req, res) => {
     }
 
     try {
-        const order = await Order.findOne({ where: { odeme_token: token } });
+        // Row-lock: paralel callback'leri serilestirmek icin findOne + LOCK.UPDATE
+        // (idempotency zaten var ama duplicate PaymentTransaction kayitlarini onler).
+        const order = await sequelize.transaction(async (t) => {
+            return Order.findOne({
+                where: { odeme_token: token },
+                lock: t.LOCK.UPDATE,
+                transaction: t,
+            });
+        });
+
         if (!order) {
-            console.error('[CALLBACK ERROR] Token icin siparis bulunamadi. token:', token);
+            // Token'i tum loga yazma; sadece prefix'i loglarsak debugging zor olur.
+            // Burada token DB'de oldugu icin sizinti riski yok ama yine de truncate.
+            console.error('[CALLBACK ERROR] Token icin siparis bulunamadi. token:', String(token).substring(0, 12) + '...');
             return failWith('Bu odemeye ait siparis bulunamadi.');
         }
 
@@ -485,12 +496,15 @@ exports.callback = async (req, res) => {
 
         return res.redirect(successUrl);
     } catch (error) {
+        // Detayli hata server log'una yazilir (Render dashboard).
+        // Kullaniciya generic mesaj donulur; teknik detay URL'ye veya tarayici
+        // gecmisine SIZMAMALIDIR (auditor #3: error message leak).
         console.error('[CALLBACK FATAL]', {
             name: error.name,
             message: error.message,
             stack: error.stack,
         });
-        return failWith(`Sunucu hatasi: ${error.message || 'Bilinmeyen hata'}`);
+        return failWith('Odeme dogrulanirken beklenmeyen bir hata olustu. Destek ile iletisime gecin.');
     }
 };
 
