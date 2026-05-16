@@ -553,6 +553,35 @@
 .thumbnail-placeholder:hover { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
 .thumbnail-placeholder:hover i { color: #2563eb; }
 
+.thumbnail-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+.thumbnail-change-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+.thumbnail-change-btn i { font-size: 0.95rem; }
+.thumbnail-filename {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 6px 10px;
+    border-radius: 6px;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.thumbnail-filename:empty { display: none; }
+
 /* ── Review Cards ── */
 .review-card {
     background: #ffffff;
