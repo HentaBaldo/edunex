@@ -7,6 +7,8 @@
     // ─── Module-level cache ───────────────────────────────────────────────
     let tumKategoriler = [];
     let aramaKurslari  = [];
+    // Kursu olmayan egitmenler de aramada gorunmeli — backend'den ayrica cekiyoruz.
+    let aramaEgitmenler = [];
     let aramaTimer     = null;
     let aramaYuklendi  = false;
 
@@ -73,6 +75,8 @@
     }
 
     // ─── Auth ─────────────────────────────────────────────────────────────
+    // Initial paint cache'ten gelen ad/soyad/avatar ile yapilir; sonrasinda
+    // /profile/me cagrilarak sunucu-tarafi en guncel degerle senkron edilir.
     function kimlikKontrol() {
         const jeton        = localStorage.getItem('edunex_token');
         const kullanicJson = localStorage.getItem('edunex_user');
@@ -83,6 +87,17 @@
             let kullanici;
             try { kullanici = JSON.parse(kullanicJson); } catch { _cikisYap(); return; }
 
+            _navbarRenderAuthBlok(authEl, kullanici);
+            // Arka planda guncel profili cek -> cache + DOM senkronu
+            _navbarProfiliSenkronla(authEl);
+        } else {
+            authEl.innerHTML = `<a href="/auth/index.html" class="btn-auth-blue">Giriş Yap / Kayıt Ol</a>`;
+        }
+    }
+
+    // Auth blogunu (sepet, bildirim, kullanici dropdown) cizen ic fonksiyon.
+    // kimlikKontrol ve _navbarProfiliSenkronla buradan tekrar kullanir.
+    function _navbarRenderAuthBlok(authEl, kullanici) {
             const panelLinki = kullanici.rol === 'egitmen'
                 ? '/instructor/dashboard.html'
                 : '/student/dashboard.html';
@@ -122,13 +137,18 @@
                 <a href="/instructor/sales-history.html"><i class="fas fa-file-invoice-dollar" style="width:20px;color:#059669;"></i> Satış Geçmişi</a>
                 <a href="/instructor/live-sessions.html"><i class="fas fa-video" style="width:20px;color:#ef4444;"></i> Canlı Derslerim</a>` : '';
 
+            // Avatar: profil_fotografi varsa kucuk yuvarlak resim, yoksa ad/soyad
+            // bas harflerinden (Hasan Talha -> HT) tek-renkli initials avatari.
+            const tamAd      = `${kullanici.ad || ''} ${kullanici.soyad || ''}`.trim() || 'Kullanıcı';
+            const avatarHtml = _navbarAvatarHtml(kullanici);
+
             authEl.innerHTML = `
                 ${sepetHtml}
                 ${bildirimHtml}
                 <div class="user-dropdown">
-                    <button class="dropdown-trigger">
-                        <i class="fas fa-user-circle" style="font-size:1.2rem;"></i>
-                        ${_escHtml(kullanici.ad)}
+                    <button class="dropdown-trigger" id="navUserTrigger" title="${_escAttr(tamAd)}">
+                        ${avatarHtml}
+                        <span class="nav-user-name">${_escHtml(tamAd)}</span>
                         <i class="fas fa-chevron-down" style="font-size:0.8rem;margin-left:5px;"></i>
                     </button>
                     <div class="dropdown-content">
@@ -146,8 +166,60 @@
 
             if (ogrenciMi) _sepetRozetiniGuncelle();
             _bildirimleriBaslat();
-        } else {
-            authEl.innerHTML = `<a href="/auth/index.html" class="btn-auth-blue">Giriş Yap / Kayıt Ol</a>`;
+    }
+
+    // Avatar HTML uretici — profil_fotografi varsa img, yoksa initials.
+    function _navbarAvatarHtml(kullanici) {
+        const foto = (kullanici.profil_fotografi || '').trim();
+        if (foto) {
+            return `<img src="${_escAttr(foto)}" alt="" class="nav-user-avatar" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('i'),{className:'fas fa-user-circle',style:'font-size:1.6rem;color:#64748b;'}));">`;
+        }
+        const ad  = (kullanici.ad || '').trim();
+        const soy = (kullanici.soyad || '').trim();
+        const inisyal = ((ad[0] || '') + (soy[0] || '')).toUpperCase() || '?';
+        return `<span class="nav-user-avatar nav-user-avatar--initials">${_escHtml(inisyal)}</span>`;
+    }
+
+    // /profile/me cagirip cache + DOM'u guncel verilerle senkronlar.
+    // Hata sessizce yutulur — eski cache zaten ekrana yansimis durumda.
+    async function _navbarProfiliSenkronla(authEl) {
+        if (!authEl) return;
+        try {
+            const sonuc = await ApiService.get('/profile/me');
+            const p = sonuc?.data;
+            if (!p) return;
+
+            // localStorage cache'i guncelle (rol/id korunur).
+            let cached = {};
+            try { cached = JSON.parse(localStorage.getItem('edunex_user') || '{}'); } catch {}
+            const guncel = {
+                ...cached,
+                id: p.id || cached.id,
+                ad: p.ad ?? cached.ad,
+                soyad: p.soyad ?? cached.soyad,
+                eposta: p.eposta ?? cached.eposta,
+                rol: p.rol || cached.rol,
+                profil_fotografi: p.profil_fotografi || null,
+            };
+            try { localStorage.setItem('edunex_user', JSON.stringify(guncel)); } catch {}
+
+            // DOM degisikligi: trigger icindeki avatar + isim alanlarini guncelle.
+            const trigger = document.getElementById('navUserTrigger');
+            if (!trigger) return;
+            const tamAd = `${guncel.ad || ''} ${guncel.soyad || ''}`.trim() || 'Kullanıcı';
+            const nameEl = trigger.querySelector('.nav-user-name');
+            if (nameEl) nameEl.textContent = tamAd;
+            trigger.setAttribute('title', tamAd);
+            // Avatar bloğunu (img veya initials) tek seferde yeniden çiz.
+            const avatarEski = trigger.querySelector('.nav-user-avatar');
+            if (avatarEski) {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = _navbarAvatarHtml(guncel);
+                const yeni = tmp.firstElementChild;
+                if (yeni) avatarEski.replaceWith(yeni);
+            }
+        } catch {
+            // Token expire vb. -> session degismedi, sessiz fail.
         }
     }
 
@@ -374,8 +446,21 @@
         if (aramaYuklendi) return;
         aramaYuklendi = true;
         try {
-            const res  = await ApiService.get('/courses/published?limit=500');
-            aramaKurslari = res.data || [];
+            // Kurslar + egitmenler paralel cekilir. Egitmen listesi /courses/published'den
+            // BAGIMSIZ — boylece henuz yayinda kursu olmayan egitmenler de aramada cikar.
+            // Birinin hatasi digerini bozmasin diye Promise.allSettled.
+            const [kursRes, egRes] = await Promise.allSettled([
+                ApiService.get('/courses/published?limit=500'),
+                ApiService.get('/instructor/list?limit=500'),
+            ]);
+
+            aramaKurslari = (kursRes.status === 'fulfilled' && kursRes.value?.data) || [];
+            aramaEgitmenler = (egRes.status === 'fulfilled' && egRes.value?.data) || [];
+
+            // Iki kaynagin tamami da hata aldiysa yeniden denenebilsin.
+            if (kursRes.status !== 'fulfilled' && egRes.status !== 'fulfilled') {
+                aramaYuklendi = false;
+            }
         } catch { aramaYuklendi = false; }
     }
 
@@ -424,16 +509,33 @@
             k.ad && k.ad.toLowerCase().includes(lower)
         ).slice(0, 3);
 
-        // ── Eğitmenler (kurs datasından deduplicate) ──
+        // ── Eğitmenler ──
+        // Iki kaynak birlestirilir:
+        //  (a) /instructor/list — kursu OLMAYANLAR dahil tum egitmenler (otorite kaynak)
+        //  (b) /courses/published.Egitmen — geriye uyumluluk (endpoint dusse de calismaya devam)
+        // Dedup id uzerinden yapilir; (a) once isleniyor ki tam profil bilgisi (avatar/sehir) korunsun.
         const egitmenMap = new Map();
+
+        aramaEgitmenler.forEach(e => {
+            if (!e || !e.id) return;
+            const tam = (e.tam_ad || `${e.ad || ''} ${e.soyad || ''}`).trim();
+            if (!tam) return;
+            const hay = `${tam} ${e.sehir || ''} ${e.unvan || ''} ${e.baslik || ''}`.toLowerCase();
+            if (hay.includes(lower) && !egitmenMap.has(e.id)) {
+                egitmenMap.set(e.id, { id: e.id, ad: tam });
+            }
+        });
+
         aramaKurslari.forEach(k => {
-            if (!k.Egitmen) return;
+            if (!k.Egitmen || !k.Egitmen.id) return;
+            if (egitmenMap.has(k.Egitmen.id)) return;
             const tam = `${k.Egitmen.ad || ''} ${k.Egitmen.soyad || ''}`.trim();
-            if (tam.toLowerCase().includes(lower) && k.Egitmen.id && !egitmenMap.has(k.Egitmen.id)) {
+            if (tam.toLowerCase().includes(lower)) {
                 egitmenMap.set(k.Egitmen.id, { id: k.Egitmen.id, ad: tam });
             }
         });
-        const egitmenSonuc = [...egitmenMap.values()].slice(0, 3);
+
+        const egitmenSonuc = [...egitmenMap.values()].slice(0, 5);
 
         // ── Kurslar ──
         const kursSonuc = aramaKurslari.filter(k =>

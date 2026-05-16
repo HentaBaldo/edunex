@@ -373,6 +373,72 @@ exports.registerSubMerchant = async (req, res, next) => {
     }
 };
 
+/**
+ * Public Egitmen Listesi — Global aramayi besler.
+ *
+ * KRITIK: Egitmen kursu olmasa bile listede yer ALMALI. Eskiden arama motoru
+ * /api/courses/published listesinden Egitmen.id'leri turetiyordu; kursu olmayan
+ * yeni egitmenler aramada hic gorunmuyor ve profil sayfalarina ulasilamiyordu.
+ *
+ * @route GET /api/instructor/list
+ * @query  q     - opsiyonel arama terimi (ad/soyad/sehir LIKE)
+ * @query  limit - max kayit (varsayilan 500, hard cap 1000)
+ *
+ * Veri sadece public-safe alanlardir; eposta/telefon vb. sizdirilmaz.
+ */
+exports.getPublicInstructorList = async (req, res, next) => {
+    try {
+        const rawLimit = parseInt(req.query.limit, 10);
+        const limit = Math.min(1000, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 500));
+
+        const where = { rol: 'egitmen' };
+
+        // Opsiyonel arama: ad / soyad / sehir uzerinde case-insensitive LIKE.
+        // Frontend zaten client-side filtreleme yapiyor ancak büyük instances'ta
+        // backend-side filtre payload'i kuculttugu icin kalsin.
+        const q = (req.query.q || '').toString().trim();
+        if (q) {
+            where[Op.or] = [
+                { ad:    { [Op.like]: `%${q}%` } },
+                { soyad: { [Op.like]: `%${q}%` } },
+                { sehir: { [Op.like]: `%${q}%` } },
+            ];
+        }
+
+        // LEFT JOIN: InstructorDetail opsiyonel (required: false). Detay satiri
+        // hic olusturulmamis legacy egitmenler de listeye dahil olur.
+        const egitmenler = await Profile.findAll({
+            where,
+            attributes: ['id', 'ad', 'soyad', 'sehir', 'profil_fotografi'],
+            include: [{
+                model: InstructorDetail,
+                attributes: ['unvan', 'baslik'],
+                required: false,
+            }],
+            order: [['ad', 'ASC'], ['soyad', 'ASC']],
+            limit,
+        });
+
+        const data = egitmenler.map(e => {
+            const p = e.get({ plain: true });
+            return {
+                id: p.id,
+                ad: p.ad || '',
+                soyad: p.soyad || '',
+                tam_ad: `${p.ad || ''} ${p.soyad || ''}`.trim(),
+                sehir: p.sehir || null,
+                profil_fotografi: p.profil_fotografi || null,
+                unvan: p.InstructorDetail?.unvan || null,
+                baslik: p.InstructorDetail?.baslik || null,
+            };
+        });
+
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.getPublicProfile = async (req, res, next) => {
     try {
         const { instructorId } = req.params;

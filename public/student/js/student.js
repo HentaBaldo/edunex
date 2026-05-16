@@ -307,13 +307,15 @@ function buildCourseCard(course) {
 }
 
 function renderEmptyState(grid) {
+    // Hicbir kursa kayit olmamis ogrenciye gosterilen yonlendirici kart.
+    // CTA ogrenciyi dogrudan tum kurslar listesine goturur.
     grid.innerHTML = `
         <div class="lh-empty-state">
             <div class="lh-empty-icon"><i class="fas fa-graduation-cap"></i></div>
-            <h3>Henüz hiçbir kursa kayıt olmadınız</h3>
-            <p>Binlerce kursu keşfet ve öğrenmeye hemen başla!</p>
-            <a href="/main/index.html#courses" class="lh-btn-explore">
-                <i class="fas fa-compass"></i> Kursları Keşfet
+            <h3>Henüz bir kursa kayıt olmadınız</h3>
+            <p>Binlerce kurs arasından ilgi alanınıza uygun olanı keşfedin ve öğrenmeye hemen başlayın.</p>
+            <a href="/main/courses.html" class="lh-btn-explore">
+                <i class="fas fa-compass"></i> Kursları İncele
             </a>
         </div>
     `;

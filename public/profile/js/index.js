@@ -485,9 +485,17 @@ function applyUserSettings(settings) {
         const mevcutKullanici = JSON.parse(localStorage.getItem('edunex_user') || '{}');
         if (settings.ad !== undefined) mevcutKullanici.ad = settings.ad;
         if (settings.soyad !== undefined) mevcutKullanici.soyad = settings.soyad;
+        if (settings.profil_fotografi !== undefined) mevcutKullanici.profil_fotografi = settings.profil_fotografi;
         if (settings.profil_herkese_acik_mi !== undefined) mevcutKullanici.profil_herkese_acik_mi = settings.profil_herkese_acik_mi;
         if (settings.alinan_kurslari_goster !== undefined) mevcutKullanici.alinan_kurslari_goster = settings.alinan_kurslari_goster;
         localStorage.setItem('edunex_user', JSON.stringify(mevcutKullanici));
+
+        // Navbar'in (ad/soyad/avatar) anlik yenilenmesi icin
+        // kimlikKontrol re-render'i tetikle. Profilden cikip baska sayfaya
+        // gitmeye gerek kalmasin.
+        if (typeof window.kimlikKontrol === 'function') {
+            try { window.kimlikKontrol(); } catch (_) {}
+        }
     } catch (_) {}
 }
 
@@ -635,6 +643,10 @@ document.getElementById('file_input').addEventListener('change', async (e) => {
             const mevcutKullanici = JSON.parse(localStorage.getItem('edunex_user') || '{}');
             mevcutKullanici.profil_fotografi = result.imageUrl;
             localStorage.setItem('edunex_user', JSON.stringify(mevcutKullanici));
+            // Navbar'daki avatari da hemen yenile (refresh beklemeden).
+            if (typeof window.kimlikKontrol === 'function') {
+                try { window.kimlikKontrol(); } catch (_) {}
+            }
             profilToast('Fotoğraf güncellendi.');
         }
     } catch (error) {
