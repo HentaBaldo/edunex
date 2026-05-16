@@ -9,6 +9,18 @@ let __searchQuery = '';
 let __statusFilter = 'all';
 let __typeFilter = 'all';
 
+// Cift sekme korumasi:
+// startStream sonrasinda kart "Yayina Gir" -> "Odaya Gir" olarak yeniden renderlaniyor.
+// Kullanici hizli cift-tikladiginda 2. tiklama yeni butona dustugu icin window.open
+// iki kere cagriliyor. Bu Set ayni sessionId icin 3 sn boyunca yeniden tetiklenmeyi engeller.
+const __opening = new Set();
+function __lockOpen(id) {
+    if (__opening.has(id)) return false;
+    __opening.add(id);
+    setTimeout(() => __opening.delete(id), 3000);
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
@@ -79,12 +91,19 @@ async function loadSessions() {
 
 async function loadMyCourses() {
     try {
-        const res = await ApiService.get('/courses/my-courses');
-        __myCourses = res.data || [];
+        // Canli ders SADECE yayindaki kurslar icin acilabilir.
+        // Backend tarafinda da assertInstructorOwnsCourse(requirePublished:true) ile zorlaniyor;
+        // burada query param + client-side filtre ile UI ayni kurali yansitiyor.
+        const res = await ApiService.get('/courses/my-courses?durum=yayinda');
+        __myCourses = (res.data || []).filter(c => c.durum === 'yayinda');
         const sel = document.getElementById('lf_kurs_id');
         if (sel) {
-            sel.innerHTML = '<option value="">— Kurs Seçin —</option>' +
-                __myCourses.map(c => `<option value="${c.id}">${escapeHtml(c.baslik)}</option>`).join('');
+            if (__myCourses.length === 0) {
+                sel.innerHTML = '<option value="">— Yayında kursunuz yok —</option>';
+            } else {
+                sel.innerHTML = '<option value="">— Kurs Seçin —</option>' +
+                    __myCourses.map(c => `<option value="${c.id}">${escapeHtml(c.baslik)}</option>`).join('');
+            }
         }
     } catch (err) {
         toast('Kurslar yüklenemedi: ' + err.message, 'error');
@@ -403,8 +422,9 @@ window.openUploadModal = (sessionId, sessionTitle) => {
             <p style="color:#64748b; margin-bottom:16px;">${escapeHtml(sessionTitle)}</p>
             <form id="uploadForm">
                 <div class="form-group">
-                    <label class="form-label">MP4 Dosyası</label>
-                    <input type="file" id="uploadFile" accept=".mp4" class="form-control" required>
+                    <label class="form-label">MP4 veya WEBM dosyası</label>
+                    <input type="file" id="uploadFile" accept="video/mp4,video/webm,.mp4,.webm" class="form-control" required>
+                    <small style="display:block; margin-top:6px; color:#94a3b8; font-size:0.78rem;">Jitsi yerel kaydı (.webm) doğrudan yüklenebilir; sunucu tarafında dönüşüm yapılmaz.</small>
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn-primary-lg-alt">Yükle</button>
@@ -512,22 +532,25 @@ window.changeStatus = async (id, newStatus) => {
  *  2) 200 dönerse localStorage'a ID kaydet ve /canli-ders/ODA_ADI sayfasına yönlendir (yeni sekme)
  */
 window.startStream = async (id) => {
+    if (!__lockOpen(id)) return;
     try {
         const res = await ApiService.put(`/live-sessions/${id}/start`, {});
         const veri = res?.data || {};
         const url = veri.redirect_url || (veri.jitsi_oda_adi ? `/canli-ders/${veri.jitsi_oda_adi}` : null);
-        
+
         if (!url) {
             toast('Oda adı alınamadı.', 'error');
             return;
         }
-        
-        // YENİ EKLENEN SATIR: Canlı odaya ID'yi aktar
+
         localStorage.setItem('current_live_session_id', id);
 
+        // Sekmeyi loadSessions()'tan ONCE ac:
+        //   1) Kullanici aninda gorsel geribildirim alir, yeniden tiklama egilimi azalir.
+        //   2) loadSessions() bekledigimiz icin async pencerede ikinci tiklama window.open'i tekrar tetikleyemez.
+        window.open(url, '_blank');
         toast('Yayın başlatıldı.', 'success');
         await loadSessions();
-        window.open(url, '_blank');
     } catch (err) {
         toast('Yayın başlatılamadı: ' + err.message, 'error');
     }
@@ -660,6 +683,7 @@ function toast(message, type = 'info') {
 
 // Yayına zaten girilmişse sadece odaya bağlan (Backend'e Start atmaz)
 window.enterLiveRoom = (sessionId, odaAdi) => {
+    if (!__lockOpen(sessionId)) return;
     localStorage.setItem('current_live_session_id', sessionId);
     window.open(`/canli-ders/${odaAdi}`, '_blank');
 };

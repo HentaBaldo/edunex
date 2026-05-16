@@ -22,8 +22,22 @@ const recordingStorage = multer.diskStorage({
     },
 });
 
+// Jitsi yerel kaydı .webm uretiyor; Jitsi Cloud kaydi .mp4 oluyor.
+// Bunny Stream HER IKI formati da kabul ediyor, bu yuzden sunucu tarafinda
+// dönüşüm (FFmpeg) yapmıyoruz — ham haliyle Bunny'ye stream'liyoruz.
+// GUVENLIK: MIME *VE* extension her ikisi de eslesmek zorunda (AND).
+const recordingFileFilter = (req, file, cb) => {
+    const validMimes = ['video/mp4', 'video/webm', 'application/octet-stream'];
+    const validExt = /\.(mp4|webm)$/i;
+    if (validMimes.includes(file.mimetype) && validExt.test(file.originalname || '')) {
+        return cb(null, true);
+    }
+    return cb(new Error('Geçersiz format. Sadece MP4 veya WEBM yayın kaydı yükleyebilirsiniz.'), false);
+};
+
 const upload = multer({
     storage: recordingStorage,
+    fileFilter: recordingFileFilter,
     limits: { fileSize: 4 * 1024 * 1024 * 1024 }, // 4 GB
 });
 

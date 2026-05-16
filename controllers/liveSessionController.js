@@ -19,11 +19,54 @@ const {
 } = require('../models');
 
 /**
- * Kurs sahibi eğitmen kontrolü. Sahibiyse Course'u döner, değilse 403 atar.
+ * Turkce karakterleri ASCII'ye indirger, bosluk + ozel karakterleri tek tire yapar,
+ * basta/sonda kalan tireleri temizler ve maxLen ile kirpar.
+ *
+ * Jitsi yerel kaydi (.webm) dosya adini oda adindan turettigi icin, indirilen dosya
+ * "edunex-react-hooks-20260516-1430-a3f2x9.webm" gibi insan okuyabilir olur.
  */
-async function assertInstructorOwnsCourse(courseId, userId) {
+function slugify(metin, maxLen = 40) {
+    if (!metin) return 'ders';
+    const trMap = {
+        'ç': 'c', 'Ç': 'c', 'ğ': 'g', 'Ğ': 'g', 'ı': 'i', 'İ': 'i',
+        'ö': 'o', 'Ö': 'o', 'ş': 's', 'Ş': 's', 'ü': 'u', 'Ü': 'u',
+    };
+    const slug = String(metin)
+        .replace(/[çÇğĞıİöÖşŞüÜ]/g, ch => trMap[ch] || ch)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, maxLen)
+        .replace(/-+$/g, ''); // kirpma sonrasi olusabilecek sondaki tireyi yine temizle
+    return slug || 'ders';
+}
+
+/**
+ * Jitsi oda adi uretici: edunex-<slug>-<rand4>
+ *  - <slug> kurs adi (kursa_ozel) veya yayin basligi (genel) bazli, slugify edilmis.
+ *  - <rand4> 4 karakterlik hex sufix — ayni kurstan acilan farkli canli derslerin Jitsi'de
+ *    ayni odaya dusmesini engellemek icin minimum entropi. Eski/yeni seans cakismasini
+ *    onler ama dosya adini hala okunabilir tutar.
+ *
+ * Jitsi yerel kaydi indirildiginde isim su sekilde olur:
+ *   edunex-node-js-dersi-a3f2_2026-05-16-14-30.webm
+ * (Jitsi indirme sonuna tarih damgasini kendi ekler.)
+ */
+function generateRoomName(metin) {
+    const slug = slugify(metin);
+    const rand = crypto.randomBytes(2).toString('hex'); // 4 karakter hex
+    return `edunex-${slug}-${rand}`;
+}
+
+/**
+ * Kurs sahibi eğitmen kontrolü. Sahibiyse Course'u döner, değilse 403 atar.
+ * requirePublished=true ise kursun durum='yayinda' olması da zorunludur.
+ * Boylelikle taslak / onay bekleyen / arsiv kurslar icin canli ders olusturulamaz —
+ * frontend bypass edilse bile backend reddeder.
+ */
+async function assertInstructorOwnsCourse(courseId, userId, { requirePublished = false } = {}) {
     const course = await Course.findByPk(courseId, {
-        attributes: ['id', 'egitmen_id', 'baslik'],
+        attributes: ['id', 'egitmen_id', 'baslik', 'durum'],
     });
     if (!course) {
         const err = new Error('Kurs bulunamadı.');
@@ -33,6 +76,11 @@ async function assertInstructorOwnsCourse(courseId, userId) {
     if (course.egitmen_id !== userId) {
         const err = new Error('Bu kurs üzerinde yetkiniz yok.');
         err.statusCode = 403;
+        throw err;
+    }
+    if (requirePublished && course.durum !== 'yayinda') {
+        const err = new Error('Sadece yayında olan kurslar için canlı ders açabilirsiniz.');
+        err.statusCode = 400;
         throw err;
     }
     return course;
@@ -105,22 +153,26 @@ exports.createSession = async (req, res, next) => {
         const istenenTip = yayin_tipi === 'genel' ? 'genel' : (yayin_tipi || 'kursa_ozel');
         const tip = (istenenTip === 'kursa_ozel' && kurs_id) ? 'kursa_ozel' : 'genel';
         let finalKursId = null;
-        let odaPrefix;
 
+        // Oda adi icin kullanilacak insan okuyabilir baslik:
+        //   - kursa_ozel: kurs adi  (egitmen icin tanidik referans)
+        //   - genel:      seansin kendi basligi (kurs yok)
+        let odaBasligi = baslik;
         if (tip === 'kursa_ozel') {
-            await assertInstructorOwnsCourse(kurs_id, req.user.id);
+            // Canli ders olusturulabilmesi icin kurs YAYINDA olmali (taslak / onay bekleyen kabul edilmez).
+            const course = await assertInstructorOwnsCourse(kurs_id, req.user.id, { requirePublished: true });
             finalKursId = kurs_id;
-            odaPrefix = 'kurs';
+            odaBasligi = course.baslik || baslik;
         } else {
             finalKursId = null;
-            odaPrefix = 'genel';
         }
 
-        // Jitsi oda adi: tip etiketi + tam UUID (122-bit entropy).
-        // crypto.randomUUID() Node 14.17+ standardidir; tirelerini cikariyoruz cunki
-        // bazi Jitsi deploy'lari URL'de tireyi yorumluyor (guvenli karakter seti: [a-z0-9]).
-        const odaUuid = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex')).replace(/-/g, '');
-        const odaAdi = `edunex-${odaPrefix}-${odaUuid}`;
+        // Jitsi oda adi: edunex-<slug(kurs|baslik)>-<rand4>
+        // Rand4 minimum entropi: ayni kurstan acilan farkli canli derslerin Jitsi'de ayni odaya
+        // dusmemesi icin. Yerel kayit (.webm) dosya adini oda adindan turetir — bu yuzden insan
+        // okuyabilir bir slug. Jitsi indirme sonuna kendi tarih damgasini ekleyecegi icin son dosya
+        // adi "edunex-kurs-adi-a3f2_2026-05-16-14-30.webm" gibi sade olur.
+        const odaAdi = generateRoomName(odaBasligi);
 
         const session = await LiveSession.create({
             kurs_id: finalKursId,
@@ -339,13 +391,13 @@ exports.updateSession = async (req, res, next) => {
                     err.statusCode = 400;
                     throw err;
                 }
-                await assertInstructorOwnsCourse(yeniKursId, req.user.id);
+                await assertInstructorOwnsCourse(yeniKursId, req.user.id, { requirePublished: true });
                 session.yayin_tipi = 'kursa_ozel';
                 session.kurs_id = yeniKursId;
             }
         } else if (req.body.kurs_id !== undefined && session.yayin_tipi === 'kursa_ozel') {
             // yayin_tipi değişmiyor ama kurs_id güncellenmek isteniyor
-            await assertInstructorOwnsCourse(req.body.kurs_id, req.user.id);
+            await assertInstructorOwnsCourse(req.body.kurs_id, req.user.id, { requirePublished: true });
             session.kurs_id = req.body.kurs_id;
         }
 

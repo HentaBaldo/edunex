@@ -67,8 +67,10 @@
 
             const yolParcalari = window.location.pathname.split('/').filter(Boolean);
             const odaAdi = decodeURIComponent(yolParcalari[yolParcalari.length - 1] || '');
-            let currentSessionId = localStorage.getItem('current_live_session_id'); 
+            let currentSessionId = localStorage.getItem('current_live_session_id');
             let heartbeatInterval = null;
+            let jitsiApi = null;           // tekil API instance — cift mount koruma
+            let baslatildiMi = false;      // baslat() yeniden tetiklenirse no-op
 
             const container = document.getElementById('jitsi-container');
 
@@ -107,49 +109,120 @@
             };
 
             const baslat = async function () {
+                // Mukerrer mount koruma: DOMContentLoaded + script tag race'inde 2x baslat tetiklenirse
+                // ikinci JitsiMeetExternalAPI instance ayni iframe'i ezerek pop-up benzeri davranisa yol acabilir.
+                if (baslatildiMi) {
+                    console.warn('[live-room] baslat() mukerrer cagri yok sayildi.');
+                    return;
+                }
+                baslatildiMi = true;
+
                 if (typeof JitsiMeetExternalAPI === 'undefined') {
                     container.innerHTML = '<div class="yukleniyor"><p style="color:#fca5a5;">Jitsi API yüklenemedi. İnternet bağlantınızı kontrol edin.</p></div>';
                     return;
                 }
 
                 container.innerHTML = '';
-                
+
                 const jitsiDiv = document.createElement('div');
                 jitsiDiv.style.width = '100%';
                 jitsiDiv.style.height = '100%';
                 container.appendChild(jitsiDiv);
 
-                const api = new JitsiMeetExternalAPI('meet.jit.si', {
+                jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
                     roomName: odaAdi,
                     parentNode: jitsiDiv,
                     width: '100%',
                     height: '100%',
-                    userInfo: { displayName, email },
+                    // userInfo.moderator: meet.jit.si'da JWT yoksa zorlayici degil ama destekleyen
+                    // deployment'lara egitmen rolu hint'i gonderir. Boylece "I am the host" pop-up'i
+                    // tetiklenme olasiligi azalir.
+                    userInfo: { displayName, email, moderator: isInstructor },
                     configOverwrite: {
+                        // --- Prejoin/Lobi tamamen kapali: ekstra auth ekranlari tetiklenmesin ---
                         prejoinPageEnabled: false,
+                        prejoinConfig: { enabled: false },
                         disableDeepLinking: true,
+                        requireDisplayName: false,
+                        enableLobby: false,
+                        enableInsecureRoomNameWarning: false,
+
+                        // --- "I am the host" pop-up'ini tetikleyen flag'leri KAPATIYORUZ ---
+                        // JWT/JaaS olmadan bunlari true yapmak meet.jit.si'da auth popup aciyor:
+                        //   enableModeratorIndicator: true   <-- moderator claim flow tetikler
+                        //   enableAVModeration: true         <-- moderator yetkisi sorar
+                        //   enableLobbyChat: true            <-- lobi/host onay akisi acar
+                        // Bu nedenle false birakildilar. A/V kontrolu icin toolbar'daki 'mute-everyone'
+                        // butonu zaten yeterli; her seferinde host-auth gerektirmez.
+                        disableModeratorIndicator: true,
+
+                        // 3. parti istekleri (gravatar/analytics/auth iframe) engelle.
+                        // Tarayicinin ek pencere acma riskini azaltir.
+                        disableThirdPartyRequests: true,
+
+                        // Kullanicinin kendi cihazi: ister egitmen ister ogrenci, sessiz/kamerasiz baslar.
+                        startWithAudioMuted: true,
+                        startWithVideoMuted: true,
+                        // Odadaki tum katilimcilar (1. kisiden itibaren) mikrofon/kamera kapali baslar.
+                        startAudioMuted: 0,
+                        startVideoMuted: 0,
+
+                        localRecording: {
+                            enabled: true,
+                            format: 'webm'
+                        },
+
+                        // Sade toolbar — kaldirilan butonlar host-auth/pop-up tetikleyenler:
+                        //   'security'       -> oda parolasi/lobi yonetimi, host login isteyebilir
+                        //   'invite'         -> link kopyalama disindaki "send invite" akisi, popup acabilir
+                        //   'livestreaming'  -> YouTube/Twitch baglama icin auth popup
+                        //   'mute-everyone'  -> bazi deployment'larda moderator login ister
+                        //   'feedback','stats','shortcuts','etherpad','sharedvideo' -> gereksiz
+                        toolbarButtons: [
+                            'microphone', 'camera', 'desktop', 'fullscreen',
+                            'fodeviceselection', 'hangup', 'profile', 'chat',
+                            'recording', 'settings', 'raisehand', 'videoquality',
+                            'filmstrip', 'tileview', 'select-background'
+                        ]
                     },
                     interfaceConfigOverwrite: {
                         SHOW_JITSI_WATERMARK: false,
+                        SHOW_WATERMARK_FOR_GUESTS: false,
                         DEFAULT_BACKGROUND: '#000000',
+                        // Auth-prompt'a goturen UI elemanlari gizlenir.
+                        AUTHENTICATION_ENABLE: false,
+                        SHOW_BRAND_WATERMARK: false,
+                        HIDE_INVITE_MORE_HEADER: true,
+                        DISABLE_PRESENCE_STATUS: true,
                     },
                 });
 
-                api.addEventListener('videoConferenceJoined', () => {
-                    console.log("Derse katılıldı, Yoklama (Heartbeat) başlatılıyor...");
-                    if(currentSessionId) {
+                jitsiApi.addEventListener('videoConferenceJoined', () => {
+                    console.log("[live-room] Derse katilindi. Yoklama (heartbeat) baslatiliyor.");
+                    if (currentSessionId) {
                         sendHeartbeat();
                         heartbeatInterval = setInterval(sendHeartbeat, 60000);
                     }
                 });
 
-                api.addEventListener('readyToClose', () => {
-                    if(heartbeatInterval) clearInterval(heartbeatInterval);
-                    if(isInstructor) {
+                jitsiApi.addEventListener('readyToClose', () => {
+                    if (heartbeatInterval) clearInterval(heartbeatInterval);
+                    // Cift sekme korumasi: yonlendirme yapmadan once mevcut Jitsi instance'ini dispose et.
+                    try { jitsiApi && jitsiApi.dispose(); } catch (_) {}
+                    if (isInstructor) {
                         window.location.href = '/instructor/live-sessions.html';
                     } else {
                         window.location.href = '/main/index.html';
                     }
+                });
+
+                // Jitsi auth/popup akisini gozlemle — yalniz logla, davranisi degistirmiyoruz.
+                // (Bu listener'lar window.open CAGIRMAZ; sadece debug icin.)
+                jitsiApi.addEventListener('errorOccurred', (e) => {
+                    console.warn('[live-room] Jitsi errorOccurred:', e);
+                });
+                jitsiApi.addEventListener('passwordRequired', () => {
+                    console.warn('[live-room] passwordRequired event — odaya parola zorunlu, sessizce yok sayildi.');
                 });
             };
 
