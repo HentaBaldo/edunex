@@ -16,9 +16,19 @@ const { apiLimiter } = require('./middleware/rateLimitMiddleware');
 
 const app = express();
 
+// --- Ortam Bayraklari ---
+// isProd  -> CORS, CSP formAction, trust-proxy, morgan format dahil tum
+//            ortam-bagimli mantik tek bir noktadan beslenir.
+// BASE_URL -> CSP formAction'da self-origin'i protokol/host ile birlikte
+//             explicit beyaza ekler. Render Production icin onrender.com,
+//             lokalde localhost:3000 fallback'i. Operator .env ile override edebilir.
+const isProd = process.env.NODE_ENV === 'production';
+const BASE_URL = process.env.BASE_URL
+    || (isProd ? 'https://edunex-m252.onrender.com' : 'http://localhost:3000');
+
 // Render gibi reverse-proxy arkasinda calisirken X-Forwarded-* header'larina guvenmek
 // (HTTPS algilama, gercek client IP, rate-limit dogrulugu icin sart).
-if (process.env.NODE_ENV === 'production') {
+if (isProd) {
     app.set('trust proxy', 1);
 }
 
@@ -59,7 +69,9 @@ app.use(helmet({
                 "https://*.b-cdn.net",
                 "https://cdnjs.cloudflare.com",
                 "https://cdn.jsdelivr.net",
-                "https://unpkg.com"
+                "https://unpkg.com",
+                "https://sandbox-static.iyzipay.com",
+                "https://static.iyzipay.com"
             ],
             styleSrc: [
                 "'self'",
@@ -73,7 +85,9 @@ app.use(helmet({
                 "'self'",
                 "data:",
                 "https://fonts.gstatic.com",
-                "https://cdnjs.cloudflare.com"
+                "https://cdnjs.cloudflare.com",
+                "https://*.iyzipay.com",
+                "https://*.iyzico.com"
             ],
             frameSrc: [
                 "'self'",
@@ -99,7 +113,9 @@ app.use(helmet({
                 "data:",
                 "blob:",
                 "https://*.bunnycdn.com",
-                "https://*.b-cdn.net"
+                "https://*.b-cdn.net",
+                "https://*.iyzipay.com",
+                "https://*.iyzico.com"
             ],
             connectSrc: [
                 "'self'",
@@ -108,10 +124,17 @@ app.use(helmet({
                 "https://*.bunnycdn.com",
                 "https://*.b-cdn.net",
                 "https://cdn.jsdelivr.net",
-                "https://cdn.plyr.io"
+                "https://cdn.plyr.io",
+                "https://*.iyzipay.com",
+                "https://*.iyzico.com",
+                "https://*.sentry.io"
             ],
             workerSrc: ["'self'", "blob:"],
             scriptSrcAttr: ["'unsafe-inline'"],
+            // formAction: 'self' ayni origin'i kapsasa da BASE_URL'i explicit
+            // ekliyoruz; protokol/host degisirse (http->https, Render <-> lokal)
+            // sessiz CSP rejection'lari yasamayalim diye.
+            formAction: ["'self'", "https://*.iyzipay.com", "https://*.iyzico.com", BASE_URL],
             objectSrc: ["'none'"],
             baseUri: ["'self'"]
         }
@@ -120,52 +143,93 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
-// CORS: izin verilen origin listesi env'den okunur.
-// GUVENLIK: CORS_ORIGINS bos veya parse edilemez ise API'yi tum dunyaya
-// acmak yerine guvenli bir fallback'e dusuyoruz (sadece localhost:3000).
-// Production'da CORS_ORIGINS env'inin DOGRU set edildigi varsayilir; aksi
-// halde bu fallback uretim trafigini bloklar — istenen davranis.
-const DEFAULT_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+// --- CORS: Ortama Gore Dinamik Politika ---
+// Production: SADECE process.env.CORS_ORIGINS (virgulle ayrilmis) + opsiyonel
+//   FRONTEND_URL. Bos liste = tum disari trafigi reddet (sadece same-origin gecer).
+// Development: localhost / 127.0.0.1 herhangi bir port serbest (Vite, CRA, Live
+//   Server, vs.). Ek olarak varsa explicit liste (CORS_ORIGINS) de kabul edilir.
+// Her iki ortamda ortak kural: iyzico (.iyzipay.com / .iyzico.com) hostname
+//   suffix'i serbest (3DS sonrasi client-side callback POST'lari).
+// OZEL: /api/payments/callback rotasi tamamen ACIK (origin: true). Iyzico hosted
+//   checkout iframe'i tarayici uzerinden bu endpoint'e POST atarken Origin
+//   header'i tahmin edilemez (bazen 'null', bazen sandbox-static.iyzipay.com,
+//   bazen Render onrender.com kendisi). credentials:false cunku callback
+//   cookie/session gerektirmez — odeme dogrulamasi body token + iyzico API ile.
+const explicitAllowedOrigins = (() => {
+    try {
+        const list = (process.env.CORS_ORIGINS || '')
+            .split(',').map(o => o.trim()).filter(Boolean);
+        if (process.env.FRONTEND_URL && !list.includes(process.env.FRONTEND_URL)) {
+            list.push(process.env.FRONTEND_URL);
+        }
+        return list;
+    } catch (_e) {
+        return [];
+    }
+})();
 
-let allowedOrigins;
-try {
-    const parsed = (process.env.CORS_ORIGINS || '')
-        .split(',').map(o => o.trim()).filter(Boolean);
-    allowedOrigins = parsed.length > 0 ? parsed : [...DEFAULT_ALLOWED_ORIGINS];
-} catch (_e) {
-    allowedOrigins = [...DEFAULT_ALLOWED_ORIGINS];
+// Dev'de "tum localhost portlari" patterni — Vite (5173), CRA (3000), Next (3001),
+// Live Server (5500) gibi geliştiriciye degisik portlar gerekebilir.
+const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+
+// iyzico hostname kontrolu — String.includes('iyzipay.com') KULLANMIYORUZ:
+// "iyzipay.com.attacker.com" gibi sahte origin'leri gecirirdi. URL parse +
+// hostname suffix match guvenli ve net.
+function isIyzicoOrigin(origin) {
+    try {
+        const host = new URL(origin).hostname.toLowerCase();
+        return host === 'iyzipay.com' || host.endsWith('.iyzipay.com') ||
+               host === 'iyzico.com'  || host.endsWith('.iyzico.com');
+    } catch (_e) {
+        return false;
+    }
 }
 
-// FRONTEND_URL (frontend'in calistigi origin) varsa allowedOrigins'e eklenir.
-// Sebep: CORS_ORIGINS production'da sadece prod domain'ini icerebilir; bu
-// durumda lokalde FRONTEND_URL=http://localhost:3000 ile dev origin'i de
-// guvenli sekilde kabul edilir. Wildcard fallback YOK — origin daima
-// explicit olarak env'de tanimli olmali.
-if (process.env.FRONTEND_URL && !allowedOrigins.includes(process.env.FRONTEND_URL)) {
-    allowedOrigins.push(process.env.FRONTEND_URL);
-}
+// cors() dynamic options delegate — req'e erisim olunca req.path bazli per-route
+// politika uygulayabiliriz. (Klasik origin: function imzasi req'i goremezdi.)
+const corsOptionsDelegate = (req, callback) => {
+    // === ÖZEL: iyzico callback rotasi tam açik ===
+    if (req.path === '/api/payments/callback') {
+        return callback(null, { origin: true, credentials: false });
+    }
 
-app.use(cors({
-    origin: (origin, callback) => {
-        // Same-origin / curl / Postman istekleri (origin = undefined) serbest
-        if (!origin) return callback(null, true);
+    const origin = req.header('Origin');
 
-        // NOT: iyzico backend-to-backend (server-side) cagrildigi icin CORS
-        // whitelist'inde iyzipay.com / iyzico.com domainlerine YER VERILMEZ.
-        // 3D Secure callback'leri ayri bir route uzerinden (POST formdata)
-        // donduguden CORS bypass'a ihtiyac duymaz.
+    // Same-origin / curl / Postman istekleri (Origin header yok) serbest
+    if (!origin) return callback(null, { origin: true, credentials: true });
 
-        if (allowedOrigins.includes(origin)) return callback(null, true);
-        // statusCode set ediyoruz ki global error handler bunu 500 (Internal Server Error)
-        // olarak degil, 403 (Forbidden) olarak dondursun ve gercek sebep maskelenmesin.
-        const corsErr = new Error('CORS Error');
-        corsErr.statusCode = 403;
-        return callback(corsErr);
-    },
-    credentials: true
-}));
+    // iyzico domainleri her ortamda serbest (Hosted Checkout client-side
+    // kaynakli istekler bu sayede gecer).
+    if (isIyzicoOrigin(origin)) {
+        return callback(null, { origin: true, credentials: true });
+    }
 
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+    if (isProd) {
+        // Production: STRICT — sadece .env'de tanimli whitelist
+        if (explicitAllowedOrigins.includes(origin)) {
+            return callback(null, { origin: true, credentials: true });
+        }
+    } else {
+        // Development: TUM localhost/127.0.0.1 portlari serbest
+        if (LOCALHOST_ORIGIN_REGEX.test(origin)) {
+            return callback(null, { origin: true, credentials: true });
+        }
+        // Dev'de de explicit liste devrede (ornek: tunel URL'i FRONTEND_URL'de)
+        if (explicitAllowedOrigins.includes(origin)) {
+            return callback(null, { origin: true, credentials: true });
+        }
+    }
+
+    // statusCode set ediyoruz ki global error handler 500 (Internal Server Error)
+    // olarak degil, 403 (Forbidden) olarak dondursun ve gercek sebep maskelenmesin.
+    const corsErr = new Error('CORS Error');
+    corsErr.statusCode = 403;
+    return callback(corsErr);
+};
+
+app.use(cors(corsOptionsDelegate));
+
+app.use(morgan(isProd ? 'combined' : 'dev'));
 
 // JSON ve URL-encoded parser
 // GUVENLIK: Body parser limiti dusuk tutulur (RAM sisirme DoS koruması).
