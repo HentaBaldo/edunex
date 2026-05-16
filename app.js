@@ -39,11 +39,83 @@ uploadDirs.forEach(dir => {
 });
 
 // --- 2. Security & Core Middleware ---
-// CSP: Bunny iframe, YouTube, Vimeo, Jitsi ve sayfada satir-ici script kullanildigindan
-// gevsetilmis bir politika ile aciliyoruz; tamamen kapatmak yerine guvenlik katmaninin
-// onemli kismini koruyoruz.
+// CSP: Tamamen kapatmak yerine, projedeki bilinen entegrasyonlara (Bunny CDN,
+// Bunny Stream iframe, Jitsi, YouTube, Vimeo, iyzico hosted checkout iframe,
+// font/cdn kaynaklari) izin veren bir whitelist uyguluyoruz. 'unsafe-inline'
+// sayfa-ici inline script ve style kullanildigi icin acik; ileride nonce/hash
+// bazli sikilastirma yapilabilir.
 app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: [
+                "'self'",
+                "'unsafe-inline'",
+                "'unsafe-eval'",
+                "https://cdn.plyr.io",
+                "blob:",
+                "https://meet.jit.si",
+                "https://*.bunnycdn.com",
+                "https://*.b-cdn.net",
+                "https://cdnjs.cloudflare.com",
+                "https://cdn.jsdelivr.net",
+                "https://unpkg.com"
+            ],
+            styleSrc: [
+                "'self'",
+                "'unsafe-inline'",
+                "https://cdn.plyr.io",
+                "https://fonts.googleapis.com",
+                "https://cdnjs.cloudflare.com",
+                "https://cdn.jsdelivr.net"
+            ],
+            fontSrc: [
+                "'self'",
+                "data:",
+                "https://fonts.gstatic.com",
+                "https://cdnjs.cloudflare.com"
+            ],
+            frameSrc: [
+                "'self'",
+                "https://meet.jit.si",
+                "https://iframe.mediadelivery.net",
+                "https://*.bunnycdn.com",
+                "https://*.b-cdn.net",
+                "https://www.youtube.com",
+                "https://youtube.com",
+                "https://player.vimeo.com",
+                "https://sandbox-static.iyzipay.com",
+                "https://static.iyzipay.com"
+            ],
+            mediaSrc: [
+                "'self'",
+                "https://*.bunnycdn.com",
+                "https://*.b-cdn.net",
+                "https://cdn.plyr.io",
+                "blob:"
+            ],
+            imgSrc: [
+                "'self'",
+                "data:",
+                "blob:",
+                "https://*.bunnycdn.com",
+                "https://*.b-cdn.net"
+            ],
+            connectSrc: [
+                "'self'",
+                "https://meet.jit.si",
+                "wss://meet.jit.si",
+                "https://*.bunnycdn.com",
+                "https://*.b-cdn.net",
+                "https://cdn.jsdelivr.net",
+                "https://cdn.plyr.io"
+            ],
+            workerSrc: ["'self'", "blob:"],
+            scriptSrcAttr: ["'unsafe-inline'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"]
+        }
+    },
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
@@ -78,11 +150,10 @@ app.use(cors({
         // Same-origin / curl / Postman istekleri (origin = undefined) serbest
         if (!origin) return callback(null, true);
 
-        // --- IYZICO BYPASS ---
-        // İyzico'nun sandbox ve canlı domainlerinden gelen isteklere her zaman izin ver
-        if (origin.includes('iyzipay.com') || origin.includes('iyzico.com')) {
-            return callback(null, true);
-        }
+        // NOT: iyzico backend-to-backend (server-side) cagrildigi icin CORS
+        // whitelist'inde iyzipay.com / iyzico.com domainlerine YER VERILMEZ.
+        // 3D Secure callback'leri ayri bir route uzerinden (POST formdata)
+        // donduguden CORS bypass'a ihtiyac duymaz.
 
         if (allowedOrigins.includes(origin)) return callback(null, true);
         // statusCode set ediyoruz ki global error handler bunu 500 (Internal Server Error)
@@ -97,8 +168,11 @@ app.use(cors({
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // JSON ve URL-encoded parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// GUVENLIK: Body parser limiti dusuk tutulur (RAM sisirme DoS koruması).
+// Buyuk dosyalar multer ile multipart/form-data uzerinden gider, bu yuzden
+// JSON/urlencoded icin 500kb fazlasiyla yeterli.
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ limit: '500kb', extended: true }));
 
 // --- 3. Static File Serving ---
 app.use(express.static(path.join(__dirname, 'public')));
@@ -183,23 +257,17 @@ app.get('/canli-ders/:oda_adi', (req, res) => {
  * Veritabani semasini modellerle esitler ve baslangic verilerini yukler.
  *
  * KRITIK GUVENLIK KURALI:
- *   - PRODUCTION'da `alter: true` ASLA calismaz. Sequelize'in alter mekanizmasi
+ *   - `alter: true` HIC BIR ortamda calismaz. Sequelize'in alter mekanizmasi
  *     MySQL'de tekrarlanan UNIQUE/INDEX olusturup 64-indeks sinirini patlattigi
- *     icin (eposta_2..eposta_62 vb. kopyalar) production'da yasaklandi.
- *     Production'da sema degisikligi sadece elle yazilmis migrations/*.sql ile
- *     yapilir. (Bkz: cleanup-indexes ile yapilan acil temizlik 2026-05-14.)
- *   - Geliştirme/test ortamlarinda `alter: true` ile model-DB senkronizasyonu acik.
+ *     icin (eposta_2..eposta_62 vb. kopyalar) tamamen yasaklandi.
+ *     Sema degisikligi sadece elle yazilmis migrations/*.sql veya asagidaki
+ *     idempotent ALTER bloklari ile yapilir.
+ *     (Bkz: cleanup-indexes ile yapilan acil temizlik 2026-05-14.)
  *   - `force: true` HIC BIR ortamda otomatik calismaz (veri silici).
  */
-const isProd = process.env.NODE_ENV === 'production';
-const syncOptions = isProd ? {} : { alter: true };
-if (isProd) {
-    console.log('[DATABASE] PRODUCTION modu: sequelize.sync alter/force devre disi. Sema degisikleri icin migrations/ kullanin.');
-} else {
-    console.log(`[DATABASE] ${process.env.NODE_ENV || 'development'} modu: sequelize.sync({ alter: true }) aktif.`);
-}
+console.log(`[DATABASE] ${process.env.NODE_ENV || 'development'} modu: sequelize.sync() aktif (alter/force devre disi). Sema degisikleri icin migrations/ veya idempotent ALTER bloklari kullanin.`);
 
-sequelize.sync(syncOptions)
+sequelize.sync()
     .then(async () => {
         console.log('[DATABASE] Veritabani semasi modellerle senkronize edildi.');
 

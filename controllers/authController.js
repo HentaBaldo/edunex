@@ -12,6 +12,16 @@ const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 // ama sifre RESET zaten guvenlik akisi oldugu icin burada hard-enforce ediyoruz.
 const MIN_PASSWORD_LENGTH = 8;
 
+// Sifre guclulugu: en az 8 karakter + en az bir harf (A-Z/a-z) + en az bir rakam.
+// Lookahead'ler sayesinde sira/konum onemli degil; ornekler:
+//   "abc12345"  -> gecerli
+//   "Sifre2026" -> gecerli
+//   "12345678"  -> gecersiz (harf yok)
+//   "abcdefgh"  -> gecersiz (rakam yok)
+//   "abc1"      -> gecersiz (8 karakter sarti)
+const STRONG_PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const WEAK_PASSWORD_MESSAGE = 'Şifreniz en az 8 karakter uzunluğunda olmalı, en az bir harf ve bir rakam içermelidir.';
+
 /**
  * Ham reset token'i SHA-256 ile hash'ler. Mail'e HAM, DB'ye HASH gider.
  * Sebep: DB sizintisi durumunda saldirgan tokenlari dogrudan kullanamasin.
@@ -42,6 +52,18 @@ exports.register = async (req, res, next) => {
         // === ADIM 1: Validasyon ===
         if (!ad || !soyad || !eposta || !sifre) {
             const error = new Error('Tüm zorunlu alanlar doldurulmalıdır. (ad, soyad, eposta, sifre)');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // === ADIM 1b: Sifre Guclulugu (DB sorgusu OLMADAN once) ===
+        // typeof kontrolu: JSON body'den number/array/object gelirse regex.test()
+        // bunlari coerce ederek beklenmedik sonuc verebilir; en bastan reddediyoruz.
+        // throw + catch pattern dosyadaki diger validasyonlarla tutarli — catch
+        // blogu transaction'i otomatik rollback eder. Global error handler frontend'e
+        // {success:false, message} JSON'unu 400 ile doner.
+        if (typeof sifre !== 'string' || !STRONG_PASSWORD_REGEX.test(sifre)) {
+            const error = new Error(WEAK_PASSWORD_MESSAGE);
             error.statusCode = 400;
             throw error;
         }
