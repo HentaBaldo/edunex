@@ -157,7 +157,7 @@
             grid.innerHTML = `
                 <div class="empty-state" style="grid-column:1/-1;">
                     <i class="fas fa-box-open"></i>
-                    <p>Bu eğitmene ait yayında kurs bulunmuyor.</p>
+                    <p>Bu eğitmenin henüz yayında olan bir kursu bulunmuyor.</p>
                 </div>`;
             return;
         }

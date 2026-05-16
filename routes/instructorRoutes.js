@@ -22,6 +22,11 @@ router.get('/test', (req, res) => {
     });
 });
 
+// PUBLIC: Tum egitmenleri listele (kursu olmasa bile gorunmeli).
+// /:instructorId/profile rotasindan ONCE tanimlanir — aksi halde 'list'
+// dinamik parametre (instructorId='list') olarak yorumlanip 404 doner.
+router.get('/list', instructorController.getPublicInstructorList);
+
 router.get('/:instructorId/profile', instructorController.getPublicProfile);
 
 router.post('/upload', verifyToken, isInstructor, upload.single('video'), instructorController.createLessonWithVideo);

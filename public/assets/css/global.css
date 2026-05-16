@@ -84,7 +84,37 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
     font-size: 1rem;
     line-height: 1;
-    padding: 8px 10px;
+    padding: 6px 10px;
+}
+/* Navbar kullanici avatari — img veya initials (ayni boyut/yuvarlaklik). */
+.navbar .nav-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+    border: 1px solid #e2e8f0;
+}
+.navbar .nav-user-avatar--initials {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff;
+}
+/* Tam ad — ekran daralinca sadece avatar gorunsun. */
+.navbar .nav-user-name {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+@media (max-width: 640px) {
+    .navbar .nav-user-name { display: none; }
 }
 .navbar .nav-sepet-link,
 .navbar .nav-bildirim-wrap > button {

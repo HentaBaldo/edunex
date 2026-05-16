@@ -245,6 +245,8 @@ exports.login = async (req, res, next) => {
         );
 
         // === Başarılı Yanıt ===
+        // Not: profil_fotografi alanini da donmek navbar'in giris sonrasi
+        // anlik olarak avatari gostermesini saglar (ek istek gerekmez).
         return res.status(200).json({
             success: true,
             message: 'Giriş başarılı.',
@@ -255,7 +257,8 @@ exports.login = async (req, res, next) => {
                     ad: user.ad,
                     soyad: user.soyad,
                     eposta: user.eposta,
-                    rol: user.rol
+                    rol: user.rol,
+                    profil_fotografi: user.profil_fotografi || null
                 }
             }
         });
