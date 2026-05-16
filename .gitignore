@@ -10,6 +10,7 @@ node_modules/
 uploads/temp/
 uploads/lessons/
 uploads/avatars/
+uploads/recordings/
 
 # === IDE & EDITOR ===
 .vscode/

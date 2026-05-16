@@ -9,7 +9,9 @@ const authController = require('../controllers/authController');
 const { loginLimiter, passwordResetLimiter } = require('../middleware/rateLimitMiddleware');
 
 // --- Authentication Endpoints ---
-router.post('/register', authController.register);
+// Botlarin sinirsiz hesap acip SMTP kotasini bitirmesini engellemek icin
+// register endpoint'i de loginLimiter (15dk / 5 deneme) ile korunuyor.
+router.post('/register', loginLimiter, authController.register);
 router.post('/login', loginLimiter, authController.login);
 router.get('/verify', authController.verifyEmail);
 router.post('/resend-verification', loginLimiter, authController.resendVerification);
