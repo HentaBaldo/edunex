@@ -85,7 +85,7 @@
                             <div class="col-md-6"><label class="form-label">Ad</label><input type="text" id="ad" class="form-control" required></div>
                             <div class="col-md-6"><label class="form-label">Soyad</label><input type="text" id="soyad" class="form-control" required></div>
                             <div class="col-md-12"><label class="form-label">E-posta</label><input type="email" id="eposta" class="form-control bg-light" readonly></div>
-                            <div class="col-md-6"><label class="form-label">Åehir</label><input type="text" id="sehir" class="form-control"></div>
+                            <div class="col-md-6"><label class="form-label">Şehir</label><input type="text" id="sehir" class="form-control"></div>
                             <div class="col-md-6"><label class="form-label">Web</label><input type="url" id="website" class="form-control"></div>
                             <div class="col-md-6">
                                 <label class="form-label">Telefon Numarası</label>
@@ -187,7 +187,7 @@
                                  default type="submit" form'u submit eder; bu da gizlilik switch'leriyle
                                  birlikte yanlislikla profil-update'i tetikler. -->
                             <button type="button" class="btn btn-outline-primary btn-sm" id="openPasswordChangeBtn">
-                                <i class="fas fa-key me-2"></i>Åifremi Değiştir
+                                <i class="fas fa-key me-2"></i>Şifremi Değiştir
                             </button>
                             <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteMyAccount()">
                                 <i class="fas fa-trash me-2"></i>Hesabımı Sil
@@ -232,8 +232,8 @@
     </div>
 </div>
 
-<!-- Åifre Değiştirme Modal'ı -->
-<!-- KRITIK: profileForm'un DISINDA â€” bu modal kendi form etiketine sahip ve
+<!-- Şifre Değiştirme Modal'ı -->
+<!-- KRITIK: profileForm'un DISINDA — bu modal kendi form etiketine sahip ve
      profileForm.submit listener'ina karismaz. Submit handler index.js'tedir. -->
 <div class="modal fade" id="passwordChangeModal" tabindex="-1" aria-labelledby="passwordChangeModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -246,7 +246,7 @@
                             <i class="fas fa-key"></i>
                         </div>
                         <div>
-                            <h5 class="modal-title mb-0 fw-bold" id="passwordChangeModalLabel">Åifremi Değiştir</h5>
+                            <h5 class="modal-title mb-0 fw-bold" id="passwordChangeModalLabel">Şifremi Değiştir</h5>
                             <small class="text-muted">Güvenliğiniz için mevcut şifrenizi doğrulayın.</small>
                         </div>
                     </div>
@@ -256,10 +256,10 @@
                 <div class="modal-body px-4 pt-3">
                     <!-- Mevcut Sifre -->
                     <div class="mb-3">
-                        <label for="currentPassword" class="form-label fw-semibold">Mevcut Åifre</label>
+                        <label for="currentPassword" class="form-label fw-semibold">Mevcut Şifre</label>
                         <div class="input-group">
-                            <input type="password" id="currentPassword" class="form-control" required autocomplete="current-password" placeholder="Åu anki şifreniz">
-                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="currentPassword" tabindex="-1" aria-label="Åifreyi göster/gizle">
+                            <input type="password" id="currentPassword" class="form-control" required autocomplete="current-password" placeholder="Şu anki şifreniz">
+                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="currentPassword" tabindex="-1" aria-label="Şifreyi göster/gizle">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -267,26 +267,26 @@
 
                     <!-- Yeni Sifre -->
                     <div class="mb-3">
-                        <label for="newPassword" class="form-label fw-semibold">Yeni Åifre</label>
+                        <label for="newPassword" class="form-label fw-semibold">Yeni Şifre</label>
                         <div class="input-group">
                             <input type="password" id="newPassword" class="form-control" required minlength="8" autocomplete="new-password" placeholder="En az 8 karakter">
-                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="newPassword" tabindex="-1" aria-label="Åifreyi göster/gizle">
+                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="newPassword" tabindex="-1" aria-label="Şifreyi göster/gizle">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
                         <!-- Canli sifre guc gostergesi (CSS bar). Backend min: 8 karakter. -->
                         <div class="password-strength mt-2" id="passwordStrengthWrap" style="display:none;">
                             <div class="password-strength-bar"><div id="passwordStrengthFill"></div></div>
-                            <small class="text-muted" id="passwordStrengthText">Åifre gücü</small>
+                            <small class="text-muted" id="passwordStrengthText">Şifre gücü</small>
                         </div>
                     </div>
 
                     <!-- Yeni Sifre Tekrar -->
                     <div class="mb-3">
-                        <label for="newPasswordConfirm" class="form-label fw-semibold">Yeni Åifre (Tekrar)</label>
+                        <label for="newPasswordConfirm" class="form-label fw-semibold">Yeni Şifre (Tekrar)</label>
                         <div class="input-group">
                             <input type="password" id="newPasswordConfirm" class="form-control" required minlength="8" autocomplete="new-password" placeholder="Yeni şifreyi tekrar yazın">
-                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="newPasswordConfirm" tabindex="-1" aria-label="Åifreyi göster/gizle">
+                            <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="newPasswordConfirm" tabindex="-1" aria-label="Şifreyi göster/gizle">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
@@ -299,14 +299,14 @@
                     <!-- Bilgi notu -->
                     <div class="bg-light border rounded-3 p-3 small text-muted mt-3">
                         <i class="fas fa-circle-info text-primary me-1"></i>
-                        Åifreniz başarıyla güncellendiğinde güvenliğiniz için tekrar giriş yapmanız istenecektir.
+                        Şifreniz başarıyla güncellendiğinde güvenliğiniz için tekrar giriş yapmanız istenecektir.
                     </div>
                 </div>
 
                 <div class="modal-footer border-0 px-4 pb-4">
                     <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-primary px-4 fw-bold" id="passwordChangeSubmitBtn">
-                        <i class="fas fa-check me-2"></i>Åifremi Güncelle
+                        <i class="fas fa-check me-2"></i>Şifremi Güncelle
                     </button>
                 </div>
             </form>
