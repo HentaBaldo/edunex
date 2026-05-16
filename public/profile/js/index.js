@@ -711,7 +711,87 @@ window.addEventListener('hashchange', activateTabFromHash);
 
 document.addEventListener('DOMContentLoaded', () => {
     initPasswordChangeModal();
+    initProfileForgotPasswordLink();
 });
+
+// ==========================================
+// 5b. PROFILDEN SIFRE SIFIRLAMA MAILI TETIKLEME
+// ==========================================
+//
+// Kullanici mevcut sifresini hatirlamiyorsa modal icindeki "Sifremi unuttum"
+// linkine tiklayarak login sayfasindaki ayni reset akisini tetikler.
+//
+// Akis:
+//   1) Link click -> localStorage'dan oturum kullanicisinin epostasini al.
+//   2) POST /api/auth/forgot-password { eposta }.
+//   3) Backend zaten e-posta enumeration korumali ve fire-and-forget — her
+//      durumda generic 200 doner. Bu yuzden response.ok kontrolu yeterli.
+//   4) Toast goster (sag ust); modal kapatilmaz (kullanici belki yine de
+//      mevcut sifreyle deneyebilir, ya da modal'i kendi kapatir).
+//
+// Defansif kabuller:
+//   - localStorage bos / parse hatasi: kullaniciya logout uyarisi.
+//   - Network/5xx: toast ile hata bildirimi.
+function initProfileForgotPasswordLink() {
+    const link = document.getElementById('profileForgotPasswordLink');
+    if (!link) return;
+
+    link.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await handleProfileForgotPasswordClick(link);
+    });
+}
+
+async function handleProfileForgotPasswordClick(link) {
+    let eposta = '';
+    try {
+        const cached = JSON.parse(localStorage.getItem('edunex_user') || '{}');
+        eposta = (cached && typeof cached.eposta === 'string') ? cached.eposta.trim() : '';
+    } catch (_e) {
+        eposta = '';
+    }
+
+    if (!eposta) {
+        profilToast('Oturum bilginiz okunamadi. Lutfen tekrar giris yapin.', 'error');
+        return;
+    }
+
+    // Cift tiklamayi engelle (rate-limiter gereksiz tetiklenmesin).
+    const originalHtml = link.innerHTML;
+    link.classList.add('disabled');
+    link.style.pointerEvents = 'none';
+    link.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Gönderiliyor...';
+
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eposta })
+        });
+
+        // Backend enumeration korumasi nedeniyle her zaman generic 200 doner;
+        // sadece 5xx/429 durumlarinda hata gosteririz. Mesaj icinde kullanici
+        // epostasini gostermiyoruz (omuz-uzeri okuma + gizlilik); generic ve
+        // yonlendirici bir bilgilendirme metni kullaniyoruz.
+        let result = null;
+        try { result = await response.json(); } catch (_e) { result = null; }
+
+        if (response.ok && (result?.success !== false)) {
+            profilToast('Şifre sıfırlama bağlantısı kayıtlı e-posta adresinize başarıyla gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+        } else if (response.status === 429) {
+            profilToast('Çok sık deneme yaptınız. Birkaç dakika sonra tekrar deneyin.', 'error');
+        } else {
+            profilToast('Sıfırlama maili gönderilemedi. Lütfen tekrar deneyin.', 'error');
+        }
+    } catch (error) {
+        console.error('[PROFILE FORGOT PW] Hata:', error);
+        profilToast('Sunucu ile bağlantı kurulamadı.', 'error');
+    } finally {
+        link.classList.remove('disabled');
+        link.style.pointerEvents = '';
+        link.innerHTML = originalHtml;
+    }
+}
 
 function initPasswordChangeModal() {
     const openBtn = document.getElementById('openPasswordChangeBtn');

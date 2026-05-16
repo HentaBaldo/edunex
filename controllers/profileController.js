@@ -17,6 +17,12 @@ const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../ser
 // bozulmasin diye baska yere dokunmuyoruz.
 const MIN_PASSWORD_LENGTH = 8;
 
+// Sifre guclulugu (authController.register ile birebir ayni kural):
+// en az 8 karakter + en az bir harf + en az bir rakam. Iki bagimsiz lookahead
+// kullanildigi icin sira/konum onemli degil.
+const STRONG_PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const WEAK_PASSWORD_MESSAGE = 'Şifreniz en az 8 karakter uzunluğunda olmalı, en az bir harf ve bir rakam içermelidir.';
+
 /**
  * Avatar dosyasını Bunny Storage'a yüklemeyi dener; başarısızsa
  * /uploads/avatars/ kalıcı yerel klasöre taşır.
@@ -410,8 +416,10 @@ exports.changePassword = async (req, res, next) => {
             throw error;
         }
 
-        if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
-            const error = new Error(`Yeni şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalıdır.`);
+        // Guclu sifre kurali: typeof string + min 8 + en az bir harf + en az bir rakam.
+        // register akisindaki kuralla birebir ayni — kullaniciya tutarli bir UX sunar.
+        if (typeof newPassword !== 'string' || !STRONG_PASSWORD_REGEX.test(newPassword)) {
+            const error = new Error(WEAK_PASSWORD_MESSAGE);
             error.statusCode = 400;
             throw error;
         }

@@ -296,6 +296,15 @@
                     <!-- Hata/Bilgi mesaji alani -->
                     <div id="passwordChangeMessage" class="alert" role="alert" style="display:none;"></div>
 
+                    <!-- Sifremi Unuttum kisayolu: mevcut sifreyi hatirlamayan kullaniciya
+                         hesap e-postasina dogrudan reset linki gonderme akisi. Tiklaninca
+                         /api/auth/forgot-password endpoint'ine hesap e-postasiyla POST atilir. -->
+                    <div class="text-end mt-2">
+                        <a href="#" id="profileForgotPasswordLink" class="small text-decoration-none">
+                            <i class="fas fa-circle-question me-1"></i>Şifremi unuttum
+                        </a>
+                    </div>
+
                     <!-- Bilgi notu -->
                     <div class="bg-light border rounded-3 p-3 small text-muted mt-3">
                         <i class="fas fa-circle-info text-primary me-1"></i>
