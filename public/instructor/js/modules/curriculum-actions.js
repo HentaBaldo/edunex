@@ -21,7 +21,14 @@ export const CurriculumActions = {
         const message = isDraft
             ? "Bu bölümü ve içindeki tüm dersleri KALICI olarak silmek istediğinize emin misiniz?"
             : "Bu bölüm onaylı/yayında olduğu için kalıcı silinmeyecek; öğrencilerden GİZLENECEK. Devam edilsin mi?";
-        if (!confirm(message)) return false;
+        const ok = await window.notify.confirm({
+            title: isDraft ? 'Bölümü sil' : 'Bölümü gizle',
+            text: message,
+            confirmText: isDraft ? 'Kalıcı sil' : 'Gizle',
+            cancelText: 'Vazgeç',
+            type: isDraft ? 'error' : 'warning'
+        });
+        if (!ok) return false;
         await ApiService.delete(`/curriculum/sections/${id}`);
         return true;
     },
@@ -31,7 +38,14 @@ export const CurriculumActions = {
         const message = isDraft
             ? "Bu dersi KALICI olarak silmek istediğinize emin misiniz?"
             : "Bu kurs onaylı/yayında olduğu için ders kalıcı silinmeyecek; öğrencilerden GİZLENECEK ve ilerleme hesabından çıkarılacak. Devam edilsin mi?";
-        if (!confirm(message)) return false;
+        const ok = await window.notify.confirm({
+            title: isDraft ? 'Dersi sil' : 'Dersi gizle',
+            text: message,
+            confirmText: isDraft ? 'Kalıcı sil' : 'Gizle',
+            cancelText: 'Vazgeç',
+            type: isDraft ? 'error' : 'warning'
+        });
+        if (!ok) return false;
         await ApiService.delete(`/curriculum/lessons/${id}`);
         return true;
     },
@@ -47,19 +61,26 @@ export const CurriculumActions = {
     },
 
     async sendForApproval(courseId) {
-        if (!confirm("Kursu yönetici onayına göndermek istediğinize emin misiniz?")) return false;
-        
+        const ok = await window.notify.confirm({
+            title: 'Onaya gönder',
+            text: 'Kursu yönetici onayına göndermek istediğinize emin misiniz?',
+            confirmText: 'Gönder',
+            cancelText: 'Vazgeç',
+            type: 'info'
+        });
+        if (!ok) return false;
+
         try {
-            const result = await ApiService.put(`/courses/${courseId}/status`, { 
-                durum: 'onay_bekliyor' 
+            const result = await ApiService.put(`/courses/${courseId}/status`, {
+                durum: 'onay_bekliyor'
             });
-            
+
             if (result.status === 'success') {
-                alert('✓ Kursu başarıyla onaya gönderdininiz. Lütfen yönetici onayını bekleyiniz.');
+                window.notify.success('Kurs başarıyla onaya gönderildi. Lütfen yönetici onayını bekleyiniz.');
                 return true;
             }
         } catch (error) {
-            alert('✗ Hata: ' + error.message);
+            window.notify.error('Hata: ' + error.message);
             return false;
         }
     }

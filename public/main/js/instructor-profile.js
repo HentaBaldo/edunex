@@ -58,7 +58,7 @@
                 butonGorunumunuAyarla(buton, yeniDurum);
             } catch (err) {
                 console.error('[TAKIP] Toggle hatasi:', err);
-                alert('İşlem başarısız: ' + (err.message || 'Bilinmeyen hata'));
+                notify.error('İşlem başarısız: ' + (err.message || 'Bilinmeyen hata'));
             } finally {
                 buton.disabled = false;
             }

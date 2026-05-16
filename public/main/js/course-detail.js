@@ -94,7 +94,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadReviews();
     } catch (error) {
         console.error("[HATA] Kurs detayları çekilemedi:", error.message);
-        alert("Kurs detayları yüklenemedi. Ana sayfaya yönlendiriliyorsunuz.");
+        await notify.alert({
+            title: 'Kurs yüklenemedi',
+            text: 'Kurs detayları yüklenemedi. Ana sayfaya yönlendiriliyorsunuz.',
+            type: 'error'
+        });
         window.location.href = '/';
     }
 });
@@ -524,7 +528,11 @@ function extractExtension(url) {
 async function handleAddToCart() {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
-        alert('Sepete eklemek için lütfen giriş yapınız.');
+        await notify.alert({
+            title: 'Giriş gerekli',
+            text: 'Sepete eklemek için lütfen giriş yapınız.',
+            type: 'info'
+        });
         window.location.href = '/auth/index.html';
         return;
     }
@@ -567,7 +575,11 @@ async function handleAddToCart() {
 async function handleEnrollClick() {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
-        alert('Kursa kaydolmak için lütfen giriş yapınız.');
+        await notify.alert({
+            title: 'Giriş gerekli',
+            text: 'Kursa kaydolmak için lütfen giriş yapınız.',
+            type: 'info'
+        });
         window.location.href = '/auth/index.html';
         return;
     }
@@ -884,7 +896,14 @@ function renderPagination(pagination) {
 }
 
 async function deleteOwnReview() {
-    if (!confirm('Yorumunuzu silmek istediğinizden emin misiniz?')) return;
+    const ok = await notify.confirm({
+        title: 'Yorumu sil',
+        text: 'Yorumunuzu silmek istediğinizden emin misiniz?',
+        confirmText: 'Sil',
+        cancelText: 'Vazgeç',
+        type: 'warning'
+    });
+    if (!ok) return;
     try {
         await ApiService.delete(`/reviews/${currentCourseId}`);
         showSuccessToast('Yorumunuz silindi.');
@@ -913,7 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('submitReviewBtn')?.addEventListener('click', async () => {
         const yorum = document.getElementById('reviewText').value;
-        if (selectedRating === 0) return alert('Lütfen bir puan seçin!');
+        if (selectedRating === 0) { notify.warning('Lütfen bir puan seçin!'); return; }
 
         const btn = document.getElementById('submitReviewBtn');
         const originalText = btn.textContent;
@@ -1118,7 +1137,7 @@ async function joinLiveSession(sessionId) {
         if (!odaAdi) throw new Error('Oda bilgisi alınamadı.');
         window.location.href = `/canli-ders/${odaAdi}`;
     } catch (err) {
-        alert(err?.message || 'Canlı derse katılım sağlanamadı. Lütfen tekrar deneyin.');
+        notify.error(err?.message || 'Canlı derse katılım sağlanamadı. Lütfen tekrar deneyin.');
     }
 }
 window.joinLiveSession = joinLiveSession;

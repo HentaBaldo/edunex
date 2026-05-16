@@ -647,12 +647,13 @@
                     }
                     const tutar = fmtTRY(target.toplam_net);
                     const adSoyad = `${target.egitmen?.ad || ''} ${target.egitmen?.soyad || ''}`.trim();
-                    if (!confirm(
-                        `T+14 iade penceresini bekleme atlanacak.\n\n` +
-                        `${adSoyad} icin ${tutar} hakedis, iyzico'da hemen onaylanacak.\n\n` +
-                        `Bu islem geri alinamaz. Devam edilsin mi?`
-                    )) return;
-                    approveNowForEgitmen(approveNowBtn, target);
+                    notify.confirm({
+                        title: 'Şimdi onayla',
+                        text: `T+14 iade penceresini bekleme atlanacak. ${adSoyad} için ${tutar} hakediş iyzico'da hemen onaylanacak. Bu işlem geri alınamaz. Devam edilsin mi?`,
+                        confirmText: 'Evet, onayla',
+                        cancelText: 'Vazgeç',
+                        type: 'warning'
+                    }).then((ok) => { if (ok) approveNowForEgitmen(approveNowBtn, target); });
                 }
                 return;
             }

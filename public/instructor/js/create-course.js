@@ -8,7 +8,7 @@ let _createQuill = null;
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
-        alert('Lütfen giriş yapınız.');
+        await notify.alert({ title: 'Giriş gerekli', text: 'Lütfen giriş yapınız.', type: 'info' });
         window.location.href = '/auth/index.html';
         return;
     }

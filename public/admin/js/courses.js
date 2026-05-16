@@ -61,16 +61,22 @@ async function fetchPendingCourses() {
 }
 
 async function approveCourse(courseId) {
-    if (!confirm('Bu kursu onaylamak istediğinize emin misiniz?')) return;
+    const ok = await notify.confirm({
+        title: 'Kursu onayla',
+        text: 'Bu kursu onaylamak istediğinize emin misiniz?',
+        confirmText: 'Onayla',
+        cancelText: 'Vazgeç',
+        type: 'info'
+    });
+    if (!ok) return;
 
     try {
         await ApiService.put(`/admin/approve-course/${courseId}`, {});
-        if (typeof showToast === 'function') showToast('Kurs onaylandı ve yayına alındı.', 'success');
+        showToast('Kurs onaylandı ve yayına alındı.', 'success');
         await fetchPendingCourses();
     } catch (error) {
         console.error('[APPROVE COURSE] Hata:', error);
-        if (typeof showToast === 'function') showToast(error.message || 'Kurs onaylanırken bir hata oluştu', 'error');
-        else alert('Hata: ' + (error.message || ''));
+        showToast(error.message || 'Kurs onaylanırken bir hata oluştu', 'error');
     }
 }
 
@@ -79,7 +85,10 @@ async function approveCourse(courseId) {
 // ───────────────────────────────────────────────────────────────────────────
 function showToast(message, variant = 'success') {
     const container = document.getElementById('toastContainer');
-    if (!container) { alert(message); return; }
+    if (!container) {
+        if (window.notify) window.notify.toast(message, variant);
+        return;
+    }
     const palette = {
         success: { bg: '#dcfce7', border: '#86efac', color: '#166534', icon: 'fa-circle-check' },
         error:   { bg: '#fee2e2', border: '#fca5a5', color: '#991b1b', icon: 'fa-circle-exclamation' },
@@ -340,7 +349,7 @@ async function viewCourseDetails(courseId) {
 
     } catch (error) {
         console.error('[ADMIN] Hata:', error);
-        alert('❌ Kurs detayları alınırken hata: ' + error.message);
+        notify.error('Kurs detayları alınırken hata: ' + error.message);
     }
 }
 
@@ -349,7 +358,7 @@ async function viewCourseDetails(courseId) {
  */
 window.viewVideo = (videoGuid, libraryId) => {
     if (!libraryId || libraryId === 'undefined') {
-        alert("Sistem Hatası: BunnyCDN Library ID bulunamadı (.env dosyasını kontrol edin).");
+        notify.error('Sistem Hatası: BunnyCDN Library ID bulunamadı (.env dosyasını kontrol edin).');
         return;
     }
 
@@ -408,7 +417,7 @@ window.viewExternalVideo = (videoSource) => {
             videoUrl = `https://www.youtube.com/embed/${ytId}`;
             directLink = `https://www.youtube.com/watch?v=${ytId}`; 
         } else {
-            alert("YouTube ID'si ayrıştırılamadı. Lütfen linki kontrol edin.");
+            notify.warning("YouTube ID'si ayrıştırılamadı. Lütfen linki kontrol edin.");
             return;
         }
     } else if (videoSource.includes('vimeo.com')) {

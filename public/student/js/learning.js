@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. Token kontrol et
     const token = localStorage.getItem('edunex_token');
     if (!token) {
-        alert('Oturum açmanız gerekiyor.');
+        await notify.alert({ title: 'Giriş gerekli', text: 'Oturum açmanız gerekiyor.', type: 'info' });
         window.location.href = '/auth/index.html';
         return;
     }
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!courseId) {
         console.error('[LEARNING] Kurs ID boş!');
-        alert('Geçersiz kurs ID\'si.');
+        await notify.alert({ title: 'Geçersiz istek', text: 'Geçersiz kurs ID\'si.', type: 'error' });
         window.location.href = '/student/dashboard.html';
         return;
     }
@@ -1015,7 +1015,7 @@ window.submitQuizWidget = async () => {
         });
     } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Quizi Gönder'; }
-        alert('Hata: ' + err.message);
+        notify.error('Hata: ' + err.message);
     }
 };
 

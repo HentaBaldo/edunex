@@ -154,12 +154,13 @@ function renderItemRow(item, isCompleted, iadeWindowAcik) {
  * @param {HTMLButtonElement} btn - Tıklanan buton (loading durumu için)
  */
 async function requestRefund(itemId, btn) {
-    const onay = window.confirm(
-        'Bu kursu iade etmek istediğinizden emin misiniz?\n\n' +
-        '• Satın alım tarihinden itibaren 14 gün geçmemiş olmalıdır.\n' +
-        '• Kurs tamamlanma oranınız %20\'yi aşmamalıdır.\n\n' +
-        'Şartlar uygunsa iade başlatılır; tutar 3-7 iş günü içinde kartınıza yansır.'
-    );
+    const onay = await notify.confirm({
+        title: 'Kursu iade et',
+        text: 'Bu kursu iade etmek istediğinizden emin misiniz? Satın alımın üzerinden 14 gün geçmemiş olmalı ve kurs tamamlanma oranı %20\'yi aşmamış olmalıdır. Şartlar uygunsa tutar 3-7 iş günü içinde kartınıza yansır.',
+        confirmText: 'İadeyi başlat',
+        cancelText: 'Vazgeç',
+        type: 'warning'
+    });
     if (!onay) return;
 
     const originalHtml = btn.innerHTML;

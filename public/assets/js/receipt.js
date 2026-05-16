@@ -114,7 +114,7 @@
      * Modül ne notifier verilirse onu kullanır. Hiç verilmemişse:
      *   1) `window.showOrdersToast` varsa onu çağırır (öğrenci orders sayfası).
      *   2) Yoksa `window.toast?.error` / `.success` denenir (genel toast servisi).
-     *   3) En son çare olarak `alert()` çalışır.
+     *   3) Genel `window.notify` toast'una düşer.
      */
     function _defaultNotify(message, type) {
         if (typeof window.showOrdersToast === 'function') {
@@ -125,8 +125,9 @@
             window.toast[type](message);
             return;
         }
-        // Son çare — hata için alert, başarı için sessiz (tarayıcı zaten dosya iniyor diye gösteriyor).
-        if (type === 'error') window.alert(message);
+        if (window.notify && typeof window.notify[type] === 'function') {
+            window.notify[type](message);
+        }
     }
 
     // ─────────────────────────── Çekirdek ───────────────────────────

@@ -259,22 +259,31 @@ window.closeUserModal = () => {
 
 // Kullanıcı Silme Fonksiyonu
 window.deleteUser = async (id) => {
-    if (!confirm('⚠️ DİKKAT! Bu kullanıcıyı kalıcı olarak silmek istediğinize emin misiniz?')) return;
+    const ok = await notify.confirm({
+        title: 'Kullanıcıyı kalıcı sil',
+        text: 'Bu kullanıcıyı kalıcı olarak silmek istediğinize emin misiniz?',
+        confirmText: 'Evet, sil',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok) return;
 
     try {
-        const response = await fetch(`${API_URL}/${id}`, { 
-            method: 'DELETE', 
-            headers: getHeaders() 
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
         });
         const result = await response.json();
 
         if (result.success) {
-            fetchUsers(currentPage, currentRoleFilter); 
+            notify.success('Kullanıcı silindi.');
+            fetchUsers(currentPage, currentRoleFilter);
         } else {
-            alert('❌ Hata: ' + result.message);
+            notify.error('Hata: ' + result.message);
         }
     } catch (error) {
         console.error('Silme hatası:', error);
+        notify.error('Silme sırasında bir hata oluştu.');
     }
 };
 

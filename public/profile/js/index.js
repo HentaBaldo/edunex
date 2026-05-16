@@ -86,8 +86,9 @@ function formatIBANForDisplay(iban) {
 function showOnboardingModal({ title, message, ctaText, icon, tone, onCta }) {
     const modalEl = document.getElementById('onboardingModal');
     if (!modalEl || typeof bootstrap === 'undefined') {
-        // Bootstrap yoksa son care: confirm dialog ile dusur.
-        if (confirm(`${title}\n\n${message}`)) onCta?.();
+        // Bootstrap yoksa son care: ortak notify modal'i ile dusur.
+        window.notify?.confirm({ title, text: message, confirmText: 'Devam', cancelText: 'Vazgeç', type: 'info' })
+            .then((ok) => { if (ok) onCta?.(); });
         return;
     }
     document.getElementById('onboardingTitle').textContent = title;
@@ -645,7 +646,14 @@ document.getElementById('file_input').addEventListener('change', async (e) => {
 
 // Hesap Silme İşlemi
 async function deleteMyAccount() {
-    if (!confirm('⚠️ DİKKAT: Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) return;
+    const ok = await notify.confirm({
+        title: 'Hesabı kalıcı olarak sil',
+        text: 'Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!',
+        confirmText: 'Evet, sil',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok) return;
 
     const token = localStorage.getItem('edunex_token');
     try {

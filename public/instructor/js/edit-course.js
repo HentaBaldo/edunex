@@ -8,7 +8,7 @@ const UIHelper = {
     checkInstructorAccess: () => {
         const token = localStorage.getItem('edunex_token');
         if (!token) {
-            alert('Lütfen giriş yapınız.');
+            notify.alert({ title: 'Giriş gerekli', text: 'Lütfen giriş yapınız.', type: 'info' });
             window.location.href = '/auth/index.html';
             return false;
         }
@@ -592,7 +592,14 @@ async function handleDeleteSection(sectionId) {
     const message = isDraft
         ? 'Bu bölümü ve tüm derslerini KALICI olarak silmek istediğinize emin misiniz?'
         : 'Bu kurs onaylı/yayında olduğu için bölüm KALICI silinmeyecek; öğrencilerden GİZLENECEK ve ilerleme hesabından çıkarılacak. Devam edilsin mi?';
-    if (!confirm(message)) return;
+    const ok = await notify.confirm({
+        title: isDraft ? 'Bölümü sil' : 'Bölümü gizle',
+        text: message,
+        confirmText: isDraft ? 'Kalıcı sil' : 'Gizle',
+        cancelText: 'Vazgeç',
+        type: isDraft ? 'error' : 'warning'
+    });
+    if (!ok) return;
 
     try {
         await ApiService.delete(`/curriculum/sections/${sectionId}`);
@@ -613,7 +620,14 @@ async function handleDeleteLesson(lessonId) {
     const message = isDraft
         ? 'Bu dersi KALICI olarak silmek istediğinize emin misiniz?'
         : 'Bu kurs onaylı/yayında olduğu için ders KALICI silinmeyecek; öğrencilerden GİZLENECEK ve ilerleme hesabından çıkarılacak. Devam edilsin mi?';
-    if (!confirm(message)) return;
+    const ok = await notify.confirm({
+        title: isDraft ? 'Dersi sil' : 'Dersi gizle',
+        text: message,
+        confirmText: isDraft ? 'Kalıcı sil' : 'Gizle',
+        cancelText: 'Vazgeç',
+        type: isDraft ? 'error' : 'warning'
+    });
+    if (!ok) return;
 
     try {
         await ApiService.delete(`/curriculum/lessons/${lessonId}`);
@@ -629,7 +643,14 @@ async function handleDeleteLesson(lessonId) {
  * Soft-delete edilmis bolumu geri yukle.
  */
 async function handleRestoreSection(sectionId) {
-    if (!confirm('Bu bölümü geri yüklemek istiyor musunuz? İçindeki dersleri ayrıca geri yüklemeniz gerekebilir.')) return;
+    const ok = await notify.confirm({
+        title: 'Bölümü geri yükle',
+        text: 'Bu bölümü geri yüklemek istiyor musunuz? İçindeki dersleri ayrıca geri yüklemeniz gerekebilir.',
+        confirmText: 'Geri yükle',
+        cancelText: 'Vazgeç',
+        type: 'info'
+    });
+    if (!ok) return;
     try {
         await ApiService.post(`/curriculum/sections/${sectionId}/restore`, {});
         showToast('Bölüm geri yüklendi.', 'success');
@@ -644,7 +665,14 @@ async function handleRestoreSection(sectionId) {
  * Soft-delete edilmis dersi geri yukle.
  */
 async function handleRestoreLesson(lessonId) {
-    if (!confirm('Bu dersi geri yüklemek istiyor musunuz?')) return;
+    const ok = await notify.confirm({
+        title: 'Dersi geri yükle',
+        text: 'Bu dersi geri yüklemek istiyor musunuz?',
+        confirmText: 'Geri yükle',
+        cancelText: 'Vazgeç',
+        type: 'info'
+    });
+    if (!ok) return;
     try {
         await ApiService.post(`/curriculum/lessons/${lessonId}/restore`, {});
         showToast('Ders geri yüklendi.', 'success');
@@ -860,9 +888,9 @@ window.saveMyDiscount = async () => {
     const bitis = document.getElementById('disc_bitis').value || null;
     const aciklama = document.getElementById('disc_aciklama').value.trim() || null;
 
-    if (baslik.length < 3) return alert('Başlık en az 3 karakter olmalıdır.');
-    if (!yuzde && !sabit) return alert('Yüzde veya sabit indirimden en az birini girin.');
-    if (yuzde && sabit) return alert('Sadece birini doldurun: yüzde ya da sabit.');
+    if (baslik.length < 3) { notify.warning('Başlık en az 3 karakter olmalıdır.'); return; }
+    if (!yuzde && !sabit)  { notify.warning('Yüzde veya sabit indirimden en az birini girin.'); return; }
+    if (yuzde && sabit)    { notify.warning('Sadece birini doldurun: yüzde ya da sabit.'); return; }
 
     try {
         await ApiService.post('/discounts', {
@@ -871,22 +899,29 @@ window.saveMyDiscount = async () => {
             baslangic, bitis, aciklama,
             finansman_tarafi: 'egitmen',
         });
-        alert('İndirim oluşturuldu.');
+        notify.success('İndirim oluşturuldu.');
         await loadCourseDiscount();
     } catch (err) {
-        alert('Hata: ' + (err.message || 'Indirim olusturulamadi.'));
+        notify.error('Hata: ' + (err.message || 'Indirim olusturulamadi.'));
     }
 };
 
 window.deleteMyDiscount = async () => {
     if (!window._myDiscountId) return;
-    if (!confirm('İndirimi kaldırmak istediğinize emin misiniz?')) return;
+    const ok = await notify.confirm({
+        title: 'İndirimi kaldır',
+        text: 'İndirimi kaldırmak istediğinize emin misiniz?',
+        confirmText: 'Kaldır',
+        cancelText: 'Vazgeç',
+        type: 'warning'
+    });
+    if (!ok) return;
     try {
         await ApiService.delete(`/discounts/${window._myDiscountId}`);
-        alert('İndirim kaldırıldı.');
+        notify.success('İndirim kaldırıldı.');
         await loadCourseDiscount();
     } catch (err) {
-        alert('Hata: ' + (err.message || 'Silme basarisiz.'));
+        notify.error('Hata: ' + (err.message || 'Silme basarisiz.'));
     }
 };
 
@@ -1376,7 +1411,14 @@ window.handleToggleStatus = async () => {
     const msg = durum === 'yayinda'
         ? 'Kursu yayından kaldırmak istediğinize emin misiniz?'
         : 'Kursu onaya göndermek istediğinize emin misiniz? (En az 1 bölüm + 1 ders gerekli)';
-    if (!confirm(msg)) return;
+    const ok = await notify.confirm({
+        title: durum === 'yayinda' ? 'Yayından kaldır' : 'Onaya gönder',
+        text: msg,
+        confirmText: durum === 'yayinda' ? 'Kaldır' : 'Onaya gönder',
+        cancelText: 'Vazgeç',
+        type: durum === 'yayinda' ? 'warning' : 'info'
+    });
+    if (!ok) return;
 
     try {
         const res = await ApiService.post(`/courses/${courseId}/toggle-status`, {});
@@ -1389,8 +1431,22 @@ window.handleToggleStatus = async () => {
 };
 
 window.handleDeleteCourse = async () => {
-    if (!confirm('Bu kursu KALICI olarak silmek istediğinize emin misiniz?')) return;
-    if (!confirm('Son onay: Tüm bölümler, dersler ve veriler silinecektir. Geri alınamaz!')) return;
+    const ok1 = await notify.confirm({
+        title: 'Kursu kalıcı sil',
+        text: 'Bu kursu KALICI olarak silmek istediğinize emin misiniz?',
+        confirmText: 'Devam',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok1) return;
+    const ok2 = await notify.confirm({
+        title: 'Son onay',
+        text: 'Tüm bölümler, dersler ve veriler silinecektir. Geri alınamaz!',
+        confirmText: 'Evet, sil',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok2) return;
 
     try {
         await ApiService.delete(`/courses/${courseId}`);
@@ -1688,7 +1744,14 @@ async function handleSaveCourseLiveSession(e) {
 }
 
 window.deleteLiveSession = async (id) => {
-    if (!confirm('Bu canlı oturumu silmek istediğinize emin misiniz?')) return;
+    const ok = await notify.confirm({
+        title: 'Canlı oturumu sil',
+        text: 'Bu canlı oturumu silmek istediğinize emin misiniz?',
+        confirmText: 'Sil',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok) return;
     try {
         await ApiService.delete(`/live-sessions/${id}`);
         showToast('Oturum silindi.', 'success');

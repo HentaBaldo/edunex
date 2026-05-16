@@ -392,6 +392,19 @@
     background: linear-gradient(135deg, #3730a3, #4f46e5);
 }
 
+/* Secondary / outline buton — 'Kursu İncele' aksiyonu için */
+.lh-btn-continue--outline {
+    background: #fff;
+    color: #4338ca;
+    border: 1.5px solid #c7d2fe;
+    box-shadow: none;
+}
+.lh-btn-continue--outline:hover {
+    background: #eef2ff;
+    color: #3730a3;
+    border-color: #a5b4fc;
+}
+
 /* ── Kurs Kartı ── */
 .lh-course-card {
     background: var(--white);

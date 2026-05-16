@@ -11,8 +11,8 @@ export const UIHelper = {
         try {
             const user = JSON.parse(userJson);
             if (user.rol !== 'egitmen') {
-                alert('Bu alan sadece eğitmenlerin erişimine açıktır.');
-                window.location.href = '/main/index.html'; 
+                if (window.notify) window.notify.warning('Bu alan sadece eğitmenlerin erişimine açıktır.');
+                window.location.href = '/main/index.html';
                 return false;
             }
             return true;

@@ -53,11 +53,23 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
     try {
         const egitmenId = req.user.id;
 
-        const courses = await Course.findAll({
-            where: { egitmen_id: egitmenId, silindi_mi: false },
-            attributes: ['id', 'baslik', 'durum'],
-            raw: true
-        });
+        // İstatistik/kazanç ekranı kursu yalnızca DEĞER ÜRETMİŞSE listeler:
+        //  - durum != 'taslak'  (yayinda / onay_bekliyor / onaylandi / arsiv → her zaman dahil)
+        //  - VEYA henüz taslakta olsa bile geçmişte kayıt/satış üretmiş olmalı
+        // Böylece hiç yayınlanmamış boş taslaklar listede karmaşa yaratmaz; geçmişi olan
+        // (yayindan_kaldirildi → taslak geri çevrilmiş) kurslar eğitmen için görünür kalır.
+        // Tek sorguda EXISTS ile filtreleniyor; N+1 yok.
+        const courses = await sequelize.query(`
+            SELECT id, baslik, durum
+            FROM kurslar
+            WHERE egitmen_id = :egitmenId
+              AND (silindi_mi = false OR silindi_mi IS NULL)
+              AND (
+                durum <> 'taslak'
+                OR EXISTS (SELECT 1 FROM kurs_kayitlari ce WHERE ce.kurs_id = kurslar.id)
+                OR EXISTS (SELECT 1 FROM siparis_kalemleri oi WHERE oi.kurs_id = kurslar.id)
+              )
+        `, { replacements: { egitmenId }, type: sequelize.QueryTypes.SELECT });
         const kursIdleri = courses.map(c => c.id);
 
         const now = new Date();
@@ -117,7 +129,13 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
                     COALESCE((SELECT AVG(r.puan) FROM yorumlar r WHERE r.kurs_id = c.id), 0) AS ortalama_puan,
                     COALESCE((SELECT AVG(ce2.ilerleme_yuzdesi) FROM kurs_kayitlari ce2 WHERE ce2.kurs_id = c.id), 0) AS tamamlanma_orani
                 FROM kurslar c
-                WHERE c.egitmen_id = :egitmenId AND (c.silindi_mi = false OR c.silindi_mi IS NULL)
+                WHERE c.egitmen_id = :egitmenId
+                  AND (c.silindi_mi = false OR c.silindi_mi IS NULL)
+                  AND (
+                    c.durum <> 'taslak'
+                    OR EXISTS (SELECT 1 FROM kurs_kayitlari ce3 WHERE ce3.kurs_id = c.id)
+                    OR EXISTS (SELECT 1 FROM siparis_kalemleri oi2 WHERE oi2.kurs_id = c.id)
+                  )
             `, { replacements: { egitmenId }, type: sequelize.QueryTypes.SELECT })
         ]);
 
