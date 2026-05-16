@@ -53,6 +53,17 @@ const fileFilter = (req, file, cb) => {
         return cb(new Error('Geçersiz format! Kapak fotoğrafı için sadece JPG, PNG veya WEBP yükleyebilirsiniz.'), false);
     }
 
+    // 1c. Kurs Kapak Fotoğrafı (eğitmen) — MIME + extension AND koşulu
+    // Lesson branch'ine düşmesin: aksi halde 4GB video/PDF kabul ediliyordu.
+    if (file.fieldname === 'thumbnail') {
+        const validImageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const validImageExt = /\.(jpe?g|png|webp)$/i;
+        if (validImageMimes.includes(file.mimetype) && validImageExt.test(file.originalname)) {
+            return cb(null, true);
+        }
+        return cb(new Error('Geçersiz format! Kurs kapağı için sadece JPG, PNG veya WEBP yükleyebilirsiniz.'), false);
+    }
+
     // 2. Ders İçeriği (Video, PDF, Word, Quiz Resmi vb.) İçin Kontrol
     const validLessonMimes = [
         // Videolar

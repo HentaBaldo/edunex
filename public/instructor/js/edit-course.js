@@ -1156,12 +1156,7 @@ async function loadCourseForEdit() {
             window._quillEditor.clipboard.dangerouslyPasteHTML(course.aciklama || '');
         }
 
-        if (course.kapak_fotografi) {
-            const previewEl = document.getElementById('thumbnailPreview');
-            const placeholder = document.getElementById('thumbnailPlaceholder');
-            if (previewEl) { previewEl.src = course.kapak_fotografi; previewEl.style.display = 'block'; }
-            if (placeholder) placeholder.style.display = 'none';
-        }
+        _renderThumbnailUI(course.kapak_fotografi);
 
         const priceWarn = document.getElementById('priceWarning');
         if (priceWarn && course.durum === 'yayinda') {
@@ -1280,16 +1275,65 @@ function setupSettingsListeners() {
         thumbInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const previewEl = document.getElementById('thumbnailPreview');
-                const placeholder = document.getElementById('thumbnailPlaceholder');
-                if (previewEl) { previewEl.src = ev.target.result; previewEl.style.display = 'block'; }
-                if (placeholder) placeholder.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
+
+            const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowed.includes(file.type)) {
+                showToast('Sadece JPG, PNG veya WEBP yükleyebilirsiniz.', 'error');
+                thumbInput.value = '';
+                return;
+            }
+            const MAX = 10 * 1024 * 1024;
+            if (file.size > MAX) {
+                showToast('Dosya çok büyük. En fazla 10 MB olabilir.', 'error');
+                thumbInput.value = '';
+                return;
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+            const previewEl = document.getElementById('thumbnailPreview');
+            const placeholder = document.getElementById('thumbnailPlaceholder');
+            const actions = document.getElementById('thumbnailActions');
+            const fileNameEl = document.getElementById('thumbnailFileName');
+            const labelEl = document.getElementById('thumbnailChangeLabel');
+
+            if (previewEl) {
+                if (previewEl.dataset.objectUrl) URL.revokeObjectURL(previewEl.dataset.objectUrl);
+                previewEl.src = objectUrl;
+                previewEl.dataset.objectUrl = objectUrl;
+                previewEl.style.display = 'block';
+            }
+            if (placeholder) placeholder.style.display = 'none';
+            if (actions) actions.style.display = 'flex';
+            if (labelEl) labelEl.textContent = 'Farklı Bir Fotoğraf Seç';
+            if (fileNameEl) fileNameEl.textContent = file.name;
+
             _markDirty('medya_fiyat');
         });
+    }
+}
+
+function _renderThumbnailUI(kapakUrl) {
+    const previewEl = document.getElementById('thumbnailPreview');
+    const placeholder = document.getElementById('thumbnailPlaceholder');
+    const actions = document.getElementById('thumbnailActions');
+    const fileNameEl = document.getElementById('thumbnailFileName');
+    const labelEl = document.getElementById('thumbnailChangeLabel');
+
+    if (previewEl?.dataset.objectUrl) {
+        URL.revokeObjectURL(previewEl.dataset.objectUrl);
+        delete previewEl.dataset.objectUrl;
+    }
+    if (fileNameEl) fileNameEl.textContent = '';
+    if (labelEl) labelEl.textContent = 'Kapak Fotoğrafını Değiştir';
+
+    if (kapakUrl) {
+        if (previewEl) { previewEl.src = kapakUrl; previewEl.style.display = 'block'; }
+        if (placeholder) placeholder.style.display = 'none';
+        if (actions) actions.style.display = 'flex';
+    } else {
+        if (previewEl) { previewEl.removeAttribute('src'); previewEl.style.display = 'none'; }
+        if (placeholder) placeholder.style.display = 'flex';
+        if (actions) actions.style.display = 'none';
     }
 }
 
@@ -1321,6 +1365,10 @@ window.discardCurrentTabChanges = () => {
     if (window._quillEditor) {
         window._quillEditor.clipboard.dangerouslyPasteHTML(window.__courseData.aciklama || '');
     }
+
+    const fileInput = document.getElementById('thumbnailInput');
+    if (fileInput) fileInput.value = '';
+    _renderThumbnailUI(window.__courseData.kapak_fotografi);
 };
 
 window.handleSaveBasicInfo = async () => {
@@ -1379,6 +1427,8 @@ window.handleSaveMediaPricing = async () => {
             if (data.data?.kapak_fotografi && window.__courseData) {
                 window.__courseData.kapak_fotografi = data.data.kapak_fotografi;
             }
+            fileInput.value = '';
+            _renderThumbnailUI(window.__courseData?.kapak_fotografi);
             saved = true;
         } catch (err) {
             showToast('Kapak fotoğrafı hatası: ' + err.message, 'error');
