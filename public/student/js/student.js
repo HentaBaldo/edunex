@@ -294,6 +294,9 @@ function buildCourseCard(course) {
                     <a href="/student/learning-room.html?id=${course.kurs_id}" class="lh-btn-continue lh-btn-continue--primary">
                         <i class="fas ${ctaIcon}"></i> ${ctaLabel}
                     </a>
+                    <a href="/main/course-detail.html?id=${course.kurs_id}" class="lh-btn-continue lh-btn-continue--outline" title="Kurs detay sayfasını aç">
+                        <i class="fas fa-circle-info"></i> Kursu İncele
+                    </a>
                     <button onclick="unenrollCourse('${course.kurs_id}')" class="lh-btn-unenroll" title="Kurstan Ayrıl">
                         <i class="fas fa-times"></i>
                     </button>
@@ -317,15 +320,22 @@ function renderEmptyState(grid) {
 }
 
 async function unenrollCourse(courseId) {
-    if (!confirm('Kurstan ayrılmak istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+    const ok = await notify.confirm({
+        title: 'Kurstan ayrıl',
+        text: 'Kurstan ayrılmak istediğinize emin misiniz? Bu işlem geri alınamaz.',
+        confirmText: 'Evet, ayrıl',
+        cancelText: 'Vazgeç',
+        type: 'warning'
+    });
+    if (!ok) return;
     try {
         const result = await ApiService.delete(`/enrollments/${courseId}`);
         if (result.status === 'success') {
-            alert('Kurs kaydı başarıyla iptal edildi.');
+            notify.success('Kurs kaydı başarıyla iptal edildi.');
             await loadDashboardData();
         }
     } catch (error) {
-        alert('Kurstan ayrılırken hata oluştu: ' + error.message);
+        notify.error('Kurstan ayrılırken hata oluştu: ' + error.message);
     }
 }
 

@@ -203,18 +203,18 @@ window.openUnpublishModal = (id, baslik) => {
 window.confirmUnpublish = async (id) => {
     const sebep = document.getElementById('actionReason').value.trim();
     if (sebep.length < 10) {
-        alert('Sebep en az 10 karakter olmalı.');
+        notify.warning('Sebep en az 10 karakter olmalı.');
         return;
     }
     try {
         const r = await ApiService.put(`/admin/courses/${id}/unpublish`, { sebep });
         if (r.success) {
             closeActionModal();
-            alert('✓ Kurs yayından kaldırıldı (taslağa iade edildi).');
+            notify.success('Kurs yayından kaldırıldı (taslağa iade edildi).');
             fetchPublishedReport();
         }
     } catch (err) {
-        alert('Hata: ' + err.message);
+        notify.error('Hata: ' + err.message);
     }
 };
 
@@ -240,11 +240,11 @@ window.confirmRepublish = async (id) => {
         const r = await ApiService.put(`/admin/courses/${id}/republish`, {});
         if (r.success) {
             closeActionModal();
-            alert('✓ Kurs yayına alındı.');
+            notify.success('Kurs yayına alındı.');
             fetchPublishedReport();
         }
     } catch (err) {
-        alert('Hata: ' + err.message);
+        notify.error('Hata: ' + err.message);
     }
 };
 
@@ -275,7 +275,7 @@ window.openDeleteModal = (id, baslik, enrollCount) => {
 window.confirmDelete = async (id) => {
     const sebep = document.getElementById('actionReason').value.trim();
     if (sebep.length < 10) {
-        alert('Sebep en az 10 karakter olmalı.');
+        notify.warning('Sebep en az 10 karakter olmalı.');
         return;
     }
     try {
@@ -283,16 +283,23 @@ window.confirmDelete = async (id) => {
         if (r.success) {
             closeActionModal();
             const modeText = r.mode === 'hard' ? 'kalıcı olarak silindi' : `gizlendi (soft delete: ${r.enrollment_count} öğrenci, ${r.order_count} sipariş ilişkili)`;
-            alert(`✓ Kurs ${modeText}.`);
+            notify.success(`Kurs ${modeText}.`);
             fetchPublishedReport();
         }
     } catch (err) {
-        alert('Hata: ' + err.message);
+        notify.error('Hata: ' + err.message);
     }
 };
 
-window.openRestoreModal = (id, baslik) => {
-    if (!confirm(`"${baslik}" kursunu geri yüklemek istediğinize emin misiniz?\n\nKurs eski durumuna dönecek (hangi durumda silindiyse).`)) return;
+window.openRestoreModal = async (id, baslik) => {
+    const ok = await notify.confirm({
+        title: 'Kursu geri yükle',
+        text: `"${baslik}" kursunu geri yüklemek istediğinize emin misiniz? Kurs eski durumuna dönecek (hangi durumda silindiyse).`,
+        confirmText: 'Geri yükle',
+        cancelText: 'Vazgeç',
+        type: 'info'
+    });
+    if (!ok) return;
     confirmRestore(id);
 };
 
@@ -300,11 +307,11 @@ const confirmRestore = async (id) => {
     try {
         const r = await ApiService.post(`/admin/courses/${id}/restore`, {});
         if (r.success) {
-            alert('✓ Kurs geri yüklendi.');
+            notify.success('Kurs geri yüklendi.');
             fetchPublishedReport();
         }
     } catch (err) {
-        alert('Hata: ' + err.message);
+        notify.error('Hata: ' + err.message);
     }
 };
 
@@ -550,7 +557,7 @@ window.viewExternalVideo = (videoSource) => {
             videoUrl = `https://www.youtube-nocookie.com/embed/${ytId}?rel=0`;
             directLink = `https://www.youtube.com/watch?v=${ytId}`;
         } else {
-            alert("Video kimliği ayrıştırılamadı."); return;
+            notify.warning('Video kimliği ayrıştırılamadı.'); return;
         }
     } else if (videoSource.includes('vimeo.com')) {
         const vimeoId = videoSource.split('vimeo.com/')[1]?.split('/')[0]?.split('?')[0];

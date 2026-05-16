@@ -12,7 +12,7 @@ let __typeFilter = 'all';
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
-        alert('Lütfen giriş yapınız.');
+        await notify.alert({ title: 'Giriş gerekli', text: 'Lütfen giriş yapınız.', type: 'info' });
         window.location.href = '/auth/index.html';
         return;
     }
@@ -570,7 +570,14 @@ window.editLiveSession = (id) => {
 };
 
 window.deleteSession = async (id) => {
-    if (!confirm('Bu canlı dersi silmek istediğinize emin misiniz?')) return;
+    const ok = await notify.confirm({
+        title: 'Canlı dersi sil',
+        text: 'Bu canlı dersi silmek istediğinize emin misiniz?',
+        confirmText: 'Sil',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok) return;
     try {
         await ApiService.delete(`/live-sessions/${id}`);
         toast('Silindi.', 'success');
@@ -637,7 +644,10 @@ function escapeHtml(text) {
 
 function toast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
-    if (!container) { alert(message); return; }
+    if (!container) {
+        if (window.notify) notify.toast(message, type);
+        return;
+    }
     const el = document.createElement('div');
     el.className = `toast toast-${type}`;
     el.textContent = message;
@@ -656,7 +666,14 @@ window.enterLiveRoom = (sessionId, odaAdi) => {
 
 // Yayını tamamen bitirip Yayın Kayıtları sekmesine düşürmek için
 window.endSession = async (id) => {
-    if (!confirm('Yayını tamamen bitirmek istediğinize emin misiniz? Öğrenciler de dersten çıkarılacaktır.')) return;
+    const ok = await notify.confirm({
+        title: 'Yayını bitir',
+        text: 'Yayını tamamen bitirmek istediğinize emin misiniz? Öğrenciler de dersten çıkarılacaktır.',
+        confirmText: 'Evet, bitir',
+        cancelText: 'Vazgeç',
+        type: 'warning'
+    });
+    if (!ok) return;
     try {
         await ApiService.put(`/live-sessions/${id}/status`, { durum: 'tamamlandi' });
         toast('Yayın başarıyla sonlandırıldı.', 'success');

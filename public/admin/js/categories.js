@@ -283,7 +283,14 @@ window.submitForm = async (event) => {
 
 // === Silme ===
 window.deleteCategory = async (id, ad) => {
-    if (!confirm(`"${ad}" kategorisini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz.`)) return;
+    const ok = await notify.confirm({
+        title: 'Kategoriyi sil',
+        text: `"${ad}" kategorisini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+        confirmText: 'Sil',
+        cancelText: 'Vazgeç',
+        type: 'error'
+    });
+    if (!ok) return;
 
     try {
         const res = await fetch(`${ADMIN_API}/${id}`, {

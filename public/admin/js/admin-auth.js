@@ -21,7 +21,7 @@ function checkAdminAccess() {
         
         // Rol kontrolü: Sadece 'admin' girebilir
         if (user.rol !== 'admin') {
-            alert('Bu sayfaya erişim yetkiniz yok.');
+            if (window.notify) window.notify.warning('Bu sayfaya erişim yetkiniz yok.');
             window.location.replace('/main/index.html');
             return;
         }

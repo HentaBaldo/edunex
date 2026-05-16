@@ -2,10 +2,14 @@
  * EduNex - Sepet (Cart) Mantığı
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('edunex_token');
     if (!token) {
-        alert('Sepeti görmek için lütfen giriş yapınız.');
+        await notify.alert({
+            title: 'Giriş gerekli',
+            text: 'Sepeti görmek için lütfen giriş yapınız.',
+            type: 'info'
+        });
         window.location.href = '/auth/index.html';
         return;
     }
@@ -103,7 +107,14 @@ async function removeItem(kursId) {
 }
 
 async function handleClear() {
-    if (!confirm('Sepetteki tüm kursları kaldırmak istediğinize emin misiniz?')) return;
+    const onaylandi = await notify.confirm({
+        title: 'Sepeti boşalt',
+        text: 'Sepetteki tüm kursları kaldırmak istediğinize emin misiniz?',
+        confirmText: 'Evet, boşalt',
+        cancelText: 'Vazgeç',
+        type: 'warning'
+    });
+    if (!onaylandi) return;
     try {
         await ApiService.delete('/cart');
         toast('Sepet boşaltıldı.', 'success');

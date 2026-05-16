@@ -137,15 +137,23 @@
         try {
             await ApiService.patch(`/discounts/${id}`, { aktif_mi: newActive });
             await loadDiscounts();
-        } catch (err) { alert('Hata: ' + err.message); }
+        } catch (err) { notify.error('Hata: ' + err.message); }
     };
 
     window.deleteDiscount = async (id) => {
-        if (!confirm('Bu kampanyayı silmek istediğinize emin misiniz?')) return;
+        const ok = await notify.confirm({
+            title: 'Kampanyayı sil',
+            text: 'Bu kampanyayı silmek istediğinize emin misiniz?',
+            confirmText: 'Sil',
+            cancelText: 'Vazgeç',
+            type: 'error'
+        });
+        if (!ok) return;
         try {
             await ApiService.delete(`/discounts/${id}`);
+            notify.success('Kampanya silindi.');
             await loadDiscounts();
-        } catch (err) { alert('Hata: ' + err.message); }
+        } catch (err) { notify.error('Hata: ' + err.message); }
     };
 
     window.saveDiscount = async () => {
@@ -161,10 +169,10 @@
         const finansman = document.getElementById('m_finansman').value;
         const aktif = document.getElementById('m_aktif').checked;
 
-        if (baslik.length < 3) return alert('Başlık en az 3 karakter olmalıdır.');
-        if (!yuzde && !sabit) return alert('Yüzde veya sabit indirim girin.');
-        if (yuzde && sabit) return alert('Sadece birini doldurun: yüzde ya da sabit.');
-        if (scope === 'specific' && !dersId) return alert('Lütfen bir ders seçin.');
+        if (baslik.length < 3) { notify.warning('Başlık en az 3 karakter olmalıdır.'); return; }
+        if (!yuzde && !sabit)  { notify.warning('Yüzde veya sabit indirim girin.'); return; }
+        if (yuzde && sabit)    { notify.warning('Sadece birini doldurun: yüzde ya da sabit.'); return; }
+        if (scope === 'specific' && !dersId) { notify.warning('Lütfen bir ders seçin.'); return; }
 
         const payload = {
             ders_id: dersId,
@@ -182,7 +190,7 @@
             window.closeDiscountModal();
             await loadDiscounts();
         } catch (err) {
-            alert('Hata: ' + (err.message || 'Kayit basarisiz.'));
+            notify.error('Hata: ' + (err.message || 'Kayit basarisiz.'));
         }
     };
 

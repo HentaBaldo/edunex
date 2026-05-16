@@ -257,7 +257,14 @@ const SupportAdmin = (() => {
     async function handleCloseTicket() {
         if (!state.currentTicket) return;
         if (state.currentTicket.durum === 'kapali') return;
-        if (!confirm('Bu bileti kapatmak istediğinize emin misiniz? Kullanıcı yeni mesaj ekleyemeyecek.')) return;
+        const ok = await notify.confirm({
+            title: 'Bileti kapat',
+            text: 'Bu bileti kapatmak istediğinize emin misiniz? Kullanıcı yeni mesaj ekleyemeyecek.',
+            confirmText: 'Kapat',
+            cancelText: 'Vazgeç',
+            type: 'warning'
+        });
+        if (!ok) return;
         try {
             await ApiService.patch(`/admin/support/tickets/${state.currentTicket.id}/status`, { durum: 'kapali' });
             showToast('Bilet kapatıldı.', 'success');

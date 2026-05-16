@@ -667,7 +667,7 @@ function planliKartiOlustur(ders) {
             </div>
             <div class="canli-kart-icerik">
                 <div class="canli-kart-buttons">
-                    <button class="canli-btn canli-btn-reminder" onclick="alert('Hatırlatıcı kur (Çok Yakında)')">
+                    <button class="canli-btn canli-btn-reminder" onclick="notify.info('Hatırlatıcı kur özelliği çok yakında!')">
                         <i class="fas fa-bell"></i> Hatırlatıcı Kur
                     </button>
                 </div>
