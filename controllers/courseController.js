@@ -74,9 +74,24 @@ exports.getInstructorCourses = async (req, res, next) => {
     try {
         const instructorId = req.user.id;
 
+        // Opsiyonel ?durum= filtresi. Geriye uyumlu: parametre yoksa tum kurslar doner.
+        // Birden fazla deger virgulle gelebilir: ?durum=yayinda,onaylandi
+        // Canli ders olusturma akisi ?durum=yayinda gondererek SADECE yayindaki kurslari listeler;
+        // boylece taslak / onay bekleyen kurslara canli ders acilamaz.
+        const where = { egitmen_id: instructorId, silindi_mi: false };
+        if (req.query.durum) {
+            const izinli = ['taslak', 'onay_bekliyor', 'onaylandi', 'yayinda', 'arsiv'];
+            const istenen = String(req.query.durum)
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => izinli.includes(s));
+            if (istenen.length === 1) where.durum = istenen[0];
+            else if (istenen.length > 1) where.durum = { [Op.in]: istenen };
+        }
+
         const courses = await Course.findAll({
             // Egitmen kendi kurslarini her durumda gorur, ama admin tarafindan soft-deleted edilen kurslari gormemeli.
-            where: { egitmen_id: instructorId, silindi_mi: false },
+            where,
             include: [
                 {
                     model: Profile,
