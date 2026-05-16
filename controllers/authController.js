@@ -47,10 +47,7 @@ exports.register = async (req, res, next) => {
         }
 
         // E-posta zaten kayıtlı mı?
-        const existingUser = await Profile.findOne(
-            { where: { eposta } },
-            { transaction: t }
-        );
+        const existingUser = await Profile.findOne({ where: { eposta }, transaction: t });
 
         if (existingUser) {
             const error = new Error('Bu e-posta adresi zaten kayıtlı.');

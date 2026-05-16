@@ -12,6 +12,7 @@ const morgan = require('morgan');
 const { sequelize } = require('./models');
 const seedCategories = require('./seeders/categorySeeder');
 const seedProfiles = require('./seeders/profileSeeder');
+const { apiLimiter } = require('./middleware/rateLimitMiddleware');
 
 const app = express();
 
@@ -47,34 +48,48 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
-// CORS: izin verilen origin listesi env'den okunur. Bos birakilirsa ayni-origin
-// kullanim varsayilir (canli ortamda public/ statik servis edildigi icin yeterli).
-// Yerel gelistirme icin localhost / 127.0.0.1 (her port) her durumda serbesttir;
-// boylece Live Server (5500), Vite (5173) ya da farkli portlardan calisan
-// frontend dev sunuculari CORS_ORIGINS env'i ayarlanmadan da API'ye erisebilir.
-const allowedOrigins = (process.env.CORS_ORIGINS || '')
-    .split(',').map(o => o.trim()).filter(Boolean);
+// CORS: izin verilen origin listesi env'den okunur.
+// GUVENLIK: CORS_ORIGINS bos veya parse edilemez ise API'yi tum dunyaya
+// acmak yerine guvenli bir fallback'e dusuyoruz (sadece localhost:3000).
+// Production'da CORS_ORIGINS env'inin DOGRU set edildigi varsayilir; aksi
+// halde bu fallback uretim trafigini bloklar — istenen davranis.
+const DEFAULT_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
-const isLoopbackOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+let allowedOrigins;
+try {
+    const parsed = (process.env.CORS_ORIGINS || '')
+        .split(',').map(o => o.trim()).filter(Boolean);
+    allowedOrigins = parsed.length > 0 ? parsed : [...DEFAULT_ALLOWED_ORIGINS];
+} catch (_e) {
+    allowedOrigins = [...DEFAULT_ALLOWED_ORIGINS];
+}
+
+// FRONTEND_URL (frontend'in calistigi origin) varsa allowedOrigins'e eklenir.
+// Sebep: CORS_ORIGINS production'da sadece prod domain'ini icerebilir; bu
+// durumda lokalde FRONTEND_URL=http://localhost:3000 ile dev origin'i de
+// guvenli sekilde kabul edilir. Wildcard fallback YOK — origin daima
+// explicit olarak env'de tanimli olmali.
+if (process.env.FRONTEND_URL && !allowedOrigins.includes(process.env.FRONTEND_URL)) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+}
 
 app.use(cors({
     origin: (origin, callback) => {
         // Same-origin / curl / Postman istekleri (origin = undefined) serbest
         if (!origin) return callback(null, true);
-        // Loopback (localhost / 127.0.0.1) her zaman serbest — dev ortami kolaylasir
-        if (isLoopbackOrigin(origin)) return callback(null, true);
-        // Env hic ayarlanmadiysa (production'da yanlislikla bos kalirsa)
-        // tamamen acmak yerine sadece loopback'e izin verdik, bu durumda diger origin'leri reddet
-        
+
         // --- IYZICO BYPASS ---
         // İyzico'nun sandbox ve canlı domainlerinden gelen isteklere her zaman izin ver
         if (origin.includes('iyzipay.com') || origin.includes('iyzico.com')) {
             return callback(null, true);
         }
 
-        if (allowedOrigins.length === 0) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
-        return callback(new Error(`CORS engellendi: ${origin}`));
+        // statusCode set ediyoruz ki global error handler bunu 500 (Internal Server Error)
+        // olarak degil, 403 (Forbidden) olarak dondursun ve gercek sebep maskelenmesin.
+        const corsErr = new Error('CORS Error');
+        corsErr.statusCode = 403;
+        return callback(corsErr);
     },
     credentials: true
 }));
@@ -87,6 +102,18 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // --- 3. Static File Serving ---
 app.use(express.static(path.join(__dirname, 'public')));
+
+// GUVENLIK: Canli ders kayitlari (uploads/recordings) hassas icerik —
+// Bunny.net'e yuklenmeden once gecici olarak burada tutuluyor. Public static
+// servisin DISINDA tutuyoruz; ihtiyac halinde authorize edilmis bir route ile
+// (egitmen + kursa kayitli ogrenci) sunulmali. Asagidaki guard, express.static
+// devreye girmeden once /uploads/recordings/* isteklerini 403 ile keser.
+app.use('/uploads/recordings', (_req, res) => {
+    return res.status(403).json({
+        success: false,
+        message: 'Canli ders kayitlarina dogrudan erisim yasaktir.'
+    });
+});
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- 4. API Routes Registration ---
@@ -112,6 +139,12 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const discountRoutes = require('./routes/discountRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
+
+// === GLOBAL API DDoS KORUMASI ===
+// Tum /api/* rotalarinin onunde calisir. Login/upload gibi spesifik limiter'lar
+// ilgili route'lara ayrica baglandigi icin sira: once global apiLimiter (kaba
+// kalkan), sonra route-bazli limiter (ince ayar).
+app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/instructor', instructorRoutes);
