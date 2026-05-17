@@ -75,18 +75,52 @@ function renderKpi(kpi) {
         : '';
 
     const takipci = Number(kpi.followerCount ?? kpi.toplam_takipci ?? 0);
+    const tlFmt = (v) => `₺${Number(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
+
+    // Bakiye iki ayri kavramdir, KARISMAMALI:
+    //  - Net Bakiye (Odenen): admin + iyzico onay sonrasi olusan PARA. Cekilebilir.
+    //  - Bekleyen Hakedis: satis gerceklesti ama iade penceresi / admin onayi
+    //    devam ediyor. Henuz egitmenin parasi degildir; salt-bilgi gosterilir.
+    // Bekleyen kartlar gorsel olarak farkli (sari/uyari) ve tooltip ile
+    // "cekilemez" notu tasiyor ki eğitmen yanlis beklentiye girmesin.
     const cards = [
         { icon: 'fas fa-users', color: 'blue', label: 'Toplam Öğrenci', value: kpi.toplam_ogrenci.toLocaleString('tr-TR'), sub: `${kpi.yayinda_kurs} yayında kurs` },
-        { icon: 'fas fa-wallet', color: 'green', label: 'Toplam Net Kazanç', value: `₺${kpi.toplam_net_kazanc.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, sub: '' },
-        { icon: 'fas fa-chart-bar', color: 'purple', label: 'Bu Ayki Gelir', value: `₺${kpi.bu_ay_kazanc.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, sub: trendHtml },
+        {
+            icon: 'fas fa-wallet', color: 'green',
+            label: 'Net Bakiye (Ödenen)',
+            value: tlFmt(kpi.toplam_net_odenmis),
+            sub: '<span style="color:#059669;font-size:0.78rem;"><i class="fas fa-check-circle"></i> Iyzico onayli, çekilebilir</span>',
+            title: 'Admin onayı + iyzico başarılı yanıt sonrası eğitmen hesabınıza aktarılmış tutar.'
+        },
+        {
+            icon: 'fas fa-hourglass-half', color: 'orange',
+            label: 'Bekleyen Hakediş',
+            value: tlFmt(kpi.bekleyen_hakedis),
+            sub: '<span style="color:#92400e;font-size:0.78rem;"><i class="fas fa-info-circle"></i> İade penceresi / onay bekliyor — çekilemez</span>',
+            title: 'Satıştan oluşan ancak henüz admin onayı ve iyzico transferi tamamlanmamış tutarlar. Salt bilgi amaçlıdır; çekilebilir bakiyenize yansımaz.'
+        },
+        {
+            icon: 'fas fa-chart-bar', color: 'purple',
+            label: 'Bu Ay Ödenen',
+            value: tlFmt(kpi.bu_ay_odenen),
+            sub: trendHtml,
+            title: 'Bu ay içinde admin tarafından onaylanıp iyzico üzerinden hesabınıza geçen tutar.'
+        },
+        {
+            icon: 'fas fa-clock', color: 'orange',
+            label: 'Bu Ay Bekleyen',
+            value: tlFmt(kpi.bu_ay_bekleyen),
+            sub: '<span style="color:#92400e;font-size:0.78rem;">Bu ay yapılan satışların onay bekleyen payı</span>',
+            title: 'Bu ay yapılan satışlardan eğitmen payınız; iade/onay süreci tamamlanınca Net Bakiye’ye geçer.'
+        },
         { icon: 'fas fa-star', color: 'orange', label: 'Ortalama Puan', value: kpi.ortalama_puan > 0 ? `${kpi.ortalama_puan} / 5` : '—', sub: `${kpi.toplam_yorum} değerlendirme` },
-        // 5. kart artik dashboard/stats endpointi tek seferde donuyor; loadFollowers
+        // 7. kart artik dashboard/stats endpointi tek seferde donuyor; loadFollowers
         // sadece alttaki listeyi doldurmak icin kalir.
         { icon: 'fas fa-user-friends', color: 'blue', label: 'Toplam Takipçi', value: takipci.toLocaleString('tr-TR'), sub: 'Eğitmen profili takipçileri' }
     ];
 
     document.getElementById('kpiGrid').innerHTML = cards.map(c => `
-        <div class="kpi-card">
+        <div class="kpi-card"${c.title ? ` title="${escapeHtml(c.title)}"` : ''}>
             <div class="kpi-icon kpi-icon--${c.color}"><i class="${c.icon}"></i></div>
             <div class="kpi-body">
                 <p class="kpi-label">${c.label}</p>
@@ -106,29 +140,49 @@ let enrollmentChartInstance = null;
 
 function renderCharts(grafik) {
     const labels = grafik.aylik_kazanc.map(a => a.etiket);
-    const kazancData = grafik.aylik_kazanc.map(a => a.deger);
+    const odenenData = grafik.aylik_kazanc.map(a => a.deger);
+    // aylik_bekleyen backend'de yeni alan; eski cache'li deploy ihtimaline karsi
+    // savunmaci ?? ile bos diziye dus.
+    const bekleyenData = (grafik.aylik_bekleyen || []).map(a => a.deger);
 
     if (earningsChartInstance) earningsChartInstance.destroy();
     earningsChartInstance = new Chart(document.getElementById('earningsChart'), {
         type: 'line',
         data: {
             labels,
-            datasets: [{
-                label: 'Net Kazanç (₺)',
-                data: kazancData,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37,99,235,0.08)',
-                borderWidth: 2.5,
-                pointRadius: 4,
-                pointBackgroundColor: '#2563eb',
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: 'Ödenen Net (₺)',
+                    data: odenenData,
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5,150,105,0.10)',
+                    borderWidth: 2.5,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#059669',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Bekleyen Hakediş (₺)',
+                    data: bekleyenData,
+                    borderColor: '#d97706',
+                    backgroundColor: 'rgba(217,119,6,0.08)',
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    pointRadius: 3,
+                    pointBackgroundColor: '#d97706',
+                    fill: false,
+                    tension: 0.4
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ₺${Number(ctx.parsed.y || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}` } }
+            },
             scales: {
                 y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => `₺${v.toLocaleString('tr-TR')}` } },
                 x: { grid: { display: false } }

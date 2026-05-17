@@ -9,6 +9,7 @@ const {
     OrderItem
 } = require('../models');
 const { Op } = require('sequelize');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Filter -> Sequelize where mapping (admin courses-tracking).
@@ -139,6 +140,8 @@ exports.unpublishCourse = async (req, res, next) => {
             return res.status(409).json({ success: false, message: `Sadece yayindaki kurslar iade edilebilir. Mevcut durum: ${course.durum}` });
         }
 
+        const oncekiDurum = course.durum;
+
         await course.update({
             durum: 'taslak',
             admin_tarafindan_iade_edildi: true,
@@ -149,6 +152,26 @@ exports.unpublishCourse = async (req, res, next) => {
         });
 
         console.log(`[ADMIN] Kurs iade edildi (taslaga dondu): ${id}, admin=${adminId}`);
+
+        // Egitmene in-app bildirim (non-blocking). yayinda -> taslak gecisinde
+        // egitmenin sessiz sedasiz yayindan kaldirildigini bilmesi sart.
+        // sendNotification kendi try/catch'i icinde olsa da, bildirim hatasi
+        // 200 donusunu degistirmesin diye burada da koruyoruz.
+        if (oncekiDurum === 'yayinda' && course.egitmen_id) {
+            try {
+                await sendNotification({
+                    kullanici_id: course.egitmen_id,
+                    baslik: 'Kursunuz taslak statusune alindi',
+                    mesaj: `Kursunuz "${course.baslik}" admin tarafindan taslak statusune alindi.`,
+                    tip: 'sistem',
+                    baglanti_linki: `/instructor/edit-course.html?id=${course.id}`,
+                    kaynak_id: course.id,
+                });
+            } catch (notifyErr) {
+                console.warn('[ADMIN unpublishCourse] Bildirim atlandi:', notifyErr.message);
+            }
+        }
+
         return res.status(200).json({ success: true, message: 'Kurs taslaga iade edildi.', data: { id, durum: 'taslak' } });
     } catch (error) {
         console.error(`[ADMIN] unpublishCourse hatasi: ${error.message}`);

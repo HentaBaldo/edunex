@@ -373,6 +373,16 @@ exports.updateSession = async (req, res, next) => {
             throw err;
         }
 
+        // Aktif yayindaki dersi duzenlemeyi engelle. Durum gecisleri ayri endpoint'te
+        // (PUT /:id/status & PUT /:id/start) — bu route sadece icerik (baslik, aciklama,
+        // tarih, sure, kayit, tip) duzenlemesi icindir; yayin sirasinda bunlarin
+        // degismesi katilimcilar acisindan tutarsizlik yaratir.
+        if (session.durum === 'devam_ediyor') {
+            const err = new Error('Aktif yayındaki dersin bilgileri değiştirilemez.');
+            err.statusCode = 409;
+            throw err;
+        }
+
         const allowed = ['baslik', 'aciklama', 'baslangic_tarihi', 'sure_dakika', 'durum', 'kayit_alinsin_mi'];
         for (const key of allowed) {
             if (req.body[key] !== undefined) session[key] = req.body[key];

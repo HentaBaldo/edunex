@@ -267,6 +267,9 @@ exports.listEarnings = async (req, res, next) => {
         const toplamEgitmen = toNumber(countRows?.[0]?.toplam);
 
         // Asil veri
+        // odeme_tipi sadece 'paid' durumunda anlamli: bir egitmenin paid
+        // kalemleri karisik olabilir (bazi cron, bazi 'Simdi Onayla').
+        // CASE ile: tum kayitlar ayni tip -> o tip, yoksa 'karisik'.
         const rows = await sequelize.query(
             `SELECT
                 ie.egitmen_id,
@@ -281,7 +284,11 @@ exports.listEarnings = async (req, res, next) => {
                 COUNT(ie.id)               AS kazanc_adet,
                 MIN(ie.olusturulma_tarihi) AS ilk_kazanc,
                 MAX(ie.olusturulma_tarihi) AS son_kazanc,
-                MAX(ie.komisyon_orani)     AS komisyon_orani
+                MAX(ie.komisyon_orani)     AS komisyon_orani,
+                CASE
+                    WHEN COUNT(DISTINCT ie.odeme_tipi) > 1 THEN 'karisik'
+                    ELSE MAX(ie.odeme_tipi)
+                END AS odeme_tipi
               FROM egitmen_hakedisleri ie
               LEFT JOIN profiller p ON p.id = ie.egitmen_id
               LEFT JOIN egitmen_detaylari id_ ON id_.kullanici_id = ie.egitmen_id
@@ -324,6 +331,10 @@ exports.listEarnings = async (req, res, next) => {
                 son_kazanc: r.son_kazanc,
                 odenebilirlik_tarihi: odenebilirlik,
                 acil_mi: toplamNet >= ACIL_ODEME_ESIGI_TRY && odenebilirlik && odenebilirlik <= new Date(),
+                // 'paid' filtresi icin anlamli: 'otomatik' | 'manuel' | 'karisik'
+                // Diger durumlarda DB'de default 'otomatik' durur; frontend
+                // sadece status === 'paid' iken bunu kullanir.
+                odeme_tipi: r.odeme_tipi || 'otomatik',
             };
         });
 
@@ -359,7 +370,7 @@ exports.getInstructorItems = async (req, res, next) => {
             attributes: [
                 'id', 'siparis_kalemi_id', 'brut_tutar', 'komisyon_orani',
                 'platform_kesintisi', 'net_tutar', 'olusturulma_tarihi',
-                'durum', 'odeme_tarihi', 'islem_dekont_no',
+                'durum', 'odeme_tarihi', 'islem_dekont_no', 'odeme_tipi',
             ],
             include: [{
                 model: OrderItem,
@@ -386,6 +397,7 @@ exports.getInstructorItems = async (req, res, next) => {
                 olusturulma_tarihi: i.olusturulma_tarihi,
                 odeme_tarihi: i.odeme_tarihi,
                 islem_dekont_no: i.islem_dekont_no,
+                odeme_tipi: i.odeme_tipi || 'otomatik',
                 kurs: i.OrderItem?.Course
                     ? { id: i.OrderItem.Course.id, baslik: i.OrderItem.Course.baslik }
                     : null,
@@ -421,8 +433,13 @@ exports.getInstructorItems = async (req, res, next) => {
  */
 exports.bulkApprove = async (req, res, next) => {
     try {
-        const { earning_ids, egitmen_id, islem_dekont_no, manual_transfer } = req.body || {};
-        const isManual = !!manual_transfer;
+        const { earning_ids, egitmen_id, islem_dekont_no, manual_transfer, is_manual } = req.body || {};
+        const isManualTransfer = !!manual_transfer;
+        // odeme_tipi DB etiketleme mantigi:
+        //   - manuel_transfer = true                    -> manuel (iyzico bypass, banka transferi)
+        //   - is_manual = true (Simdi Onayla override) -> manuel (T+14 oncesi admin override)
+        //   - diger                                     -> otomatik (standart admin/iyzico akisi)
+        const odemeTipi = (isManualTransfer || !!is_manual) ? 'manuel' : 'otomatik';
 
         // Hangi ID'lerin odenecegini belirle.
         // 'available' VEYA 'pending' kabul ediyoruz; admin elle override edebilir.
@@ -467,7 +484,7 @@ exports.bulkApprove = async (req, res, next) => {
         }
 
         // --- MOD B: MANUEL BANKA TRANSFER ---
-        if (isManual) {
+        if (isManualTransfer) {
             const dekontNo = String(islem_dekont_no || '').trim();
             if (!dekontNo) {
                 return res.status(400).json({
@@ -489,6 +506,8 @@ exports.bulkApprove = async (req, res, next) => {
                         durum: 'paid',
                         odeme_tarihi: new Date(),
                         islem_dekont_no: dekontNo,
+                        // Manuel banka transferi = her zaman 'manuel' (iyzico bypass).
+                        odeme_tipi: 'manuel',
                     },
                     {
                         where: { id: { [Op.in]: earningIds } },
@@ -526,6 +545,8 @@ exports.bulkApprove = async (req, res, next) => {
 
         // --- MOD A: IYZICO OTOMATIK APPROVAL ---
         // Sirayla isle; iyzico SDK paralel cagriya hassas oldugu icin tek seferde.
+        // odemeTipi: is_manual=true ise (Simdi Onayla / pending override) 'manuel',
+        // diger durumda 'otomatik'. Service iyzico cagrisi yapar; etiket farkli.
         const results = [];
         let approved = 0, alreadyPaid = 0, skipped = 0, failed = 0;
         for (const eid of earningIds) {
@@ -533,6 +554,7 @@ exports.bulkApprove = async (req, res, next) => {
                 earningId: eid,
                 source: 'admin-bulk',
                 dekontPrefix: 'IYZICO-MANUAL',
+                odemeTipi,
             });
             results.push(r);
             if (r.status === 'approved') approved++;
@@ -581,6 +603,9 @@ exports.approveNow = async (req, res, next) => {
             earningId: earning_id,
             source: 'admin-now',
             dekontPrefix: 'IYZICO-NOW',
+            // "Simdi Onayla" semantik olarak admin override; T+14 / iade penceresi
+            // bekleme atlanir. Bu da 'manuel' kategorisinde sayilir.
+            odemeTipi: 'manuel',
         });
 
         console.log('[PAYOUT APPROVE NOW]', { admin_id: req.user?.id, earning_id, status: r.status });

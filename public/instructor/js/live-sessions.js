@@ -183,7 +183,9 @@ function renderActiveCard(s) {
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:auto;">
                 ${startBtnHTML}
                 <button type="button" onclick="window.openAttendanceModal('${s.id}', '${escapeHtml(s.baslik)}')" class="btn-logout-alt" title="Yoklama" style="padding:9px 12px; font-size:0.82rem;"><i class="fas fa-eye"></i></button>
-                <button type="button" onclick="window.editLiveSession('${s.id}')" class="btn-logout-alt" title="Düzenle" style="padding:9px 12px; font-size:0.82rem;"><i class="fas fa-edit"></i></button>
+                ${isLive
+                    ? `<button type="button" disabled title="Aktif yayındaki dersin bilgileri değiştirilemez" class="btn-logout-alt" style="padding:9px 12px; font-size:0.82rem; opacity:0.45; cursor:not-allowed;"><i class="fas fa-edit"></i></button>`
+                    : `<button type="button" onclick="window.editLiveSession('${s.id}')" class="btn-logout-alt" title="Düzenle" style="padding:9px 12px; font-size:0.82rem;"><i class="fas fa-edit"></i></button>`}
                 <button type="button" onclick="window.deleteSession('${s.id}')" class="btn-logout-alt" title="Sil" style="padding:9px 12px; font-size:0.82rem; color:#dc2626;"><i class="fas fa-trash"></i></button>
             </div>
         </div>`;
@@ -559,6 +561,13 @@ window.editLiveSession = (id) => {
     const s = __sessions.find(x => x.id === id);
     if (!s) return;
 
+    // Aktif yayindaki dersin bilgileri degistirilemez. Buton disabled olsa bile
+    // konsol/DOM uzerinden bypass denemelerine karsi modal acilmadan once kontrol.
+    if (s.durum === 'devam_ediyor') {
+        toast('Aktif yayındaki dersin bilgileri değiştirilemez.', 'error');
+        return;
+    }
+
     document.getElementById('liveModalTitle').textContent = 'Canlı Dersi Düzenle';
     const idInput = document.getElementById('lf_id');
     if (idInput) idInput.value = s.id;
@@ -675,7 +684,13 @@ function toast(message, type = 'info') {
     el.className = `toast toast-${type}`;
     el.textContent = message;
     container.appendChild(el);
-    setTimeout(() => el.remove(), 4000);
+    // .toast varsayilan opacity:0; animasyon bitince gorunmez kaliyordu.
+    // .toast-show sinifi opacity:1'i sabitler — kullanici bildirimi okuyabilsin.
+    requestAnimationFrame(() => el.classList.add('toast-show'));
+    setTimeout(() => {
+        el.classList.remove('toast-show');
+        setTimeout(() => el.remove(), 300);
+    }, 4700);
 }
 // ==========================================
 // EĞİTMEN YAYIN YÖNETİMİ (GİRİŞ VE BİTİRME)

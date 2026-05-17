@@ -30,8 +30,12 @@ const iyzicoService = require('./iyzicoService');
  *
  * @param {object} params
  * @param {string} params.earningId           - InstructorEarning UUID
- * @param {string} [params.source]            - 'cron' | 'admin' (audit icin)
+ * @param {string} [params.source]            - 'cron' | 'admin-now' | 'admin-bulk' (audit icin)
  * @param {string} [params.dekontPrefix]      - islem_dekont_no on ekini override eder (default 'IYZICO')
+ * @param {'otomatik'|'manuel'} [params.odemeTipi='otomatik']
+ *        DB'de paid kaydiyla birlikte yazilan odeme_tipi. 'manuel' = admin override
+ *        (T+14 oncesi 'Simdi Onayla' veya banka transferi); diger butun yollar 'otomatik'.
+ *        Bu degeri 'manuel' verirken iyzico cagrisi gene yapilir; sadece etiket farkli.
  * @returns {Promise<{
  *    status: 'approved'|'already_paid'|'skipped'|'failed',
  *    earningId: string,
@@ -40,7 +44,7 @@ const iyzicoService = require('./iyzicoService');
  *    error?: string
  * }>}
  */
-async function approveEarning({ earningId, source = 'cron', dekontPrefix = 'IYZICO' } = {}) {
+async function approveEarning({ earningId, source = 'cron', dekontPrefix = 'IYZICO', odemeTipi = 'otomatik' } = {}) {
     if (!earningId) {
         return { status: 'failed', earningId, error: 'earningId zorunlu.' };
     }
@@ -106,11 +110,15 @@ async function approveEarning({ earningId, source = 'cron', dekontPrefix = 'IYZI
     try {
         // Yarisi koridordan baska bir worker tarafindan hallediliyor olabilir;
         // WHERE clause'unda durum != 'paid' yazarak race-condition'a karsi koruma.
+        // odeme_tipi sadece ENUM('otomatik','manuel'); beklenmedik degeri sessizce
+        // 'otomatik'e dusur ki DB constraint hatasi olmasin.
+        const tipNormalized = odemeTipi === 'manuel' ? 'manuel' : 'otomatik';
         const [updatedCount] = await InstructorEarning.update(
             {
                 durum: 'paid',
                 odeme_tarihi: new Date(),
                 islem_dekont_no: dekont,
+                odeme_tipi: tipNormalized,
             },
             {
                 where: { id: earningId, durum: { [require('sequelize').Op.ne]: 'paid' } },

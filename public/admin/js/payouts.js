@@ -127,7 +127,160 @@
         return grouped;
     }
 
-    function showToast(msg, type = 'success') {
+    // ===================================================================
+     // SAFE CONFIRM — sayfa layout'unu kaydirmayan onay modal'i
+     // ===================================================================
+     // Neden bu fonksiyon var?
+     //   notify.confirm() altta SweetAlert2'yi async olarak CDN'den ceker;
+     //   Swal default opsiyonlariyla body'ye scrollbar genisligi kadar
+     //   padding-right ekler (scrollbar lock). Bu, hakedis tablosunu ve
+     //   widget grid'ini ANLIK olarak saga kaydirir — kullanici "tasarim
+     //   bozuluyor" sikayetinin kok nedeni budur.
+     //
+     // Cozum stratejisi:
+     //   1) window.Swal yuklenmis ise -> Swal.fire'i layout shift kapali
+     //      opsiyonlarla cagir (scrollbarPadding: false, heightAuto: false).
+     //   2) Swal yok ise -> projedeki notify.js'in scrollbar lock yapmayan
+     //      fallback modal'ina dus.
+     //   3) O da yoksa -> minimal, self-contained position:fixed overlay
+     //      ile inline modal (bagimli yok; DOM akisini bozmaz).
+     //
+     // Tum yollar position:fixed ve body padding'i degistirmez. Page-flow
+     // garantisi var.
+     async function safeConfirm({ title, text, confirmText = 'Evet', cancelText = 'Vazgec', type = 'warning' } = {}) {
+         // YOL 1: Swal yuklu ve hazir
+         if (window.Swal && typeof window.Swal.fire === 'function') {
+             const icon = type === 'error' ? 'error'
+                        : type === 'success' ? 'success'
+                        : type === 'info'    ? 'info'
+                        : 'warning';
+             const r = await window.Swal.fire({
+                 title, text, icon,
+                 showCancelButton: true,
+                 confirmButtonText: confirmText,
+                 cancelButtonText: cancelText,
+                 reverseButtons: true,
+                 // KRITIK: bu iki opsiyon layout shift'i tamamen kapatir.
+                 //   - scrollbarPadding=false: Swal body'ye padding-right eklemez
+                 //   - heightAuto=false:       Swal html'in heightini degistirmez
+                 scrollbarPadding: false,
+                 heightAuto: false,
+                 // didOpen ile ek savunma: Swal body'ye yine de padding eklerse
+                 // (eski surumler) burada sifirliyoruz.
+                 didOpen: () => {
+                     document.body.style.paddingRight = '';
+                     document.body.style.overflow = '';
+                 }
+             });
+             return !!r.isConfirmed;
+         }
+
+         // YOL 2: notify.js mevcut ise onun fallback'ini kullan (Swal yuklemeden)
+         //   notify.confirm direkt cagirilsa Swal'i CDN'den indirir; biz bunu
+         //   istemiyoruz. Bunun yerine kendi inline overlay'imizi acalim:
+         return inlineConfirmModal({ title, text, type, confirmText, cancelText });
+     }
+
+     /**
+      * Self-contained position:fixed onay modal'i. Hicbir dis bagimligi yok,
+      * body padding'ine dokunmaz, DOM akisini bozmaz. Promise<boolean> doner.
+      */
+     function inlineConfirmModal({ title, text, type = 'warning', confirmText = 'Evet', cancelText = 'Vazgec' }) {
+         const COLOR = type === 'error' ? '#ef4444'
+                     : type === 'success' ? '#10b981'
+                     : type === 'info'    ? '#2563eb'
+                     : '#f59e0b';
+         const ICON = type === 'error' ? 'fa-circle-xmark'
+                    : type === 'success' ? 'fa-circle-check'
+                    : type === 'info'    ? 'fa-circle-info'
+                    : 'fa-triangle-exclamation';
+
+         return new Promise((resolve) => {
+             const overlay = document.createElement('div');
+             // position:fixed + inset:0 -> DOM akisi disinda; tabloyu kaydirmaz.
+             // z-index yuksek; sticky bulk bar (z 10-100 araliginda) ustunde.
+             overlay.style.cssText = [
+                 'position:fixed', 'inset:0',
+                 'background:rgba(15,23,42,0.55)',
+                 'display:flex', 'align-items:center', 'justify-content:center',
+                 'z-index:99998', 'padding:20px',
+                 'opacity:0', 'transition:opacity .2s ease'
+             ].join(';');
+
+             const modal = document.createElement('div');
+             modal.setAttribute('role', 'dialog');
+             modal.setAttribute('aria-modal', 'true');
+             modal.style.cssText = [
+                 'background:#fff', 'max-width:440px', 'width:100%',
+                 'border-radius:14px',
+                 'box-shadow:0 20px 60px rgba(0,0,0,0.3)',
+                 'padding:28px', 'text-align:center',
+                 'transform:scale(.95)', 'transition:transform .2s ease',
+                 'font-family:inherit'
+             ].join(';');
+
+             modal.innerHTML = `
+                 <div style="width:64px;height:64px;border-radius:50%;background:${COLOR}1A;
+                             display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                     <i class="fas ${ICON}" style="color:${COLOR};font-size:1.8rem;"></i>
+                 </div>
+                 <h3 style="margin:0 0 8px;color:#0f172a;font-size:1.2rem;font-weight:700;"></h3>
+                 <p style="margin:0 0 22px;color:#475569;line-height:1.5;font-size:0.95rem;"></p>
+                 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                     <button type="button" data-act="cancel"
+                         style="padding:10px 22px;border-radius:8px;border:1px solid #e2e8f0;
+                                background:#fff;color:#334155;font-weight:600;cursor:pointer;
+                                font-family:inherit;font-size:0.9rem;"></button>
+                     <button type="button" data-act="confirm"
+                         style="padding:10px 22px;border-radius:8px;border:0;
+                                background:${COLOR};color:#fff;font-weight:600;cursor:pointer;
+                                font-family:inherit;font-size:0.9rem;"></button>
+                 </div>
+             `;
+             modal.querySelector('h3').textContent = title || 'Onayliyor musunuz?';
+             modal.querySelector('p').textContent  = text  || '';
+             modal.querySelector('button[data-act="cancel"]').textContent  = cancelText;
+             modal.querySelector('button[data-act="confirm"]').textContent = confirmText;
+
+             overlay.appendChild(modal);
+             // body'ye ekliyoruz ki main grid'in icine girip parent flex/grid'i
+             // bozmasin. position:fixed oldugundan herhangi bir parent fark
+             // etmez, yine de en guvenli yer body.
+             document.body.appendChild(overlay);
+
+             requestAnimationFrame(() => {
+                 overlay.style.opacity = '1';
+                 modal.style.transform = 'scale(1)';
+             });
+
+             const cleanup = (result) => {
+                 overlay.style.opacity = '0';
+                 modal.style.transform = 'scale(.95)';
+                 document.removeEventListener('keydown', onKey);
+                 setTimeout(() => {
+                     overlay.remove();
+                     resolve(result);
+                 }, 200);
+             };
+             const onKey = (e) => {
+                 if (e.key === 'Escape') cleanup(false);
+                 if (e.key === 'Enter')  cleanup(true);
+             };
+             document.addEventListener('keydown', onKey);
+             modal.querySelectorAll('button').forEach(btn => {
+                 btn.addEventListener('click', () => cleanup(btn.dataset.act === 'confirm'));
+             });
+             overlay.addEventListener('click', (e) => {
+                 if (e.target === overlay) cleanup(false);
+             });
+
+             // Focus baslangic: confirm'e (yanlislikla Enter ile onaylanmasin
+             // diye cancel'a da koyabilirdik; confirm UX'i standartla uyumlu).
+             setTimeout(() => modal.querySelector('button[data-act="confirm"]').focus(), 50);
+         });
+     }
+
+     function showToast(msg, type = 'success') {
         const c = document.getElementById('toastContainer');
         if (!c) return;
         const t = document.createElement('div');
@@ -323,19 +476,46 @@
                 </td>
                 <td class="col-status">
                     <span class="durum-badge durum-${escapeHtml(state.status)}">
-                        ${escapeHtml(durumLabel(state.status))}
+                        ${escapeHtml(durumLabel(state.status, r.odeme_tipi))}
                     </span>
+                    ${state.status === 'paid' ? renderOdemeTipiBadge(r.odeme_tipi) : ''}
                 </td>
                 <td class="col-action">${aksiyon}</td>
             </tr>`;
     }
 
-    function durumLabel(d) {
+    // 'paid' icin odeme tipi alt-rozeti. Aggregate listede 'karisik' degeri
+    // de gelebilir (egitmenin paid kalemleri arasinda hem otomatik hem manuel
+    // varsa). Diger statuslerde gosterilmez.
+    function renderOdemeTipiBadge(odemeTipi) {
+        const t = (odemeTipi || 'otomatik').toLowerCase();
+        if (t === 'manuel') {
+            return `<span class="odeme-tipi-badge odeme-tipi-manuel" title="Admin 'Simdi Onayla' veya banka transferi ile (T+14 iade penceresi beklenmeden) odendi.">
+                        <i class="fas fa-user-shield"></i> Manuel Odendi
+                    </span>`;
+        }
+        if (t === 'karisik') {
+            return `<span class="odeme-tipi-badge odeme-tipi-karisik" title="Egitmenin paid kalemleri arasinda hem otomatik hem manuel odemeler var.">
+                        <i class="fas fa-shuffle"></i> Karisik
+                    </span>`;
+        }
+        return `<span class="odeme-tipi-badge odeme-tipi-otomatik" title="Cron veya admin standart akisi ile (T+14 iade penceresi sonrasi iyzico approval) odendi.">
+                    <i class="fas fa-robot"></i> Otomatik
+                </span>`;
+    }
+
+    function durumLabel(d, odemeTipi) {
+        if (d === 'paid') {
+            // Aggregate row icin tip bazli sade etiket; alt-rozet ek detay verir.
+            const t = (odemeTipi || 'otomatik').toLowerCase();
+            if (t === 'manuel') return 'Manuel Odendi';
+            if (t === 'karisik') return 'Odendi';
+            return 'Otomatik Odendi';
+        }
         return ({
             pending: 'Iade Suresinde (Bekliyor)',
             available: 'Odenebilir',
             processing: 'Islemde',
-            paid: 'Otomatik Odendi',
             cancelled: 'Iptal',
         })[d] || d;
     }
@@ -444,6 +624,11 @@
      * "Simdi Onayla" akisi (status='pending' icin admin override).
      * Modal kullanmadan, direkt bulk-approve'u iyzico modunda cagirir.
      * Backend payoutApprovalService uzerinden iyzico'da approval atar.
+     *
+     * KRITIK: is_manual=true gonderilir. Backend bunu 'manuel' odeme_tipi olarak
+     * isaretler; cunku T+14 iade penceresi bekleme atlanmaktadir (admin manuel
+     * inisiyatifi). Hem admin hem egitmen panelinde 'Manuel Odendi' rozetiyle
+     * 'Otomatik Odendi' kayitlardan ayrilir.
      */
     async function approveNowForEgitmen(btn, target) {
         const orig = btn.innerHTML;
@@ -454,12 +639,13 @@
                 method: 'POST',
                 body: JSON.stringify({
                     egitmen_id: target.egitmen_id,
-                    // manual_transfer FALSE -> iyzico approval cagrilir, T+14 bekleme atlanir
+                    // is_manual=true -> 'manuel' etiketle paid. iyzico cagrilir, T+14 atlanir.
+                    is_manual: true,
                 }),
             });
             const d = body.data || {};
             showToast(
-                `Iyzico onayi: ${d.approved || 0} kalem onaylandi, ${d.failed || 0} hatali, ${d.skipped || 0} atlandi.`,
+                `Iyzico onayi (MANUEL): ${d.approved || 0} kalem onaylandi, ${d.failed || 0} hatali, ${d.skipped || 0} atlandi.`,
                 d.failed > 0 ? 'warning' : 'success'
             );
             await Promise.all([loadSummary(), loadList()]);
@@ -647,10 +833,15 @@
                     }
                     const tutar = fmtTRY(target.toplam_net);
                     const adSoyad = `${target.egitmen?.ad || ''} ${target.egitmen?.soyad || ''}`.trim();
-                    notify.confirm({
-                        title: 'Şimdi onayla',
-                        text: `T+14 iade penceresini bekleme atlanacak. ${adSoyad} için ${tutar} hakediş iyzico'da hemen onaylanacak. Bu işlem geri alınamaz. Devam edilsin mi?`,
-                        confirmText: 'Evet, onayla',
+                    // Manuel onay: confirm dialog ZORUNLU. Yanlislikla T+14 iade
+                    // penceresini delip geri alinamaz odeme tetiklenmesin.
+                    // safeConfirm (yukarida tanimli) layout shift yapmaz:
+                    //   - Swal varsa scrollbarPadding:false ile cagirir
+                    //   - Yoksa kendi position:fixed overlay'ini acar
+                    safeConfirm({
+                        title: 'Manuel ödendi olarak işaretle?',
+                        text: `Bu hakedişin iade süresi dolmamış olabilir. ${adSoyad} için ${tutar} tutarı MANUEL olarak ödendi işaretlemek istediğinize emin misiniz? İşlem iyzico'da hemen onaylanacak ve geri alınamaz.`,
+                        confirmText: 'Evet, manuel öde',
                         cancelText: 'Vazgeç',
                         type: 'warning'
                     }).then((ok) => { if (ok) approveNowForEgitmen(approveNowBtn, target); });

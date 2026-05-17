@@ -55,7 +55,7 @@
         return c;
     }
 
-    function toast(message, type = 'success', duration = 3500) {
+    function toast(message, type = 'success', duration = 4700) {
         const t = (type in COLORS) ? type : 'info';
         const container = ensureToastContainer();
         const el = document.createElement('div');

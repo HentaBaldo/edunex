@@ -83,16 +83,25 @@ async function loadSalesHistory() {
 /**
  * Mevcut sayfadaki satırların toplamı — backend ek bir özet endpoint'i istemeden
  * tablo başında hızlı bir görünüm verir.
+ *
+ * Net tutar IKIYE bolunur:
+ *   - sumOdenmis : durum === 'paid'  (admin + iyzico onayli, cekilebilir)
+ *   - sumBekleyen: durum in (pending|available|processing)  (henuz cekilemez)
+ * 'cancelled' kayitlar ozellestirmeden hicbirine eklenmez (iade vb).
  */
 function renderSummary(rows) {
+    const BEKLEYEN = new Set(['pending', 'available', 'processing']);
+
     const sumBrut    = rows.reduce((s, r) => s + (r.finans?.brut || 0), 0);
     const sumKesinti = rows.reduce((s, r) => s + (r.finans?.platform_kesintisi || 0), 0);
-    const sumNet     = rows.reduce((s, r) => s + (r.finans?.net || 0), 0);
+    const sumOdenmis = rows.reduce((s, r) => s + (r.durum === 'paid' ? (r.finans?.net || 0) : 0), 0);
+    const sumBekleyen = rows.reduce((s, r) => s + (BEKLEYEN.has(r.durum) ? (r.finans?.net || 0) : 0), 0);
 
-    document.getElementById('sumNet').textContent     = fmtTRY(sumNet);
-    document.getElementById('sumBrut').textContent    = fmtTRY(sumBrut);
-    document.getElementById('sumKesinti').textContent = fmtTRY(sumKesinti);
-    document.getElementById('sumAdet').textContent    = String(state.total);
+    document.getElementById('sumOdenmis').textContent  = fmtTRY(sumOdenmis);
+    document.getElementById('sumBekleyen').textContent = fmtTRY(sumBekleyen);
+    document.getElementById('sumBrut').textContent     = fmtTRY(sumBrut);
+    document.getElementById('sumKesinti').textContent  = fmtTRY(sumKesinti);
+    document.getElementById('sumAdet').textContent     = String(state.total);
 }
 
 function renderTable(rows) {
@@ -126,6 +135,7 @@ function renderRow(r) {
     const net = fmtTRY(r.finans?.net);
     const oran = Number(r.finans?.komisyon_orani || 0).toFixed(0);
     const durum = String(r.durum || 'pending').toLowerCase();
+    const odemeTipi = String(r.odeme_tipi || 'otomatik').toLowerCase();
 
     // PDF endpoint sipariş bazlıdır — siparis_id ile çağırırız.
     const orderId = r.siparis_id || '';
@@ -138,6 +148,13 @@ function renderRow(r) {
            </button>`
         : `<span style="color:#94a3b8;font-size:0.8rem;">—</span>`;
 
+    // 'paid' icin pill class'i odeme tipine gore degisir: manuel ayri bir renk
+    // tonu (turuncu/amber) ile 'admin override' oldugunu net gosterir.
+    const pillClass = (durum === 'paid' && odemeTipi === 'manuel') ? 'paid-manuel' : escapeHtml(durum);
+    const pillLabel = (durum === 'paid')
+        ? (odemeTipi === 'manuel' ? 'Manuel Ödendi' : 'Otomatik Ödendi')
+        : statusLabel(durum);
+
     return `
         <tr>
             <td>${tarih}</td>
@@ -149,7 +166,7 @@ function renderRow(r) {
             <td>${brut}</td>
             <td title="Platform komisyonu (%${oran})">${kesinti}</td>
             <td class="sh-net">${net}</td>
-            <td><span class="sh-pill ${escapeHtml(durum)}">${statusLabel(durum)}</span></td>
+            <td><span class="sh-pill ${pillClass}">${escapeHtml(pillLabel)}</span></td>
             <td style="text-align:right;">${btnHtml}</td>
         </tr>`;
 }
@@ -162,7 +179,7 @@ function renderPagination(pag) {
 }
 
 function _setSummaryLoading(on) {
-    ['sumNet', 'sumBrut', 'sumKesinti', 'sumAdet'].forEach(id => {
+    ['sumOdenmis', 'sumBekleyen', 'sumBrut', 'sumKesinti', 'sumAdet'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         if (on) {

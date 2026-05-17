@@ -205,15 +205,62 @@
                     }
                 });
 
+                // Ders sona erdi broadcast sabitleri.
+                // recipient='' Jitsi'da broadcast olarak desteklenmedigi icin
+                // her katilimciya tek tek goneriyoruz (getParticipantsInfo).
+                const DERS_BITTI_SIGNAL = 'edunex:DERS_SONA_ERDI';
+
+                // === OGRENCI: bitis sinyali dinleyici ===
+                // Egitmen yayindan ciktiginda gelen broadcast'i yakalar, kisa bir
+                // bilgilendirme banner'i goster ve ardindan kullaniciyi otomatik cikar.
+                // NOT: Bu UX iyilestirmesidir — Jitsi server-side moderator akisi
+                // (JWT/JaaS) olmadigi icin kotuye kullanim defansif degil, ancak
+                // gonderim tarafi `isInstructor` ile kilitli oldugu icin normal akista
+                // sadece egitmen tetikleyebilir.
+                if (!isInstructor) {
+                    jitsiApi.addEventListener('endpointTextMessageReceived', (event) => {
+                        let payload = null;
+                        try { payload = JSON.parse(event?.data?.eventData?.text || '{}'); } catch (_) {}
+                        if (!payload || payload.tip !== DERS_BITTI_SIGNAL) return;
+
+                        gosterDersBittiBanner();
+                        // Kullanicinin mesaji okuyabilmesi icin kisa gecikme,
+                        // ardindan hangup -> readyToClose listener'i dispose+redirect halleder.
+                        setTimeout(() => {
+                            try { jitsiApi.executeCommand('hangup'); } catch (_) {}
+                        }, 2500);
+                    });
+                }
+
                 jitsiApi.addEventListener('readyToClose', () => {
                     if (heartbeatInterval) clearInterval(heartbeatInterval);
-                    // Cift sekme korumasi: yonlendirme yapmadan once mevcut Jitsi instance'ini dispose et.
-                    try { jitsiApi && jitsiApi.dispose(); } catch (_) {}
+
+                    // Egitmen ayriliyorsa: tum katilimcilara "ders sona erdi" sinyali
+                    // gonder, ardindan dispose+redirect. Sinyalin teslim olmasi icin
+                    // dispose oncesinde kucuk bir delay birakiyoruz.
                     if (isInstructor) {
-                        window.location.href = '/instructor/live-sessions.html';
-                    } else {
-                        window.location.href = '/main/index.html';
+                        try {
+                            const payload = JSON.stringify({ tip: DERS_BITTI_SIGNAL });
+                            const participants = (jitsiApi.getParticipantsInfo && jitsiApi.getParticipantsInfo()) || [];
+                            participants.forEach(p => {
+                                if (!p || !p.participantId) return;
+                                try {
+                                    jitsiApi.executeCommand('sendEndpointTextMessage', p.participantId, payload);
+                                } catch (_) {}
+                            });
+                        } catch (e) {
+                            console.warn('[live-room] Bitis sinyali gonderilemedi:', e);
+                        }
+                        setTimeout(() => {
+                            try { jitsiApi && jitsiApi.dispose(); } catch (_) {}
+                            window.location.href = '/instructor/live-sessions.html';
+                        }, 500);
+                        return;
                     }
+
+                    // Ogrenci normal akis: dispose + ana sayfaya yonlendir.
+                    try { jitsiApi && jitsiApi.dispose(); } catch (_) {}
+                    window.location.href = '/main/index.html';
                 });
 
                 // Jitsi auth/popup akisini gozlemle — yalniz logla, davranisi degistirmiyoruz.
@@ -225,6 +272,24 @@
                     console.warn('[live-room] passwordRequired event — odaya parola zorunlu, sessizce yok sayildi.');
                 });
             };
+
+            function gosterDersBittiBanner() {
+                if (document.getElementById('ders-sona-erdi-banner')) return;
+                const banner = document.createElement('div');
+                banner.id = 'ders-sona-erdi-banner';
+                banner.style.cssText = [
+                    'position:fixed', 'top:20px', 'right:20px',
+                    'background:#dc2626', 'color:#fff',
+                    'padding:14px 18px', 'border-radius:10px',
+                    'font-weight:600', 'font-size:0.95rem', 'line-height:1.4',
+                    'box-shadow:0 8px 24px rgba(0,0,0,0.3)',
+                    'z-index:2147483647',
+                    'font-family:system-ui,-apple-system,"Segoe UI",sans-serif',
+                    'max-width:340px'
+                ].join(';');
+                banner.textContent = 'Ders sona erdi, toplantıdan çıkarılıyorsunuz...';
+                document.body.appendChild(banner);
+            }
 
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', baslat);
