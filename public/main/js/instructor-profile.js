@@ -91,7 +91,7 @@
         // Avatar
         const avatarEl = document.getElementById('heroAvatar');
         if (profil.profil_fotografi) {
-            avatarEl.innerHTML = `<img src="${_esc(profil.profil_fotografi)}" alt="${_esc(adSoyad)}">`;
+            avatarEl.innerHTML = `<img src="${_escAttr(profil.profil_fotografi)}" alt="${_escAttr(adSoyad)}">`;
         }
 
         document.getElementById('heroName').textContent  = adSoyad;
@@ -129,7 +129,7 @@
         sosyalBaglantilar.forEach(({ alan, ikon }) => {
             if (alan) {
                 const href = alan.startsWith('http') ? alan : `https://${alan}`;
-                sosyal.innerHTML += `<a href="${_esc(href)}" target="_blank" rel="noopener noreferrer" title="${_esc(alan)}"><i class="${ikon}"></i></a>`;
+                sosyal.innerHTML += `<a href="${_escAttr(href)}" target="_blank" rel="noopener noreferrer" title="${_escAttr(alan)}"><i class="${ikon}"></i></a>`;
             }
         });
 
@@ -170,9 +170,9 @@
             const fiyatHtml = _renderPriceTag(k);
 
             return `
-            <a href="/main/course-detail.html?id=${_esc(k.id)}" class="course-card">
+            <a href="/main/course-detail.html?id=${_escAttr(k.id)}" class="course-card">
                 <div class="kurs-kart-kapak">
-                    ${kapak ? `<img src="${_esc(kapak)}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
+                    ${kapak ? `<img src="${_escAttr(kapak)}" alt="" class="kurs-kart-kapak-img">` : '<i class="fas fa-laptop-code"></i>'}
                     <span class="kurs-kategori-rozet">${kategori}</span>
                     ${k.indirim_var && k.indirim_yuzde ? `<span class="kurs-indirim-rozet">-%${k.indirim_yuzde}</span>` : ''}
                 </div>
@@ -287,7 +287,7 @@
             const date = new Date(w.baslangic_tarihi);
             const dateStr = date.toLocaleString('tr-TR', { dateStyle: 'medium' });
             return `
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';" onmouseout="this.style.transform=''; this.style.boxShadow='';'">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
                 <div style="position:relative; background:#0f172a; height:140px; display:flex; align-items:center; justify-content:center;">
                     <i class="fas fa-play-circle" style="font-size:2.5rem; color:#fff; opacity:0.8;"></i>
                 </div>
@@ -295,7 +295,7 @@
                     <h4 style="margin:0 0 6px 0; color:#1e293b; font-weight:600; font-size:0.95rem;">${_esc(w.baslik)}</h4>
                     <p style="margin:0 0 10px 0; color:#64748b; font-size:0.8rem; line-height:1.3;">${w.aciklama ? _plainText(w.aciklama, 60) : 'Açıklama yok'}</p>
                     <p style="margin:0 0 10px 0; color:#94a3b8; font-size:0.75rem;"><i class="fas fa-calendar"></i> ${dateStr}</p>
-                    <a href="${_esc(w.kayit_video_url)}" target="_blank" class="btn-primary-lg-alt" style="display:inline-block; padding:7px 12px; font-size:0.8rem; text-decoration:none; border-radius:6px; color:#fff; background:var(--primary-color); text-align:center;"><i class="fas fa-play"></i> İzle</a>
+                    <a href="${_escAttr(w.kayit_video_url)}" target="_blank" class="btn-primary-lg-alt" style="display:inline-block; padding:7px 12px; font-size:0.8rem; text-decoration:none; border-radius:6px; color:#fff; background:var(--primary-color); text-align:center;"><i class="fas fa-play"></i> İzle</a>
                 </div>
             </div>`;
         }).join('');
@@ -306,6 +306,16 @@
         const d = document.createElement('div');
         d.textContent = String(text);
         return d.innerHTML;
+    }
+
+    // Attribute degerlerine basilirken tirnak/satir basi karakterleri
+    // (\n, ", ') HTML/inline-handler context'ini bozabilir. Bu nedenle
+    // attribute icine yazilan tum dinamik veriler bu fonksiyondan gecer.
+    function _escAttr(text) {
+        return String(text ?? '').replace(/[&<>"'\r\n]/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;',
+            '"': '&quot;', "'": '&#39;', '\r': '&#13;', '\n': '&#10;'
+        }[c]));
     }
 
     // Zengin metni (HTML içerebilir) düz, kısaltılmış, güvenli metne çevir
