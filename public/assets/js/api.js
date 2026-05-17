@@ -32,7 +32,7 @@ const ApiService = {
         }
 
         try {
-            const response = await fetch(`/api${endpoint}`, {
+            const response = await fetch(`${window.location.origin}/api${endpoint}`, {
                 method: 'GET',
                 headers
             });
@@ -65,7 +65,7 @@ const ApiService = {
         }
 
         try {
-            const response = await fetch(`/api${endpoint}`, {
+            const response = await fetch(`${window.location.origin}/api${endpoint}`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(body)
@@ -107,7 +107,7 @@ const ApiService = {
         }
 
         try {
-            const response = await fetch(`/api${endpoint}`, {
+            const response = await fetch(`${window.location.origin}/api${endpoint}`, {
                 method: 'PUT',
                 headers,
                 body: JSON.stringify(body)
@@ -149,7 +149,7 @@ const ApiService = {
         }
 
         try {
-            const response = await fetch(`/api${endpoint}`, {
+            const response = await fetch(`${window.location.origin}/api${endpoint}`, {
                 method: 'PATCH',
                 headers,
                 body: JSON.stringify(body)
@@ -195,7 +195,7 @@ const ApiService = {
             if (body !== undefined && body !== null) {
                 fetchOptions.body = JSON.stringify(body);
             }
-            const response = await fetch(`/api${endpoint}`, fetchOptions);
+            const response = await fetch(`${window.location.origin}/api${endpoint}`, fetchOptions);
 
             let data;
             try {
@@ -234,7 +234,7 @@ const ApiService = {
         // Content-Type'ı FormData için otomatik ayarla
 
         try {
-            const response = await fetch(`/api${endpoint}`, {
+            const response = await fetch(`${window.location.origin}/api${endpoint}`, {
                 method: 'POST',
                 headers,
                 body: formData

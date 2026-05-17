@@ -256,16 +256,17 @@ window.viewUser = async (id) => {
 window.closeUserModal = () => {
     document.getElementById('userModalOverlay').style.display = 'none';
 };
-
 // Kullanıcı Silme Fonksiyonu
 window.deleteUser = async (id) => {
+    // Kendi global notify sistemimizi kullanıyoruz
     const ok = await notify.confirm({
-        title: 'Kullanıcıyı kalıcı sil',
+        title: 'Kullanıcıyı Sil',
         text: 'Bu kullanıcıyı kalıcı olarak silmek istediğinize emin misiniz?',
-        confirmText: 'Evet, sil',
+        confirmText: 'Evet, Sil',
         cancelText: 'Vazgeç',
-        type: 'error'
+        type: 'warning'
     });
+    
     if (!ok) return;
 
     try {
@@ -276,10 +277,10 @@ window.deleteUser = async (id) => {
         const result = await response.json();
 
         if (result.success) {
-            notify.success('Kullanıcı silindi.');
+            notify.success('Kullanıcı başarıyla silindi.');
             fetchUsers(currentPage, currentRoleFilter);
         } else {
-            notify.error('Hata: ' + result.message);
+            notify.error('Hata: ' + (result.message || 'Kullanıcı silinemedi.'));
         }
     } catch (error) {
         console.error('Silme hatası:', error);
