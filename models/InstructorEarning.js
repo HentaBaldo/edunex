@@ -63,6 +63,20 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'Banka dekont / referans numarasi (manuel girilir).',
       },
+      // 'paid' durumundaki bir kaydin nasil odendi:
+      //   otomatik -> cron T+14 sonrasi VEYA admin'in standart available onayi
+      //               (her ikisinde de iyzico approval normal akisi)
+      //   manuel   -> admin 'Simdi Onayla' (T+14 oncesi pending override)
+      //               VEYA admin 'manuel banka transferi' modu (iyzico bypass).
+      // 'pending'/'available'/'processing'/'cancelled' kayitlar icin default
+      // 'otomatik' tutulur; bilgisel olarak yalnizca 'paid' uzerinde anlamlidir.
+      // 'cancelled' icin de mantiken degisken degil — sadece etiket icin tutuluyor.
+      odeme_tipi: {
+        type: DataTypes.ENUM('otomatik', 'manuel'),
+        allowNull: false,
+        defaultValue: 'otomatik',
+        comment: 'paid durumunun nasil olustugunu belirler (otomatik=iyzico approval normal akis, manuel=admin override/banka transferi).',
+      },
     },
     {
       tableName: 'egitmen_hakedisleri',

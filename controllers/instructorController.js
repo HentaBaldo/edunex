@@ -81,9 +81,24 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
         // Takipci sayisi kursdan bagimsizdir; kurs yokken bile dogru deger doner.
         const followerCount = await InstructorFollower.count({ where: { egitmen_id: egitmenId } });
 
+        // Hakedis yasam dongusu (InstructorEarning.durum):
+        //   pending|available|processing -> EGITMEN PARASI DEGIL: para iyzico havuzunda,
+        //                                    iade penceresi acik veya admin onayi bekleniyor.
+        //   paid                          -> CEKILEBILIR: admin onaylanmis + iyzico
+        //                                    approval success donmus.
+        //   cancelled                     -> dusulmus hakedis (iade vb.).
+        // Eski kod tum durumlari "toplam net kazanc" altinda topluyordu; bu eğitmene
+        // var olmayan parayi gosteriyordu. Artik KPI'da iki ayri alan donuyor.
+        const BEKLEYEN_DURUMLAR = ['pending', 'available', 'processing'];
+
         const emptyKpi = {
-            toplam_ogrenci: 0, toplam_net_kazanc: 0, bu_ay_kazanc: 0,
-            kazanc_trendi: null, ortalama_puan: 0, toplam_yorum: 0,
+            toplam_ogrenci: 0,
+            toplam_net_odenmis: 0,
+            bekleyen_hakedis: 0,
+            bu_ay_odenen: 0,
+            bu_ay_bekleyen: 0,
+            kazanc_trendi: null,
+            ortalama_puan: 0, toplam_yorum: 0,
             yayinda_kurs: courses.filter(c => c.durum === 'yayinda').length,
             diger_kurs: courses.filter(c => c.durum !== 'yayinda').length,
             followerCount: followerCount,
@@ -91,17 +106,46 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
         };
 
         if (kursIdleri.length === 0) {
-            return res.json({ success: true, data: { kpi: emptyKpi, grafik: { aylik_kazanc: [], kurs_dagilimi: [] }, son_yorumlar: [], kurs_performanslari: [] } });
+            return res.json({ success: true, data: { kpi: emptyKpi, grafik: { aylik_kazanc: [], aylik_bekleyen: [], kurs_dagilimi: [] }, son_yorumlar: [], kurs_performanslari: [] } });
         }
 
-        const [toplamOgrenci, kazancToplam, buAyKazanc, gecenAyKazanc, yorumSonuc, aylikKazanc, aylikKayit, sonYorumlar, kursStats] = await Promise.all([
+        const [
+            toplamOgrenci,
+            toplamOdenmis,
+            bekleyenHakedis,
+            buAyOdenen,
+            buAyBekleyen,
+            gecenAyOdenen,
+            yorumSonuc,
+            aylikOdenen,
+            aylikBekleyen,
+            aylikKayit,
+            sonYorumlar,
+            kursStats,
+        ] = await Promise.all([
             CourseEnrollment.count({ where: { kurs_id: { [Op.in]: kursIdleri } }, col: 'ogrenci_id', distinct: true }),
-            InstructorEarning.findOne({ where: { egitmen_id: egitmenId }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
-            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, olusturulma_tarihi: { [Op.gte]: buAyBaslangic } }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
-            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, olusturulma_tarihi: { [Op.between]: [gecenAyBaslangic, gecenAySon] } }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
+            // Toplam odenmis (cekilebilir): yalnizca admin + iyzico onayli.
+            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, durum: 'paid' }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
+            // Bekleyen hakedis (salt bilgi): iade penceresi / odeme akisi devam ediyor.
+            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, durum: { [Op.in]: BEKLEYEN_DURUMLAR } }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
+            // Bu ay odenen: odeme_tarihi'ne gore (paid'in gerceklestigi an).
+            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, durum: 'paid', odeme_tarihi: { [Op.gte]: buAyBaslangic } }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
+            // Bu ay bekleyen: satisin gerceklestigi (olusturulma) ana gore.
+            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, durum: { [Op.in]: BEKLEYEN_DURUMLAR }, olusturulma_tarihi: { [Op.gte]: buAyBaslangic } }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
+            // Trend karsilastirmasi: gecen ay odenen.
+            InstructorEarning.findOne({ where: { egitmen_id: egitmenId, durum: 'paid', odeme_tarihi: { [Op.between]: [gecenAyBaslangic, gecenAySon] } }, attributes: [[sequelize.fn('SUM', sequelize.col('net_tutar')), 'v']], raw: true }),
             Review.findOne({ where: { kurs_id: { [Op.in]: kursIdleri } }, attributes: [[sequelize.fn('AVG', sequelize.col('puan')), 'ort'], [sequelize.fn('COUNT', sequelize.literal('1')), 'sayi']], raw: true }),
+            // Grafik serisi 1 — Aylik odenen (paid, odeme_tarihi'ye gore).
             InstructorEarning.findAll({
-                where: { egitmen_id: egitmenId, olusturulma_tarihi: { [Op.gte]: altiAyOnce } },
+                where: { egitmen_id: egitmenId, durum: 'paid', odeme_tarihi: { [Op.gte]: altiAyOnce } },
+                attributes: [[sequelize.fn('YEAR', sequelize.col('odeme_tarihi')), 'yil'], [sequelize.fn('MONTH', sequelize.col('odeme_tarihi')), 'ay'], [sequelize.fn('SUM', sequelize.col('net_tutar')), 'toplam']],
+                group: [sequelize.fn('YEAR', sequelize.col('odeme_tarihi')), sequelize.fn('MONTH', sequelize.col('odeme_tarihi'))],
+                order: [[sequelize.fn('YEAR', sequelize.col('odeme_tarihi')), 'ASC'], [sequelize.fn('MONTH', sequelize.col('odeme_tarihi')), 'ASC']],
+                raw: true
+            }),
+            // Grafik serisi 2 — Aylik bekleyen hakedis (olusturulma_tarihi'ye gore).
+            InstructorEarning.findAll({
+                where: { egitmen_id: egitmenId, durum: { [Op.in]: BEKLEYEN_DURUMLAR }, olusturulma_tarihi: { [Op.gte]: altiAyOnce } },
                 attributes: [[sequelize.fn('YEAR', sequelize.col('olusturulma_tarihi')), 'yil'], [sequelize.fn('MONTH', sequelize.col('olusturulma_tarihi')), 'ay'], [sequelize.fn('SUM', sequelize.col('net_tutar')), 'toplam']],
                 group: [sequelize.fn('YEAR', sequelize.col('olusturulma_tarihi')), sequelize.fn('MONTH', sequelize.col('olusturulma_tarihi'))],
                 order: [[sequelize.fn('YEAR', sequelize.col('olusturulma_tarihi')), 'ASC'], [sequelize.fn('MONTH', sequelize.col('olusturulma_tarihi')), 'ASC']],
@@ -139,9 +183,13 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
             `, { replacements: { egitmenId }, type: sequelize.QueryTypes.SELECT })
         ]);
 
-        const buAyToplam = parseFloat(buAyKazanc?.v || 0);
-        const gecenAyToplam = parseFloat(gecenAyKazanc?.v || 0);
-        const kazancTrend = gecenAyToplam > 0 ? parseFloat(((buAyToplam - gecenAyToplam) / gecenAyToplam * 100).toFixed(1)) : null;
+        const buAyOdenenTutar = parseFloat(buAyOdenen?.v || 0);
+        const buAyBekleyenTutar = parseFloat(buAyBekleyen?.v || 0);
+        const gecenAyOdenenTutar = parseFloat(gecenAyOdenen?.v || 0);
+        // Trend: paid'in ay-uzeri degisimi. Cekilebilir bakiyenin gercek trendi budur.
+        const kazancTrend = gecenAyOdenenTutar > 0
+            ? parseFloat(((buAyOdenenTutar - gecenAyOdenenTutar) / gecenAyOdenenTutar * 100).toFixed(1))
+            : null;
 
         const AYLAR = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
         const altıAy = Array.from({ length: 6 }, (_, i) => {
@@ -149,8 +197,13 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
             return { yil: d.getFullYear(), ay: d.getMonth() + 1 };
         });
 
-        const aylikKazancGrafik = altıAy.map(a => {
-            const r = aylikKazanc.find(k => parseInt(k.yil) === a.yil && parseInt(k.ay) === a.ay);
+        const aylikOdenenGrafik = altıAy.map(a => {
+            const r = aylikOdenen.find(k => parseInt(k.yil) === a.yil && parseInt(k.ay) === a.ay);
+            return { etiket: `${AYLAR[a.ay - 1]} ${a.yil}`, deger: parseFloat(r?.toplam || 0) };
+        });
+
+        const aylikBekleyenGrafik = altıAy.map(a => {
+            const r = aylikBekleyen.find(k => parseInt(k.yil) === a.yil && parseInt(k.ay) === a.ay);
             return { etiket: `${AYLAR[a.ay - 1]} ${a.yil}`, deger: parseFloat(r?.toplam || 0) };
         });
 
@@ -177,8 +230,12 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
             data: {
                 kpi: {
                     toplam_ogrenci: toplamOgrenci,
-                    toplam_net_kazanc: parseFloat(parseFloat(kazancToplam?.v || 0).toFixed(2)),
-                    bu_ay_kazanc: buAyToplam,
+                    // Cekilebilir net bakiye: yalnizca admin onayli + iyzico success.
+                    toplam_net_odenmis: parseFloat(parseFloat(toplamOdenmis?.v || 0).toFixed(2)),
+                    // Salt-bilgi: iade penceresi / odeme akisi devam eden tutar (cekilemez).
+                    bekleyen_hakedis: parseFloat(parseFloat(bekleyenHakedis?.v || 0).toFixed(2)),
+                    bu_ay_odenen: parseFloat(buAyOdenenTutar.toFixed(2)),
+                    bu_ay_bekleyen: parseFloat(buAyBekleyenTutar.toFixed(2)),
                     kazanc_trendi: kazancTrend,
                     ortalama_puan: parseFloat(parseFloat(yorumSonuc?.ort || 0).toFixed(1)),
                     toplam_yorum: parseInt(yorumSonuc?.sayi || 0),
@@ -188,7 +245,8 @@ exports.getInstructorDashboardStats = async (req, res, next) => {
                     toplam_takipci: followerCount
                 },
                 grafik: {
-                    aylik_kazanc: aylikKazancGrafik,
+                    aylik_kazanc: aylikOdenenGrafik,
+                    aylik_bekleyen: aylikBekleyenGrafik,
                     aylik_kayit: aylikKayitGrafik,
                     kurs_dagilimi: kursPerformanslari.map(k => ({ etiket: k.baslik, deger: k.ogrenci_sayisi }))
                 },
@@ -597,7 +655,7 @@ exports.getMySalesHistory = async (req, res, next) => {
             attributes: [
                 'id', 'siparis_kalemi_id', 'brut_tutar', 'komisyon_orani',
                 'platform_kesintisi', 'net_tutar', 'durum',
-                'olusturulma_tarihi', 'odeme_tarihi',
+                'olusturulma_tarihi', 'odeme_tarihi', 'odeme_tipi',
             ],
             include: [{
                 model: OrderItem,
@@ -644,6 +702,10 @@ exports.getMySalesHistory = async (req, res, next) => {
                 },
                 durum: r.durum,
                 odeme_tarihi: r.odeme_tarihi,
+                // 'paid' durumunda anlamli; diger statulerde de default 'otomatik' donar.
+                // Frontend yalniz paid icin 'Manuel Odendi' / 'Otomatik Odendi'
+                // etiketi yaparken kullanir.
+                odeme_tipi: r.odeme_tipi || 'otomatik',
             };
         });
 

@@ -40,6 +40,9 @@
         .sh-pill.available   { background:#dbeafe; color:#1e40af; }
         .sh-pill.processing  { background:#e0e7ff; color:#3730a3; }
         .sh-pill.paid        { background:#d1fae5; color:#065f46; }
+        /* paid + odeme_tipi='manuel' icin ayri ton: admin override oldugunu
+           net gosterir (turuncu/amber). */
+        .sh-pill.paid-manuel { background:#ffedd5; color:#9a3412; border:1px solid #fed7aa; }
         .sh-pill.cancelled   { background:#fee2e2; color:#991b1b; }
 
         .sh-empty { text-align:center; padding:60px 20px; color:#64748b; }
@@ -79,10 +82,21 @@
         </header>
 
         <!-- ÖZET KARTLARI -->
+        <!--
+          Bakiye iki ayri kavramdir:
+            - Net Bakiye (Odenen): admin onayli + iyzico success. Cekilebilir.
+            - Bekleyen Hakedis: iade penceresi / onay bekliyor. Salt-bilgi (cekilemez).
+          Toplamlar bu sayfanin GORUNEN sayfa kalemlerinden hesaplanir; durum filtresine
+          gore degisir. Tooltip ile kullanici dogru beklentiye yonlendirilir.
+        -->
         <section class="sh-summary-grid" id="summaryGrid">
-            <div class="sh-card brand">
-                <div class="label">Toplam Net Kazanç</div>
-                <div class="value" id="sumNet">—</div>
+            <div class="sh-card brand" title="Admin tarafından onaylanmış ve iyzico üzerinden hesabınıza geçmiş tutarlar.">
+                <div class="label"><i class="fas fa-check-circle" style="color:#059669;"></i> Net Bakiye (Ödenen)</div>
+                <div class="value" id="sumOdenmis" style="color:#059669;">—</div>
+            </div>
+            <div class="sh-card" title="Henüz admin onayı ve iyzico transferi tamamlanmamış tutarlar. Salt bilgi amaçlıdır; çekilebilir değildir.">
+                <div class="label"><i class="fas fa-hourglass-half" style="color:#d97706;"></i> Bekleyen Hakediş</div>
+                <div class="value" id="sumBekleyen" style="color:#d97706;">—</div>
             </div>
             <div class="sh-card">
                 <div class="label">Brüt Satış</div>

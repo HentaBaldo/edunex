@@ -306,6 +306,12 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
+    /* 992px-768px aralginda hucre toplam genisligi viewport'tan buyuk olunca
+       .table-responsive overflow-x'i devreye girer ve "Simdi Onayla / Odemeyi
+       Onayla" butonlari sag tarafta kaybolmaz. 768px altinda media query
+       icindeki kart layout'u (.payouts-table { display: block; ... }) bu
+       min-width'i sifirlar (asagiya bkz). */
+    min-width: 920px;
 }
 
 .payouts-table thead {
@@ -334,7 +340,21 @@
 
 .payouts-table .col-check  { width: 40px; }
 .payouts-table .col-status { width: 130px; }
-.payouts-table .col-action { width: 180px; text-align: right; }
+.payouts-table .col-action {
+    width: 180px;
+    min-width: 180px;       /* Buton metni sigsin */
+    text-align: right;
+    white-space: nowrap;    /* "Simdi Onayla" butonu satir kirilmasin */
+}
+
+/* Tablo icindeki tum butonlarin metni tek satirda kalsin; ufak ekranda
+   ikon/yazi sarmalamasin. */
+.payouts-table .btn-primary,
+.payouts-table .btn-warning,
+.payouts-table .btn-secondary,
+.payouts-table .btn-danger {
+    white-space: nowrap;
+}
 
 /* Acil satir vurgu */
 .payouts-table tr.row-acil {
@@ -511,6 +531,26 @@
 .durum-badge.durum-paid       { background: #ccfbf1; color: #115e59; }
 .durum-badge.durum-cancelled  { background: #fee2e2; color: #991b1b; }
 
+/* Odeme tipi alt-rozeti: yalniz 'paid' satirlarinda gosterilir; ana durum
+   rozetinin altinda kucuk bir badge olarak hizalanir. */
+.odeme-tipi-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+.odeme-tipi-badge i { font-size: 0.62rem; }
+.odeme-tipi-otomatik { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.odeme-tipi-manuel   { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+.odeme-tipi-karisik  { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
 /* Acil badge */
 .acil-badge {
     display: inline-flex;
@@ -663,6 +703,25 @@
     .payouts-table, .payouts-table tbody, .payouts-table tr, .payouts-table td {
         display: block;
         width: 100%;
+    }
+
+    /* Kart layout aktif: yukaridaki masaustu min-width'i sifirla, yoksa kartlar
+       ekrandan tasar ve yatay scroll olusur (mobilde istemiyoruz). */
+    .payouts-table { min-width: 0; }
+
+    /* Aksiyon hücresi blok olarak akarken buton sigsin, butonun min-width'i
+       parent'i zorlamasin. Buton tam genislikte gosterelim. */
+    .payouts-table .col-action {
+        min-width: 0;
+        white-space: normal;
+    }
+    .payouts-table .col-action .btn-primary,
+    .payouts-table .col-action .btn-warning,
+    .payouts-table .col-action .btn-secondary,
+    .payouts-table .col-action .btn-danger {
+        width: 100%;
+        justify-content: center;
+        white-space: nowrap;
     }
 
     .payouts-table tr {

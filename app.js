@@ -398,6 +398,33 @@ sequelize.sync()
             console.error('[PAYOUT BACKFILL] Hata:', payoutErr.message);
         }
 
+        // --- Payout/Hakedis: odeme_tipi Migration (Faz: 2026-05-17) ---
+        // 'paid' durumundaki bir kaydin 'otomatik' mi (cron / admin standart akis)
+        // yoksa 'manuel' mi (admin 'Simdi Onayla' override / banka transferi)
+        // olduğunu ayirt etmek için yeni kolon. sequelize.sync() bu kolonu mevcut
+        // tabloya eklemez; idempotent ALTER + ENUM MODIFY ile garantiliyoruz.
+        try {
+            const earningsDesc2 = await sequelize.getQueryInterface().describeTable('egitmen_hakedisleri');
+            if (!earningsDesc2.odeme_tipi) {
+                await sequelize.query(`
+                    ALTER TABLE egitmen_hakedisleri
+                      ADD COLUMN odeme_tipi ENUM('otomatik','manuel')
+                        NOT NULL DEFAULT 'otomatik'
+                        AFTER islem_dekont_no
+                `);
+                console.log('[PAYOUT MIGRATION] egitmen_hakedisleri.odeme_tipi kolonu eklendi (default otomatik).');
+            } else {
+                // Kolon var ama enum tanimi degismis olabilir; idempotent MODIFY.
+                await sequelize.query(`
+                    ALTER TABLE egitmen_hakedisleri
+                      MODIFY COLUMN odeme_tipi ENUM('otomatik','manuel')
+                        NOT NULL DEFAULT 'otomatik'
+                `);
+            }
+        } catch (odemeTipErr) {
+            console.error('[PAYOUT MIGRATION odeme_tipi] Hata:', odemeTipErr.message);
+        }
+
         // --- Notification ENUM Backfill ---
         // sequelize.sync({alter:true}) MySQL ENUM degisikliklerinde her zaman
         // dogru ALTER uretmez (ozellikle ENUM'a deger eklemede). Burada idempotent

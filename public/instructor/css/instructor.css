@@ -148,6 +148,7 @@ body {
     border-left: 4px solid #2563eb;
     animation: toastSlideIn 0.3s ease-out;
     opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .toast.toast-show {
