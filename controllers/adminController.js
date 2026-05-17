@@ -17,8 +17,14 @@ const {
     LiveSession,
     SupportTicket,
     SupportMessage,
+    InstructorFollower,
 } = require('../models');
 const { sendNotification } = require('../services/notificationService');
+const {
+    sendNewCourseNotificationAsync,
+    sendCourseApprovedEmailAsync,
+    sendCourseRejectedEmailAsync,
+} = require('../services/emailService');
 
 /**
  * Yönetici Girişi (Admin Login)
@@ -345,15 +351,88 @@ exports.approveCourse = async (req, res, next) => {
         }
         
         await course.update({ durum: 'yayinda' });
-        
+
         console.log(`[ADMIN] Kurs ${courseId} onaylandı`);
-        
+
+        // --- EGITMENE ONAY MAILI (Görev 23) ---
+        // Fire-and-forget: admin toplu onaylama yaparken SMTP gecikmesi paneli kilitlemesin.
+        // course.Egitmen yukarıdaki findByPk include'ından geliyor; ekstra DB sorgusu gerekmez.
+        try {
+            if (course.Egitmen?.eposta) {
+                sendCourseApprovedEmailAsync(
+                    {
+                        ad: course.Egitmen.ad,
+                        soyad: course.Egitmen.soyad,
+                        eposta: course.Egitmen.eposta,
+                    },
+                    { id: course.id, baslik: course.baslik }
+                );
+            } else {
+                console.warn(`[MAIL] Kurs ${course.id} icin egitmen e-postasi bulunamadi; onay maili atlanildi.`);
+            }
+        } catch (mailErr) {
+            console.error('[MAIL ERROR] Kurs onay maili kuyruğa eklenemedi:', {
+                message: mailErr.message,
+                course_id: course.id,
+            });
+        }
+
+        // --- TAKIPÇILERE E-POSTA TETIKLEYICI (Görev 22) ---
+        // Kurs 'yayinda' durumuna alındı → eğitmenin TÜM takipçilerine "yeni kurs çıktı" maili.
+        // Notification (in-app) bilerek burada tetiklenmedi — eğitmen kursunu yayına aldığında
+        // kendi controller'ı zaten in-app bildirim gönderebiliyor; bu mail "engagement boost"
+        // amaçlı eklendi (Görev 22 kapsamında sadece e-posta talep edildi).
+        //
+        // Tasarım:
+        //  - JOIN ile Profile çekilir (N+1'i engellemek için).
+        //  - Fire-and-forget: setImmediate wrapper ile bg'ye düşer.
+        //  - Hata yutulur: mail kuyruğu çökse bile onay 200 dönmeli.
+        try {
+            const followers = await InstructorFollower.findAll({
+                where: { egitmen_id: course.egitmen_id },
+                attributes: ['ogrenci_id'],
+                include: [{
+                    model: Profile,
+                    attributes: ['id', 'ad', 'soyad', 'eposta'],
+                    required: true,
+                }],
+            });
+
+            if (followers.length > 0) {
+                const instructorProfile = {
+                    id: course.egitmen_id,
+                    ad: course.Egitmen?.ad || '',
+                    soyad: course.Egitmen?.soyad || '',
+                };
+                const coursePayload = {
+                    id: course.id,
+                    baslik: course.baslik,
+                    alt_baslik: course.alt_baslik,
+                    fiyat: course.fiyat,
+                };
+
+                let kuyruktaki = 0;
+                for (const f of followers) {
+                    if (f.Profile?.eposta) {
+                        sendNewCourseNotificationAsync(f.Profile, instructorProfile, coursePayload);
+                        kuyruktaki++;
+                    }
+                }
+                console.log(`[MAIL] Yeni kurs maili kuyruğa alindi: ${kuyruktaki}/${followers.length} takipçi (course=${course.id})`);
+            }
+        } catch (mailErr) {
+            console.error('[MAIL ERROR] yeni_kurs takipçi maili kuyruğa eklenemedi:', {
+                message: mailErr.message,
+                course_id: course.id,
+            });
+        }
+
         return res.status(200).json({
             success: true,
             message: 'Kurs onaylandı',
             course
         });
-        
+
     } catch (error) {
         console.error('[ADMIN APPROVE COURSE] Hata:', error.message);
         const err = new Error('Kurs onaylanırken hata oluştu');
@@ -454,6 +533,34 @@ exports.rejectCourse = async (req, res, next) => {
             });
         } catch (notifyErr) {
             console.warn('[ADMIN REJECT COURSE] Bildirim atlandi:', notifyErr.message);
+        }
+
+        // 5) Egitmen Red Maili (Görev 23). Fire-and-forget — admin akisi bloklanmaz.
+        // rejectCourse'un orijinal findByPk'inde Egitmen include edilmedigi icin
+        // burada hafif bir Profile lookup yapiyoruz (sadece mail icin gerekli alanlar).
+        try {
+            const egitmen = await Profile.findByPk(course.egitmen_id, {
+                attributes: ['id', 'ad', 'soyad', 'eposta'],
+            });
+            if (egitmen?.eposta) {
+                sendCourseRejectedEmailAsync(
+                    {
+                        ad: egitmen.ad,
+                        soyad: egitmen.soyad,
+                        eposta: egitmen.eposta,
+                    },
+                    { id: course.id, baslik: course.baslik },
+                    sebep,
+                    ticket.id
+                );
+            } else {
+                console.warn(`[MAIL] Kurs ${course.id} red maili icin egitmen e-postasi bulunamadi.`);
+            }
+        } catch (mailErr) {
+            console.error('[MAIL ERROR] Kurs red maili kuyruğa eklenemedi:', {
+                message: mailErr.message,
+                course_id: course.id,
+            });
         }
 
         console.log(`[ADMIN] Kurs ${courseId} reddedildi. ticket=${ticket.id}, admin=${adminId}, sebep_len=${sebep.length}`);

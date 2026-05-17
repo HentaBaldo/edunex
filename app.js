@@ -125,6 +125,7 @@ app.use(helmet({
                 "https://*.b-cdn.net",
                 "https://cdn.jsdelivr.net",
                 "https://cdn.plyr.io",
+                "https://cdnjs.cloudflare.com",
                 "https://*.iyzipay.com",
                 "https://*.iyzico.com",
                 "https://*.sentry.io"

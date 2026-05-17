@@ -10,6 +10,10 @@ const {
 } = require('../models');
 const { Op } = require('sequelize');
 const { sendNotification } = require('../services/notificationService');
+const {
+    sendCourseDraftedEmailAsync,
+    sendCourseApprovedEmailAsync,
+} = require('../services/emailService');
 
 /**
  * Filter -> Sequelize where mapping (admin courses-tracking).
@@ -170,6 +174,33 @@ exports.unpublishCourse = async (req, res, next) => {
             } catch (notifyErr) {
                 console.warn('[ADMIN unpublishCourse] Bildirim atlandi:', notifyErr.message);
             }
+
+            // Egitmen Taslak Maili (Görev 23). Fire-and-forget — admin akisi bloklanmaz.
+            // unpublishCourse'un orijinal findByPk'inde Egitmen include edilmedigi icin
+            // burada hafif bir Profile lookup yapiyoruz (sadece mail icin gerekli alanlar).
+            try {
+                const egitmen = await Profile.findByPk(course.egitmen_id, {
+                    attributes: ['id', 'ad', 'soyad', 'eposta'],
+                });
+                if (egitmen?.eposta) {
+                    sendCourseDraftedEmailAsync(
+                        {
+                            ad: egitmen.ad,
+                            soyad: egitmen.soyad,
+                            eposta: egitmen.eposta,
+                        },
+                        { id: course.id, baslik: course.baslik },
+                        sebep
+                    );
+                } else {
+                    console.warn(`[MAIL] Kurs ${course.id} taslak maili icin egitmen e-postasi bulunamadi.`);
+                }
+            } catch (mailErr) {
+                console.error('[MAIL ERROR] Kurs taslak maili kuyruğa eklenemedi:', {
+                    message: mailErr.message,
+                    course_id: course.id,
+                });
+            }
         }
 
         return res.status(200).json({ success: true, message: 'Kurs taslaga iade edildi.', data: { id, durum: 'taslak' } });
@@ -205,6 +236,34 @@ exports.republishCourse = async (req, res, next) => {
         });
 
         console.log(`[ADMIN] Kurs yayina alindi: ${id}`);
+
+        // Egitmen Onay Maili (Görev 23). Re-publish de semantik olarak "yayina alindi" — egitmen
+        // bilgilendirilmeli. Fire-and-forget: admin akisi bloklanmaz.
+        try {
+            if (course.egitmen_id) {
+                const egitmen = await Profile.findByPk(course.egitmen_id, {
+                    attributes: ['id', 'ad', 'soyad', 'eposta'],
+                });
+                if (egitmen?.eposta) {
+                    sendCourseApprovedEmailAsync(
+                        {
+                            ad: egitmen.ad,
+                            soyad: egitmen.soyad,
+                            eposta: egitmen.eposta,
+                        },
+                        { id: course.id, baslik: course.baslik }
+                    );
+                } else {
+                    console.warn(`[MAIL] Kurs ${course.id} re-publish onay maili icin egitmen e-postasi bulunamadi.`);
+                }
+            }
+        } catch (mailErr) {
+            console.error('[MAIL ERROR] Kurs re-publish onay maili kuyruğa eklenemedi:', {
+                message: mailErr.message,
+                course_id: course.id,
+            });
+        }
+
         return res.status(200).json({ success: true, message: 'Kurs yayina alindi.', data: { id, durum: 'yayinda' } });
     } catch (error) {
         console.error(`[ADMIN] republishCourse hatasi: ${error.message}`);

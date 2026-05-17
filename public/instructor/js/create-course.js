@@ -14,18 +14,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (window.Quill) {
-        _createQuill = new Quill('#createQuillContainer', {
-            theme: 'snow',
-            placeholder: 'Kursunuz hakkında detaylı bilgi verin...',
-            modules: {
-                toolbar: [
-                    ['bold', 'italic', 'underline'],
-                    [{ list: 'ordered' }, { list: 'bullet' }],
-                    ['link'],
-                    ['clean']
-                ]
-            }
-        });
+        const quillContainer = document.getElementById('createQuillContainer');
+        const aciklamaTextarea = document.getElementById('aciklama');
+        if (quillContainer && aciklamaTextarea) {
+            quillContainer.style.display = '';
+            aciklamaTextarea.style.display = 'none';
+            aciklamaTextarea.required = false;
+            _createQuill = new Quill('#createQuillContainer', {
+                theme: 'snow',
+                placeholder: 'Kursunuz hakkında detaylı bilgi verin...',
+                modules: {
+                    toolbar: [
+                        [{ header: [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ color: [] }, { background: [] }],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        [{ indent: '-1' }, { indent: '+1' }],
+                        [{ align: [] }],
+                        ['blockquote', 'code-block'],
+                        ['link'],
+                        ['clean']
+                    ]
+                }
+            });
+        }
     }
 
     await loadCategories();

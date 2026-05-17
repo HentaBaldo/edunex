@@ -539,20 +539,9 @@ exports.callback = async (req, res) => {
                     return;
                 }
 
-                // 1) ÖĞRENCİ ONAY MAILI (PDF dekont ekli)
-                if (fullOrder.Profile?.eposta) {
-                    const itemsForEmail = (fullOrder.OrderItems || []).map(oi => ({
-                        baslik: oi.Course?.baslik || 'Kurs',
-                        odenen_fiyat: oi.odenen_fiyat,
-                    }));
-                    sendStudentOrderConfirmationAsync(fullOrder.Profile, fullOrder, itemsForEmail);
-                } else {
-                    console.warn('[EMAIL TRIGGER] Öğrenci e-posta yok, onay maili atlandı:', order.id);
-                }
-
-                // 2) EĞİTMEN SATIŞ BİLDİRİMLERİ — GÖREV 4: eğitmen bazında grupla
-                // Tek bir siparişte birden fazla eğitmenin kursu olabilir; her birine
-                // SADECE kendi kursunun bilgisi ve net kazanci pass edilir (KVKK + isolation).
+                // EĞİTMEN PROFILLERINI ÖNCE TOPLA — hem öğrenci mailindeki "Eğitmen"
+                // satırlarını zenginleştirir hem de eğitmen satış maillerini besler.
+                // Tek bir Profile.findAll sorgusu ile N+1 önlenir.
                 const itemsByInstructor = new Map();
                 for (const oi of (fullOrder.OrderItems || [])) {
                     const egitmenId = oi.Course?.egitmen_id;
@@ -561,14 +550,45 @@ exports.callback = async (req, res) => {
                     itemsByInstructor.get(egitmenId).push(oi);
                 }
 
+                // Defensive: profil yüklemesi öğrenci mailini ASLA bloklamasın.
+                // Eski davranışta öğrenci maili Profile.findAll'dan önce gidiyordu;
+                // hata olursa Map() boş kalır → öğrenci mailinde "Eğitmen" alanı gizlenir,
+                // eğitmen mailleri atlanır ve loglanır. Sipariş akışı bozulmaz.
+                let instructorMap = new Map();
                 if (itemsByInstructor.size > 0) {
-                    // N+1 önleme: tüm farkli egitmen profillerini TEK sorguda al.
-                    const instructorProfiles = await Profile.findAll({
-                        where: { id: Array.from(itemsByInstructor.keys()) },
-                        attributes: ['id', 'ad', 'soyad', 'eposta'],
-                    });
-                    const instructorMap = new Map(instructorProfiles.map(p => [p.id, p]));
+                    try {
+                        const instructorProfiles = await Profile.findAll({
+                            where: { id: Array.from(itemsByInstructor.keys()) },
+                            attributes: ['id', 'ad', 'soyad', 'eposta'],
+                        });
+                        instructorMap = new Map(instructorProfiles.map(p => [p.id, p]));
+                    } catch (instErr) {
+                        console.error('[EMAIL TRIGGER] Eğitmen profilleri yüklenemedi, mailler eksik bilgiyle gidecek:', {
+                            order_id: order.id,
+                            message: instErr.message,
+                        });
+                    }
+                }
 
+                // 1) ÖĞRENCİ ONAY MAILI (PDF dekont ekli) — kalemler eğitmen ad/soyadı ile zenginleştirildi
+                if (fullOrder.Profile?.eposta) {
+                    const itemsForEmail = (fullOrder.OrderItems || []).map(oi => {
+                        const instr = instructorMap.get(oi.Course?.egitmen_id);
+                        return {
+                            baslik: oi.Course?.baslik || 'Kurs',
+                            odenen_fiyat: oi.odenen_fiyat,
+                            egitmen_ad: instr?.ad || null,
+                            egitmen_soyad: instr?.soyad || null,
+                        };
+                    });
+                    sendStudentOrderConfirmationAsync(fullOrder.Profile, fullOrder, itemsForEmail);
+                } else {
+                    console.warn('[EMAIL TRIGGER] Öğrenci e-posta yok, onay maili atlandı:', order.id);
+                }
+
+                // 2) EĞİTMEN SATIŞ BİLDİRİMLERİ — yukarıda hazırlanan instructorMap'i tekrar kullanır
+                // (ek DB sorgusu yok). KVKK: her eğitmene SADECE kendi kursunun bilgisi gider.
+                if (itemsByInstructor.size > 0) {
                     for (const [egitmenId, items] of itemsByInstructor.entries()) {
                         const instructor = instructorMap.get(egitmenId);
                         if (!instructor?.eposta) {
