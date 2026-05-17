@@ -451,7 +451,10 @@ exports.getPublicInstructorList = async (req, res, next) => {
 
         // rol filtresi Op.and ile sabitlenir; q gibi opsiyonel kosullar bunu
         // ezemez. Boylece ogrenci rolundeki kayitlar listeye sizmaz.
-        const andClauses = [{ rol: 'egitmen' }];
+        // profil_herkese_acik_mi=false olan egitmenler global aramadan tamamen
+        // dislanir (KVKK/kullanici tercihi). 403 ile koruna profil sayfasi vardi
+        // ancak isim arama hala isabet veriyordu; bu kosul o sizintiyi kapatir.
+        const andClauses = [{ rol: 'egitmen' }, { profil_herkese_acik_mi: true }];
 
         const q = (req.query.q || '').toString().trim();
         if (q) {
@@ -508,7 +511,8 @@ exports.getPublicProfile = async (req, res, next) => {
         const profil = await Profile.findOne({
             where: { id: instructorId, rol: 'egitmen' },
             attributes: ['id', 'ad', 'soyad', 'sehir', 'website', 'profil_fotografi',
-                         'facebook', 'instagram', 'linkedin', 'tiktok', 'x_twitter', 'youtube'],
+                         'facebook', 'instagram', 'linkedin', 'tiktok', 'x_twitter', 'youtube',
+                         'profil_herkese_acik_mi', 'alinan_kurslari_goster'],
             include: [{
                 model: InstructorDetail,
                 attributes: ['unvan', 'baslik', 'biyografi', 'deneyim_yili']
@@ -519,7 +523,22 @@ exports.getPublicProfile = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Eğitmen bulunamadı.' });
         }
 
-        const kurslar = await Course.findAll({
+        // KVKK / kullanici tercihi: profil_herkese_acik_mi=false ise public goruntuleme kapali.
+        // 403 doneriz; frontend nazik bir "Bu profil gizli tutulmaktadir" sayfasi gosterir.
+        if (profil.profil_herkese_acik_mi === false) {
+            return res.status(403).json({
+                success: false,
+                code: 'PROFILE_PRIVATE',
+                message: 'Bu eğitmen profilini gizli tutmayı tercih etmiştir.',
+            });
+        }
+
+        // alinan_kurslari_goster=false ise kurs listesi gizlenir. Bu DB sorgusunu
+        // tamamen atlamak hem perfromans kazandirir hem de discountService gibi
+        // ag akislarini tetiklemez.
+        const kurslariGoster = profil.alinan_kurslari_goster !== false;
+
+        const kurslar = !kurslariGoster ? [] : await Course.findAll({
             where: { egitmen_id: instructorId, durum: 'yayinda', silindi_mi: false },
             attributes: ['id', 'baslik', 'aciklama', 'fiyat', 'kategori_id'],
             include: [
@@ -536,8 +555,10 @@ exports.getPublicProfile = async (req, res, next) => {
             order: [['olusturulma_tarihi', 'DESC']]
         });
 
-        // İndirim bilgisini tek sorguda iliştir
-        await discountService.attachPricingToCourses(kurslar);
+        // İndirim bilgisini tek sorguda iliştir (kurslar bos ise atla — gereksiz sorgu)
+        if (kurslar.length > 0) {
+            await discountService.attachPricingToCourses(kurslar);
+        }
 
         const kurslarHesapli = kurslar.map(k => {
             const yorumlar = k.Reviews || [];

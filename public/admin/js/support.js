@@ -99,7 +99,7 @@ const SupportAdmin = (() => {
             const rolTag = u.rol === 'egitmen' ? 'EĞİTMEN' : u.rol === 'admin' ? 'ADMIN' : 'ÖĞRENCİ';
             const isActive = t.id === state.selectedId ? ' active' : '';
             return `
-                <div class="ticket-item${isActive}" data-id="${escapeHtml(t.id)}">
+                <div class="ticket-item${isActive}" data-id="${escapeHtml(t.id)}" style="position:relative;">
                     <div class="user-avatar">${escapeHtml(initials(u.ad, u.soyad))}</div>
                     <div class="ti-body">
                         <div class="ti-row">
@@ -113,12 +113,56 @@ const SupportAdmin = (() => {
                             <span class="badge-mini" style="background:#f1f5f9;color:#64748b;">${rolTag}</span>
                         </div>
                     </div>
+                    <button class="ti-delete-btn" data-delete-id="${escapeHtml(t.id)}" title="Sohbeti sil" style="position:absolute; top:8px; right:8px; background:none; border:none; color:#dc2626; cursor:pointer; padding:6px; border-radius:6px; font-size:0.85rem; opacity:0.7;" onmouseover="this.style.background='#fee2e2'; this.style.opacity='1';" onmouseout="this.style.background='none'; this.style.opacity='0.7';"><i class="fas fa-trash"></i></button>
                 </div>`;
         }).join('');
 
         listEl.querySelectorAll('.ticket-item').forEach(el => {
-            el.addEventListener('click', () => selectTicket(el.dataset.id));
+            el.addEventListener('click', (e) => {
+                // Sil butonuna tiklandiysa secimi tetikleme.
+                if (e.target.closest('.ti-delete-btn')) return;
+                selectTicket(el.dataset.id);
+            });
         });
+
+        // Sil butonu — SweetAlert onayi ile.
+        listEl.querySelectorAll('.ti-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const tid = btn.dataset.deleteId;
+                await handleDeleteTicket(tid);
+            });
+        });
+    }
+
+    async function handleDeleteTicket(ticketId) {
+        if (!ticketId) return;
+        const ok = await notify.confirm({
+            title: 'Sohbeti sil?',
+            text: 'Bu destek talebi ve tum mesajlari kalici olarak silinecek. Bu islem geri alinamaz.',
+            confirmText: 'Evet, sil',
+            cancelText: 'Vazgec',
+            type: 'error'
+        });
+        if (!ok) return;
+
+        try {
+            await ApiService.delete(`/admin/support/tickets/${ticketId}`);
+            showToast('Sohbet silindi.', 'success');
+            // Acik thread silinen ticket'sa panoyu temizle.
+            if (state.selectedId === ticketId) {
+                state.selectedId = null;
+                state.currentTicket = null;
+                const empty = document.getElementById('threadEmpty');
+                const active = document.getElementById('threadActive');
+                if (empty) empty.style.display = '';
+                if (active) active.style.display = 'none';
+            }
+            await reloadList();
+        } catch (err) {
+            console.error('[SUPPORT] silme hatasi:', err);
+            showToast(err.message || 'Sohbet silinemedi.', 'error');
+        }
     }
 
     function renderCounts(counts) {

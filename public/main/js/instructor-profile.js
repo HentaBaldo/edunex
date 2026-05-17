@@ -19,6 +19,11 @@
             takipButonunuKur();
         } catch (err) {
             console.error('[EGITMEN_PROFIL]', err);
+            // 403 PROFILE_PRIVATE: kullanici profilini gizlemis — nazik mesaj goster.
+            if (err.statusCode === 403) {
+                hataMesaji('Bu eğitmen profilini gizli tutmayı tercih etmiştir.');
+                return;
+            }
             hataMesaji('Eğitmen profili yüklenirken bir hata oluştu.');
         }
     }

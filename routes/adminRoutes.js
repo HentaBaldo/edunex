@@ -85,5 +85,7 @@ router.get('/support/tickets/:id', supportController.getTicketDetails);
 router.post('/support/tickets/:id/messages', supportController.replyTicket);
 // Durum guncelle (cogunlukla 'kapali').
 router.patch('/support/tickets/:id/status', supportController.adminUpdateStatus);
+// Kalici silme (mesajlar CASCADE ile dusurulur).
+router.delete('/support/tickets/:id', supportController.adminDeleteTicket);
 
 module.exports = router;

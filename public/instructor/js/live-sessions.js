@@ -268,12 +268,19 @@ function renderRecordingRow(s) {
         ? '<span style="padding:3px 8px; border-radius:10px; background:#d1fae5; color:#065f46; font-size:0.75rem;"><i class="fas fa-globe"></i> Genel</span>'
         : '<span style="padding:3px 8px; border-radius:10px; background:#ede9fe; color:#5b21b6; font-size:0.75rem;"><i class="fas fa-graduation-cap"></i> Kursa Özel</span>';
 
-    // Kayıt istenip istenmemesine göre buton/metin mantığı
+    // Kayıt istenip istenmemesine göre buton/metin mantığı.
+    // Kayit varsa "Değiştir" butonu ile yeni dosya yukleme / link guncelleme akisini aciyoruz —
+    // egitmen yanlis bir kaydi/sirali sürümü düzeltebilsin.
     let uploadBtn = '';
     if (s.kayit_alinsin_mi) {
-        uploadBtn = !s.kayit_video_url
-            ? `<button type="button" onclick="window.openUploadModal('${s.id}', '${escapeHtml(s.baslik)}')" class="btn-primary-lg-alt" style="padding:6px 12px; font-size:0.78rem;"><i class="fas fa-cloud-upload-alt"></i> Kaydı Yükle</button>`
-            : `<span style="color:#10b981; font-size:0.85rem;"><i class="fas fa-check-circle"></i> Video Yüklü</span>`;
+        if (!s.kayit_video_url) {
+            uploadBtn = `<button type="button" onclick="window.openUploadModal('${s.id}', '${escapeHtml(s.baslik)}')" class="btn-primary-lg-alt" style="padding:6px 12px; font-size:0.78rem;"><i class="fas fa-cloud-upload-alt"></i> Kaydı Yükle</button>`;
+        } else {
+            uploadBtn = `
+                <span style="color:#10b981; font-size:0.85rem;"><i class="fas fa-check-circle"></i> Video Yüklü</span>
+                <button type="button" onclick="window.openUploadModal('${s.id}', '${escapeHtml(s.baslik)}', true)" class="btn-logout-alt" title="Dosyayı/Linki Değiştir" style="padding:6px 10px; font-size:0.78rem; color:#2563eb;"><i class="fas fa-exchange-alt"></i> Değiştir</button>
+            `;
+        }
     } else {
         uploadBtn = `<span style="color:#94a3b8; font-size:0.85rem;"><i class="fas fa-video-slash"></i> Kayıt İstenmedi</span>`;
     }
@@ -284,7 +291,7 @@ function renderRecordingRow(s) {
             <td style="padding:12px;">${tipBadge}</td>
             <td style="padding:12px; color:#475569;">${dateLabel}</td>
             <td style="padding:12px;"><span style="padding:3px 8px; border-radius:10px; background:#e2e8f0; color:#475569; font-size:0.75rem;">Tamamlandı</span></td>
-            <td style="padding:12px; text-align:right; display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+            <td style="padding:12px; text-align:right; display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">
                 <button type="button" onclick="window.openAttendanceModal('${s.id}', '${escapeHtml(s.baslik)}')" class="btn-logout-alt" title="Yoklama Raporu" style="padding:6px 10px; font-size:0.78rem;"><i class="fas fa-eye"></i></button>
                 ${uploadBtn}
                 ${s.kayit_video_url ? `<a href="${escapeHtml(s.kayit_video_url)}" target="_blank" class="btn-logout-alt" style="padding:6px 10px; font-size:0.78rem;"><i class="fas fa-play"></i></a>` : ''}
@@ -410,29 +417,54 @@ function switchTab(tabName) {
 
 // ============ UPLOAD MODAL ============
 
-window.openUploadModal = (sessionId, sessionTitle) => {
+window.openUploadModal = (sessionId, sessionTitle, isReplace = false) => {
     const existing = document.getElementById('uploadRecordingModal');
     if (existing) existing.remove();
+
+    const baslik = isReplace ? 'Yayın Kaydını Değiştir' : 'Yayın Kaydı Yükle';
+    const submitText = isReplace ? 'Yenisini Yükle' : 'Yükle';
 
     const modal = document.createElement('div');
     modal.id = 'uploadRecordingModal';
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
     modal.innerHTML = `
-        <div class="modal-box" style="max-width:400px;">
-            <h3 class="modal-title">Yayın Kaydı Yükle</h3>
-            <p style="color:#64748b; margin-bottom:16px;">${escapeHtml(sessionTitle)}</p>
+        <div class="modal-box" style="max-width:440px;">
+            <h3 class="modal-title">${escapeHtml(baslik)}</h3>
+            <p style="color:#64748b; margin-bottom:12px;">${escapeHtml(sessionTitle)}</p>
+
+            <!-- Sekmeler: dosya veya link -->
+            <div style="display:flex; gap:6px; margin-bottom:14px; border-bottom:1px solid #e2e8f0;">
+                <button type="button" id="urTabFile" class="ur-tab" style="flex:1; padding:10px 8px; background:none; border:none; border-bottom:2px solid var(--primary-color); color:var(--primary-color); font-weight:600; cursor:pointer;"><i class="fas fa-file-upload"></i> Dosya Yükle</button>
+                <button type="button" id="urTabLink" class="ur-tab" style="flex:1; padding:10px 8px; background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; cursor:pointer;"><i class="fas fa-link"></i> Link Gir</button>
+            </div>
+
+            <!-- Dosya Yukleme -->
             <form id="uploadForm">
                 <div class="form-group">
                     <label class="form-label">MP4 veya WEBM dosyası</label>
                     <input type="file" id="uploadFile" accept="video/mp4,video/webm,.mp4,.webm" class="form-control" required>
-                    <small style="display:block; margin-top:6px; color:#94a3b8; font-size:0.78rem;">Jitsi yerel kaydı (.webm) doğrudan yüklenebilir; sunucu tarafında dönüşüm yapılmaz.</small>
+                    <small style="display:block; margin-top:6px; color:#94a3b8; font-size:0.78rem;">${isReplace ? 'Yeni dosya, mevcut kaydın yerine geçer.' : 'Jitsi yerel kaydı (.webm) doğrudan yüklenebilir; sunucu tarafında dönüşüm yapılmaz.'}</small>
                 </div>
                 <div class="modal-actions">
-                    <button type="submit" class="btn-primary-lg-alt">Yükle</button>
+                    <button type="submit" class="btn-primary-lg-alt">${escapeHtml(submitText)}</button>
                     <button type="button" class="btn-logout-alt" onclick="document.getElementById('uploadRecordingModal').remove();">İptal</button>
                 </div>
             </form>
+
+            <!-- Link Gir -->
+            <form id="linkForm" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">Video Linki (https://...)</label>
+                    <input type="url" id="linkInput" class="form-control" placeholder="https://iframe.mediadelivery.net/embed/..." required>
+                    <small style="display:block; margin-top:6px; color:#94a3b8; font-size:0.78rem;">Bunny Stream embed linki veya başka bir HTTPS video adresi olabilir.</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary-lg-alt">Linki Kaydet</button>
+                    <button type="button" class="btn-logout-alt" onclick="document.getElementById('uploadRecordingModal').remove();">İptal</button>
+                </div>
+            </form>
+
             <div id="uploadProgress" style="display:none; margin-top:16px;">
                 <div style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
                     <div id="uploadProgressBar" style="height:100%; background:var(--primary-color); width:0%; transition:width 0.3s;"></div>
@@ -443,32 +475,74 @@ window.openUploadModal = (sessionId, sessionTitle) => {
     `;
     document.body.appendChild(modal);
 
+    // Sekme gecisi
+    const tabFile = document.getElementById('urTabFile');
+    const tabLink = document.getElementById('urTabLink');
     const uploadForm = document.getElementById('uploadForm');
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fileInput = document.getElementById('uploadFile');
-            if (!fileInput || !fileInput.files[0]) return;
-
-            const formData = new FormData();
-            formData.append('recording', fileInput.files[0]);
-
-            const progressDiv = document.getElementById('uploadProgress');
-            if (progressDiv) progressDiv.style.display = '';
+    const linkForm = document.getElementById('linkForm');
+    function activateTab(which) {
+        if (which === 'file') {
+            tabFile.style.borderBottomColor = 'var(--primary-color)';
+            tabFile.style.color = 'var(--primary-color)';
+            tabLink.style.borderBottomColor = 'transparent';
+            tabLink.style.color = '#64748b';
+            uploadForm.style.display = '';
+            linkForm.style.display = 'none';
+        } else {
+            tabLink.style.borderBottomColor = 'var(--primary-color)';
+            tabLink.style.color = 'var(--primary-color)';
+            tabFile.style.borderBottomColor = 'transparent';
+            tabFile.style.color = '#64748b';
             uploadForm.style.display = 'none';
-
-            try {
-                await ApiService.postFormData(`/live-sessions/${sessionId}/upload-recording`, formData);
-                toast('Kaydı yüklendi.', 'success');
-                document.getElementById('uploadRecordingModal').remove();
-                await loadSessions();
-            } catch (err) {
-                toast('Hata: ' + err.message, 'error');
-                if (progressDiv) progressDiv.style.display = 'none';
-                uploadForm.style.display = '';
-            }
-        });
+            linkForm.style.display = '';
+        }
     }
+    tabFile.addEventListener('click', () => activateTab('file'));
+    tabLink.addEventListener('click', () => activateTab('link'));
+
+    // Dosya yukleme submit
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('uploadFile');
+        if (!fileInput || !fileInput.files[0]) return;
+
+        const formData = new FormData();
+        formData.append('recording', fileInput.files[0]);
+
+        const progressDiv = document.getElementById('uploadProgress');
+        if (progressDiv) progressDiv.style.display = '';
+        uploadForm.style.display = 'none';
+        linkForm.style.display = 'none';
+
+        try {
+            await ApiService.postFormData(`/live-sessions/${sessionId}/upload-recording`, formData);
+            toast(isReplace ? 'Kayıt değiştirildi.' : 'Kaydı yüklendi.', 'success');
+            document.getElementById('uploadRecordingModal').remove();
+            await loadSessions();
+        } catch (err) {
+            toast('Hata: ' + err.message, 'error');
+            if (progressDiv) progressDiv.style.display = 'none';
+            uploadForm.style.display = '';
+        }
+    });
+
+    // Link guncelleme submit (PATCH)
+    linkForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = (document.getElementById('linkInput').value || '').trim();
+        if (!/^https:\/\//i.test(url)) {
+            toast('Geçerli bir https:// linki girin.', 'error');
+            return;
+        }
+        try {
+            await ApiService.patch(`/live-sessions/${sessionId}/recording`, { kayit_video_url: url });
+            toast('Kayıt linki güncellendi.', 'success');
+            document.getElementById('uploadRecordingModal').remove();
+            await loadSessions();
+        } catch (err) {
+            toast('Hata: ' + err.message, 'error');
+        }
+    });
 };
 
 // ============ FORM & SESSION HANDLERS ============

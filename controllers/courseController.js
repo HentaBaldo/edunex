@@ -16,6 +16,20 @@ const path = require('path');
 const fs = require('fs');
 const { fn, col, Op } = require('sequelize');
 const { recalculateCourseProgress } = require('../services/progressService');
+
+// --- GIZLILIK GUARDI (marketplace listelemeleri icin) ---------------------
+// Bir kursun magazada (ana liste, kategoriler, oneriler, arama) gorunmesi icin
+// sahibi olan egitmenin iki gizlilik bayraginin da ACIK (true) olmasi zorunlu:
+//   1) profil_herkese_acik_mi  -> profil tamamen gizli ise hicbir kursu listelenmez.
+//   2) alinan_kurslari_goster  -> "kurslarim listelensin" tercihi kapali ise
+//                                  profil acik olsa bile kurslari magazada gizlenir.
+// Include'lara `required: true` + bu WHERE ile uyguladigimizda Sequelize'in
+// urettigi INNER JOIN sayesinde gizli egitmenin kursu satir uretmez; findAndCountAll
+// kullanan endpoint'lerde sayim ve sayfalama da otomatik olarak tutarlilasir.
+const PUBLIC_INSTRUCTOR_WHERE = {
+    profil_herkese_acik_mi: true,
+    alinan_kurslari_goster: true,
+};
 const { uploadFileToBunnyStorage, deleteFileFromBunnyStorage } = require('../services/bunnyService');
 const { sendNotification, notifyMultipleUsers } = require('../services/notificationService');
 const discountService = require('../services/discountService');
@@ -36,7 +50,9 @@ exports.getAllCourses = async (req, res, next) => {
                 {
                     model: Profile,
                     as: 'Egitmen',
-                    attributes: ['ad', 'soyad']
+                    attributes: ['ad', 'soyad'],
+                    required: true,
+                    where: PUBLIC_INSTRUCTOR_WHERE,
                 },
                 {
                     model: Category,
@@ -45,7 +61,8 @@ exports.getAllCourses = async (req, res, next) => {
             ],
             limit,
             offset,
-            order: [['olusturulma_tarihi', 'DESC']]
+            order: [['olusturulma_tarihi', 'DESC']],
+            distinct: true
         });
 
         const totalPages = Math.ceil(count / limit);
@@ -223,10 +240,14 @@ exports.getCourseDetails = async (req, res, next) => {
             where: { id, silindi_mi: false },
             include: [
                 {
-                    // 1. Profil tablosundan temel ad ve soyad bilgilerini çekiyoruz
+                    // 1. Profil tablosundan temel ad ve soyad bilgilerini çekiyoruz.
+                    // profil_herkese_acik_mi ve alinan_kurslari_goster bayraklari
+                    // asagidaki gizlilik guardi icin gereklidir (200 OK ile gizli
+                    // egitmenin kursunu satilmasinin onune gecer).
                     model: Profile,
                     as: 'Egitmen',
-                    attributes: ['id', 'ad', 'soyad', 'profil_fotografi']
+                    attributes: ['id', 'ad', 'soyad', 'profil_fotografi',
+                                 'profil_herkese_acik_mi', 'alinan_kurslari_goster']
                 },
                 {
                     // 2. Eğitmen detayları tablosundan unvan ve biyografiyi çekiyoruz
@@ -284,6 +305,20 @@ exports.getCourseDetails = async (req, res, next) => {
         // Kurs detay sayfasi public; sadece yayinda olan veya kullanicinin satin aldigi (arsiv) kurslara izin verilir.
         // Burada sadece silindi/iade-taslak'i 404 gibi gosteriyoruz; yayinda kontrolu zaten ust seviyede mevcut.
         if (course.silindi_mi || (course.durum === 'taslak' && course.admin_tarafindan_iade_edildi)) {
+            const error = new Error('Kurs bulunamadı.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Sahibinin gizlilik bayraklari kapali ise public detay (ve dolayisi ile
+        // satin alma akisi) erisilemez. Listelere zaten girmiyor ama direkt URL
+        // ile detay/buy butonu cagrilmasi bu kontrol ile engellenir. 404 olarak
+        // donuyoruz; 403 vermek profilin varligini bilgi sizintisi yapardi.
+        const egitmenGizlilik = course.Egitmen;
+        if (
+            egitmenGizlilik &&
+            (egitmenGizlilik.profil_herkese_acik_mi === false || egitmenGizlilik.alinan_kurslari_goster === false)
+        ) {
             const error = new Error('Kurs bulunamadı.');
             error.statusCode = 404;
             throw error;
@@ -548,7 +583,9 @@ exports.getAllPublishedCourses = async (req, res, next) => {
                 {
                     model: Profile,
                     as: 'Egitmen',
-                    attributes: ['id', 'ad', 'soyad']
+                    attributes: ['id', 'ad', 'soyad'],
+                    required: true,
+                    where: PUBLIC_INSTRUCTOR_WHERE,
                 },
                 {
                     model: Category,
@@ -1269,7 +1306,17 @@ exports.getPublicCourses = async (req, res) => {
     try {
         const tumKurslar = await Course.findAll({
             where: { durum: 'yayinda' },
-            include: [{ model: Review, attributes: ['puan'] }]
+            include: [
+                {
+                    // INNER JOIN: sahibi gizli olan kurslar magazaya hic sizmaz.
+                    model: Profile,
+                    as: 'Egitmen',
+                    attributes: [],
+                    required: true,
+                    where: PUBLIC_INSTRUCTOR_WHERE,
+                },
+                { model: Review, attributes: ['puan'] }
+            ]
         });
 
         if (!tumKurslar || tumKurslar.length === 0) {

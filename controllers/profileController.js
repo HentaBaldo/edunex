@@ -221,11 +221,28 @@ exports.updateProfile = async (req, res) => {
         // 1. Ana profil bilgilerini güncelle
         // Not: phone ve identity_number ALANLARI sadece istek payload'unda mevcutsa
         // override edilir. Aksi halde (frontend hic gondermemisse) eski deger korunur.
+        //
+        // GIZLILIK SWITCHLERI: frontend bazen "false" string'i, bazen 0/1 sayisi
+        // gonderebilir (form serializer'lara gore). Backend'de defansif boolean cast
+        // yapiyoruz — KVKK alanlari sessizce "true" olarak kaydedilip kullaniciyi
+        // ifsa etmesin diye. "false" stringi (case-insensitive) ve 0 false sayilir.
+        function toBoolStrict(v, fallback) {
+            if (v === undefined) return fallback;
+            if (typeof v === 'boolean') return v;
+            if (typeof v === 'number') return v !== 0;
+            if (typeof v === 'string') return !['false', '0', '', 'no'].includes(v.trim().toLowerCase());
+            return Boolean(v);
+        }
+
         const profileUpdatePayload = {
             ad, soyad, sehir, website,
             linkedin, instagram, x_twitter, youtube, facebook, tiktok,
-            profil_herkese_acik_mi, alinan_kurslari_goster,
+            profil_herkese_acik_mi: toBoolStrict(profil_herkese_acik_mi, undefined),
+            alinan_kurslari_goster: toBoolStrict(alinan_kurslari_goster, undefined),
         };
+        // toBoolStrict undefined -> undefined; sequelize undefined alanlari skipler.
+        if (profileUpdatePayload.profil_herkese_acik_mi === undefined) delete profileUpdatePayload.profil_herkese_acik_mi;
+        if (profileUpdatePayload.alinan_kurslari_goster === undefined) delete profileUpdatePayload.alinan_kurslari_goster;
         if (phone !== undefined) profileUpdatePayload.phone = normalizedPhone;
         if (identity_number !== undefined && normalizedTckn) profileUpdatePayload.identity_number = normalizedTckn;
 

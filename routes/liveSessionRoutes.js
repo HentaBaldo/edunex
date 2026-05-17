@@ -136,4 +136,12 @@ router.get('/:id/attendance', verifyToken, isInstructor, liveSessionController.g
  */
 router.post('/:id/upload-recording', verifyToken, isInstructor, upload.single('recording'), liveSessionController.uploadSessionRecording);
 
+/**
+ * PATCH /api/live-sessions/:id/recording
+ * Mevcut kayit URL'sini link ile degistir veya temizle (null gondererek).
+ * Yeni dosya yuklemek icin POST /:id/upload-recording kullanilir; o uc zaten
+ * kayit_video_url'yi overwrite ediyor, bu PATCH "link ile degistir" akisi icin.
+ */
+router.patch('/:id/recording', verifyToken, isInstructor, liveSessionController.updateSessionRecording);
+
 module.exports = router;

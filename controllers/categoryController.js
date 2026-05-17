@@ -175,10 +175,16 @@ exports.getCategoryWithCourses = async (req, res, next) => {
             attributes: ['id', 'baslik', 'aciklama', 'fiyat', 'kategori_id', 'olusturulma_tarihi'],
             include: [
                 {
+                    // INNER JOIN + WHERE: gizlilik tercihi kapali egitmenlerin
+                    // kurslari kategori listelerinden tamamen cikarilir.
                     model:      Profile,
                     as:         'Egitmen',
                     attributes: ['id', 'ad', 'soyad'],
-                    required:   false
+                    required:   true,
+                    where: {
+                        profil_herkese_acik_mi: true,
+                        alinan_kurslari_goster: true,
+                    },
                 },
                 {
                     model:    Category,
