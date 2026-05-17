@@ -778,6 +778,32 @@
 .search-item > i { font-size: 0.88rem; color: #94a3b8; width: 18px; flex-shrink: 0; }
 .search-item:hover > i { color: var(--primary-color); }
 
+/* Arama dropdown'undaki thumbnail kutucugu — kucuk arama alanina ozel.
+   img ve span (ikon fallback) icin tek kaynak; .search-item > i kuralini ezmez. */
+img.search-thumb,
+span.search-thumb {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    background: #f1f5f9;
+    overflow: hidden;
+}
+img.search-thumb {
+    object-fit: cover;
+    display: block;
+}
+span.search-thumb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 1rem;
+}
+.search-thumb--instructor { border-radius: 50%; }
+.search-thumb--course     { border-radius: 6px; }
+.search-thumb--category   { border-radius: 8px; }
+.search-item:hover span.search-thumb { color: var(--primary-color); }
+
 .search-item-course { align-items: flex-start; }
 .search-item-body { flex: 1; min-width: 0; }
 .search-item-title { font-size: 0.9rem; font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

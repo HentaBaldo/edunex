@@ -391,25 +391,28 @@ exports.getPublicInstructorList = async (req, res, next) => {
         const rawLimit = parseInt(req.query.limit, 10);
         const limit = Math.min(1000, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 500));
 
-        const where = { rol: 'egitmen' };
+        // rol filtresi Op.and ile sabitlenir; q gibi opsiyonel kosullar bunu
+        // ezemez. Boylece ogrenci rolundeki kayitlar listeye sizmaz.
+        const andClauses = [{ rol: 'egitmen' }];
 
-        // Opsiyonel arama: ad / soyad / sehir uzerinde case-insensitive LIKE.
-        // Frontend zaten client-side filtreleme yapiyor ancak büyük instances'ta
-        // backend-side filtre payload'i kuculttugu icin kalsin.
         const q = (req.query.q || '').toString().trim();
         if (q) {
-            where[Op.or] = [
-                { ad:    { [Op.like]: `%${q}%` } },
-                { soyad: { [Op.like]: `%${q}%` } },
-                { sehir: { [Op.like]: `%${q}%` } },
-            ];
+            andClauses.push({
+                [Op.or]: [
+                    { ad:    { [Op.like]: `%${q}%` } },
+                    { soyad: { [Op.like]: `%${q}%` } },
+                    { sehir: { [Op.like]: `%${q}%` } },
+                ]
+            });
         }
+
+        const where = { [Op.and]: andClauses };
 
         // LEFT JOIN: InstructorDetail opsiyonel (required: false). Detay satiri
         // hic olusturulmamis legacy egitmenler de listeye dahil olur.
         const egitmenler = await Profile.findAll({
             where,
-            attributes: ['id', 'ad', 'soyad', 'sehir', 'profil_fotografi'],
+            attributes: ['id', 'ad', 'soyad', 'sehir', 'rol', 'profil_fotografi'],
             include: [{
                 model: InstructorDetail,
                 attributes: ['unvan', 'baslik'],
@@ -426,6 +429,7 @@ exports.getPublicInstructorList = async (req, res, next) => {
                 ad: p.ad || '',
                 soyad: p.soyad || '',
                 tam_ad: `${p.ad || ''} ${p.soyad || ''}`.trim(),
+                rol: p.rol,
                 sehir: p.sehir || null,
                 profil_fotografi: p.profil_fotografi || null,
                 unvan: p.InstructorDetail?.unvan || null,

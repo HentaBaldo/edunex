@@ -518,20 +518,35 @@
 
         aramaEgitmenler.forEach(e => {
             if (!e || !e.id) return;
+            // Defansif rol filtresi: backend egitmen-only donmesi gerekir; yine de
+            // 'ogrenci' rolundeki bir kaydin sizmasini onlemek icin client-side
+            // ikinci bir kapi.
+            if (e.rol && e.rol !== 'egitmen') return;
             const tam = (e.tam_ad || `${e.ad || ''} ${e.soyad || ''}`).trim();
             if (!tam) return;
             const hay = `${tam} ${e.sehir || ''} ${e.unvan || ''} ${e.baslik || ''}`.toLowerCase();
             if (hay.includes(lower) && !egitmenMap.has(e.id)) {
-                egitmenMap.set(e.id, { id: e.id, ad: tam });
+                egitmenMap.set(e.id, {
+                    id: e.id,
+                    ad: tam,
+                    foto: e.profil_fotografi || null,
+                });
             }
         });
 
         aramaKurslari.forEach(k => {
             if (!k.Egitmen || !k.Egitmen.id) return;
             if (egitmenMap.has(k.Egitmen.id)) return;
+            // Egitmen rolu kursdan gelmeyebilir; bu kaynaktan eklenenler icin de
+            // rol = ogrenci olmasin diye ek kontrol (verilmisse).
+            if (k.Egitmen.rol && k.Egitmen.rol !== 'egitmen') return;
             const tam = `${k.Egitmen.ad || ''} ${k.Egitmen.soyad || ''}`.trim();
             if (tam.toLowerCase().includes(lower)) {
-                egitmenMap.set(k.Egitmen.id, { id: k.Egitmen.id, ad: tam });
+                egitmenMap.set(k.Egitmen.id, {
+                    id: k.Egitmen.id,
+                    ad: tam,
+                    foto: k.Egitmen.profil_fotografi || null,
+                });
             }
         });
 
@@ -556,8 +571,8 @@
                 <div class="search-group">
                     <div class="search-group-title"><i class="fas fa-th-large"></i> Kategoriler</div>
                     ${katSonuc.map(k => `
-                        <a href="/main/courses.html?category=${k.id}" class="search-item">
-                            <i class="fas fa-folder"></i>
+                        <a href="/main/category.html?id=${k.id}" class="search-item">
+                            ${_aramaThumbHtml(k.kapak_fotografi || null, 'category', k.ad)}
                             <span class="search-item-title">${_escHtml(k.ad)}</span>
                         </a>`).join('')}
                 </div>` : '';
@@ -567,7 +582,7 @@
                     <div class="search-group-title"><i class="fas fa-user"></i> Eğitmenler</div>
                     ${egitmenSonuc.map(e => `
                         <a href="/main/instructor-profile.html?id=${encodeURIComponent(e.id)}" class="search-item">
-                            <i class="fas fa-chalkboard-teacher"></i>
+                            ${_aramaThumbHtml(e.foto, 'instructor', e.ad)}
                             <span class="search-item-title">${_escHtml(e.ad)}</span>
                         </a>`).join('')}
                 </div>` : '';
@@ -578,9 +593,10 @@
                     ${kursSonuc.map(k => {
                         const egitmen = k.Egitmen ? `${k.Egitmen.ad || ''} ${k.Egitmen.soyad || ''}`.trim() : '';
                         const fiyat   = k.fiyat > 0 ? `${parseFloat(k.fiyat).toFixed(2)} ₺` : 'Ücretsiz';
+                        const kapak   = k.kapak_fotografi || k.gorsel_url || null;
                         return `
                         <a href="/main/course-detail.html?id=${k.id}" class="search-item search-item-course">
-                            <i class="fas fa-play-circle"></i>
+                            ${_aramaThumbHtml(kapak, 'course', k.baslik)}
                             <div class="search-item-body">
                                 <span class="search-item-title">${_escHtml(k.baslik)}</span>
                                 ${egitmen ? `<span class="search-item-sub">${_escHtml(egitmen)}</span>` : ''}
@@ -598,6 +614,25 @@
         }
 
         dropdown.style.display = 'block';
+    }
+
+    // Arama dropdown'undaki kucuk thumbnail: tip=instructor ise yuvarlak avatar,
+    // tip=course ise hafif kose-yuvarlatilmis kapak. Resim yoksa default ikon.
+    // Boyut/CSS arama satirina ozel .search-thumb sinifindan gelir (main.css).
+    function _aramaThumbHtml(url, tip, altText) {
+        const klas     = tip === 'course'    ? 'search-thumb search-thumb--course'
+                       : tip === 'category'  ? 'search-thumb search-thumb--category'
+                       :                       'search-thumb search-thumb--instructor';
+        const fallback = tip === 'course'    ? 'fa-play-circle'
+                       : tip === 'category'  ? 'fa-folder'
+                       :                       'fa-user';
+        const ikonHtml = `<span class="${klas}" aria-hidden="true"><i class="fas ${fallback}"></i></span>`;
+        if (!url) return ikonHtml;
+        // Resim yüklenemezse: img elemanini span+ikon ile degistir.
+        const escaped = _escAttr(url);
+        const altEsc  = _escAttr(altText || '');
+        return `<img src="${escaped}" alt="${altEsc}" class="${klas}"
+            onerror="this.onerror=null;const s=document.createElement('span');s.className='${klas}';s.innerHTML='<i class=\\'fas ${fallback}\\'></i>';this.replaceWith(s);">`;
     }
 
     // ─── Yardımcı ────────────────────────────────────────────────────────
