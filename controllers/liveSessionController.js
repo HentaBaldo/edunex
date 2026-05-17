@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { uploadVideoToBunny } = require('../services/bunnyService');
 const { notifyMultipleUsers } = require('../services/notificationService');
+const { sendLiveClassNotificationAsync } = require('../services/emailService');
 const {
     sequelize,
     LiveSession,
@@ -236,6 +237,61 @@ exports.createSession = async (req, res, next) => {
             console.error('BİLDİRİM KAYIT HATASI: [NOTIFY ERROR] canli_yayin bildirimi olusturulamadi:', {
                 message: notifyErr.message,
                 stack: notifyErr.stack,
+            });
+        }
+
+        // --- TAKIPÇILERE E-POSTA TETIKLEYICI (Görev 22) ---
+        // Notification (in-app) sistem-içi kalıyor; mail ise eğitmenin TÜM takipçilerine
+        // doğrudan inbox'a düşer — kullanıcı sistemde olmasa bile haberdar olur.
+        //
+        // Tasarım kararları:
+        //  - Tip ayrımı yok: hem kursa_ozel hem genel canlı derslerde takipçi listesi
+        //    kullanılır. Kursa kayıtlı + takipçi olan öğrenci ikili kanal (in-app + mail)
+        //    alır; kabul edilebilir bir UX tradeoff'tur (önemli olayda erişim garantisi).
+        //  - Fire-and-forget: sendLiveClassNotificationAsync setImmediate ile bg'ye düşer,
+        //    yanıt akışını bloklamaz.
+        //  - JOIN ile tek sorguda Profile çekiliyor (N+1'ı önler).
+        //  - Hata yutulur: takipçi mail kuyruğu çökse bile oturum yaratma başarılı sayılır.
+        try {
+            const followers = await InstructorFollower.findAll({
+                where: { egitmen_id: req.user.id },
+                attributes: ['ogrenci_id'],
+                include: [{
+                    model: Profile,
+                    attributes: ['id', 'ad', 'soyad', 'eposta'],
+                    required: true, // INNER JOIN — Profile yoksa kayıt da gelmesin
+                }],
+            });
+
+            if (followers.length > 0) {
+                const instructorProfile = await Profile.findByPk(req.user.id, {
+                    attributes: ['id', 'ad', 'soyad'],
+                });
+
+                const sessionPayload = {
+                    id: session.id,
+                    baslik: session.baslik,
+                    aciklama: session.aciklama,
+                    baslangic_tarihi: session.baslangic_tarihi,
+                    sure_dakika: session.sure_dakika,
+                    yayin_tipi: session.yayin_tipi,
+                    kurs_id: session.kurs_id,
+                };
+
+                let kuyruktaki = 0;
+                for (const f of followers) {
+                    const ogrenciProfile = f.Profile;
+                    if (ogrenciProfile?.eposta) {
+                        sendLiveClassNotificationAsync(ogrenciProfile, instructorProfile, sessionPayload);
+                        kuyruktaki++;
+                    }
+                }
+                console.log(`[MAIL] Canli ders maili kuyruğa alindi: ${kuyruktaki}/${followers.length} takipçi (session=${session.id})`);
+            }
+        } catch (mailErr) {
+            console.error('[MAIL ERROR] canli_yayin takipçi maili kuyruğa eklenemedi:', {
+                message: mailErr.message,
+                session_id: session.id,
             });
         }
 

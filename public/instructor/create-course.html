@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/instructor/css/instructor-forms.css">
     <link rel="stylesheet" href="/instructor/css/instructor-edit.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css">
 </head>
 <body>
     <header class="navbar">
@@ -28,7 +28,7 @@
 
     <main class="container dashboard-container">
         <header class="page-header-section">
-            <h1>Yeni Kurs Olustur</h1>
+            <h1 style="color: var(--text-color);">Yeni Kurs Olustur</h1>
             <p class="subtitle">Uzmanliginizi dunyayla paylasmak icin kursunuzun temel bilgilerini eksiksiz doldurun.</p>
         </header>
 
@@ -49,9 +49,9 @@
                     <input type="text" id="alt_baslik" class="form-control" placeholder="Kurs icerigini ozetleyen carpici bir cumle yazin">
                 </div>
                 <div class="form-group full-width">
-                    <label class="form-label">Kurs Açıklaması <span aria-hidden="true">*</span></label>
-                    <div id="createQuillContainer" style="background:#fff; min-height:160px; border-radius:0 0 8px 8px;"></div>
-                    <textarea id="aciklama" style="display:none;"></textarea>
+                    <label for="aciklama" class="form-label">Kurs Açıklaması <span aria-hidden="true">*</span></label>
+                    <div id="createQuillContainer" style="background:#fff; min-height:220px; border-radius:0 0 8px 8px;"></div>
+                    <textarea id="aciklama" class="form-control" rows="6" placeholder="Kursunuz hakkında detaylı bilgi verin..." style="display:none;"></textarea>
                 </div>
 
                 <div class="form-grid">
@@ -128,7 +128,7 @@
         </section>
     </main>
 
-    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/notify.js"></script>
     <script type="module" src="/instructor/js/create-course.js"></script>

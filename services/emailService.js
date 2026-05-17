@@ -421,6 +421,10 @@ async function sendStudentOrderConfirmation(student, order, orderItems) {
 
         const myCoursesUrl = `${FRONTEND_BASE || ''}/student/dashboard.html`;
         const ogrenciAd = (student.ad || '').trim() || 'Değerli Öğrencimiz';
+        const aliciAdSoyad = [student.ad, student.soyad]
+            .filter(Boolean)
+            .map(s => String(s).trim())
+            .join(' ') || ogrenciAd;
         const items = Array.isArray(orderItems) ? orderItems : [];
 
         // PDF üret — başarısız olursa maili yine de gönder (eksik ek > eksik mail).
@@ -433,16 +437,26 @@ async function sendStudentOrderConfirmation(student, order, orderItems) {
         }
 
         const itemRowsHtml = items.length
-            ? items.map(it => `
+            ? items.map(it => {
+                const egitmenAdSoyad = [it.egitmen_ad, it.egitmen_soyad]
+                    .filter(Boolean)
+                    .map(s => String(s).trim())
+                    .join(' ');
+                const egitmenSatiri = egitmenAdSoyad
+                    ? `<div style="color:#6b7280;font-size:12px;margin-top:4px;">Eğitmen: <span style="color:#1e3a8a;font-weight:600;">${egitmenAdSoyad.replace(/</g, '&lt;')}</span></div>`
+                    : '';
+                return `
                 <tr>
                     <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#374151;font-size:14px;">
-                        ${(it.baslik || 'Kurs').replace(/</g, '&lt;')}
+                        <div style="font-weight:600;color:#0f172a;">${(it.baslik || 'Kurs').replace(/</g, '&lt;')}</div>
+                        ${egitmenSatiri}
                     </td>
-                    <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#1e3a8a;font-size:14px;font-weight:600;text-align:right;white-space:nowrap;">
+                    <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#1e3a8a;font-size:14px;font-weight:600;text-align:right;white-space:nowrap;vertical-align:top;">
                         ${_fmtTRY(it.odenen_fiyat)}
                     </td>
                 </tr>
-            `).join('')
+            `;
+            }).join('')
             : `<tr><td colspan="2" style="padding:12px 0;color:#6b7280;font-size:13px;">Sipariş kalemi bulunamadı.</td></tr>`;
 
         const html = `
@@ -470,9 +484,9 @@ async function sendStudentOrderConfirmation(student, order, orderItems) {
             <td style="padding:36px 40px 8px;">
               <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 12px;">Teşekkürler, ${ogrenciAd.replace(/</g, '&lt;')}!</h2>
               <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 8px;">
-                Ödemeniz başarıyla tamamlandı ve aldığınız kurslara erişiminiz aktif hale geldi.
-                Aşağıda sipariş özetinizi bulabilirsiniz; detaylı dekont bu e-postanın
-                <strong>PDF eki</strong> olarak gönderilmiştir.
+                <strong>Siparişiniz başarıyla tamamlandı.</strong> İşlem detaylarınızı aşağıda
+                ve ekteki <strong>PDF dekontunda</strong> bulabilirsiniz. Satın aldığınız
+                kurslara erişiminiz şu an aktif hale geldi.
               </p>
             </td>
           </tr>
@@ -481,13 +495,25 @@ async function sendStudentOrderConfirmation(student, order, orderItems) {
             <td style="padding:8px 40px 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px 18px;margin-top:8px;">
                 <tr>
-                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Sipariş No</td>
-                  <td style="color:#1e3a8a;font-size:13px;font-weight:600;text-align:right;">${String(order.id || '-').replace(/</g, '&lt;')}</td>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;width:45%;">Sipariş No</td>
+                  <td style="color:#1e3a8a;font-size:13px;font-weight:600;text-align:right;word-break:break-all;">${String(order.id || '-').replace(/</g, '&lt;')}</td>
                 </tr>
                 <tr>
-                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:6px;">Tarih</td>
-                  <td style="color:#0f172a;font-size:13px;text-align:right;padding-top:6px;">${_fmtDateTR(order.olusturulma_tarihi)}</td>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:8px;">İşlem Tarihi</td>
+                  <td style="color:#0f172a;font-size:13px;text-align:right;padding-top:8px;">${_fmtDateTR(order.olusturulma_tarihi)}</td>
                 </tr>
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:8px;">Alıcı</td>
+                  <td style="color:#0f172a;font-size:13px;text-align:right;padding-top:8px;">
+                    ${aliciAdSoyad.replace(/</g, '&lt;')}
+                  </td>
+                </tr>
+                ${student.eposta ? `
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:8px;">E-posta</td>
+                  <td style="color:#0f172a;font-size:13px;text-align:right;padding-top:8px;word-break:break-all;">${String(student.eposta).replace(/</g, '&lt;')}</td>
+                </tr>
+                ` : ''}
               </table>
             </td>
           </tr>
@@ -736,6 +762,814 @@ function sendInstructorSaleNotificationAsync(instructor, courseName, netEarning)
     });
 }
 
+// ──────────────────────────────────────────────────────────────
+// ÖĞRENCİ ETKİLEŞİM (ENGAGEMENT) MAİLLERİ — Görev 22
+// ──────────────────────────────────────────────────────────────
+//
+// Üç tetikleyici mail:
+//   • sendLiveClassNotification — Takip edilen eğitmen canlı ders açtığında
+//   • sendNewCourseNotification — Takip edilen eğitmen yeni kurs yayınladığında
+//   • sendCertificateEmail      — Öğrenci kursu tamamlayıp sertifikayı kazandığında (PDF ekli)
+//
+// Hepsi caller akışını bloklamayan fire-and-forget wrapper'larla kullanılır;
+// SMTP gecikmesi ana operasyona (canlı ders yaratma, admin onay, sertifika üretimi) yansımaz.
+// Verification/PasswordReset/OrderConfirmation pattern'ı birebir korunmuştur.
+
+const _safe = (val) => String(val == null ? '' : val).replace(/</g, '&lt;');
+
+/**
+ * Takipçi öğrenciye: takip ettiği eğitmen yeni canlı ders planladı.
+ *
+ * @param {object} student     — { ad, soyad, eposta }
+ * @param {object} instructor  — { id, ad, soyad }
+ * @param {object} session     — { id, baslik, aciklama?, baslangic_tarihi, sure_dakika?, yayin_tipi, kurs_id? }
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendLiveClassNotification(student, instructor, session) {
+    try {
+        if (!student?.eposta) return { ok: false, error: 'Öğrenci e-posta adresi yok.' };
+        if (!session?.id) return { ok: false, error: 'Canlı ders verisi eksik.' };
+
+        const ogrenciAd = (student.ad || '').trim() || 'Değerli Öğrencimiz';
+        const egitmenAdSoyad = [instructor?.ad, instructor?.soyad].filter(Boolean).join(' ').trim() || 'Eğitmeniniz';
+
+        // Tip-bazlı yönlendirme — liveSessionController'daki notification mantığıyla aynı:
+        //   kursa_ozel -> kurs detayı | genel -> eğitmen profili
+        const linkPath = (session.yayin_tipi === 'kursa_ozel' && session.kurs_id)
+            ? `/main/course-detail.html?id=${encodeURIComponent(session.kurs_id)}`
+            : `/main/instructor-profile.html?id=${encodeURIComponent(instructor?.id || '')}`;
+        const ctaUrl = `${FRONTEND_BASE || ''}${linkPath}`;
+
+        const tarihStr = _fmtDateTR(session.baslangic_tarihi);
+        const sureStr = session.sure_dakika ? `${session.sure_dakika} dakika` : '';
+        const aciklamaBloku = session.aciklama
+            ? `<p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 16px;">${_safe(session.aciklama).slice(0, 500)}</p>`
+            : '';
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Yeni Canlı Ders</title></head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Takip Ettiğiniz Eğitmenden Yeni Canlı Ders</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 16px;">
+              <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 12px;">Merhaba ${_safe(ogrenciAd)},</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+                Takip ettiğiniz <strong>${_safe(egitmenAdSoyad)}</strong> yeni bir canlı ders planladı.
+                Koltuğunuzu erken ayırtmak için ders sayfasını ziyaret edebilirsiniz.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:6px;">Ders Başlığı</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:16px;font-weight:600;padding-bottom:14px;border-bottom:1px dashed #cbd5e1;">
+                    ${_safe(session.baslik)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:14px;padding-bottom:4px;">Başlangıç</td>
+                </tr>
+                <tr>
+                  <td style="color:#1e3a8a;font-size:14px;font-weight:600;">
+                    ${_safe(tarihStr)} ${sureStr ? `<span style="color:#6b7280;font-weight:400;"> • ${_safe(sureStr)}</span>` : ''}
+                  </td>
+                </tr>
+              </table>
+              ${aciklamaBloku ? `<div style="margin-top:18px;">${aciklamaBloku}</div>` : ''}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="${ctaUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                    Dersi Görüntüle
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Bağlantı çalışmıyorsa: <a href="${ctaUrl}" style="color:#1e3a8a;word-break:break-all;">${ctaUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Bu bildirimi takip ettiğiniz eğitmenden aldınız. Takipten çıkarsanız bu mailleri durdurabilirsiniz.<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        await transporter.sendMail({
+            from: FROM_ADDRESS,
+            to: student.eposta,
+            subject: `EduNex Academy — ${egitmenAdSoyad} yeni bir canlı ders açtı`,
+            html,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendLiveClassNotification(${student?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Takipçi öğrenciye: takip ettiği eğitmen yeni bir kurs yayınladı.
+ *
+ * @param {object} student     — { ad, soyad, eposta }
+ * @param {object} instructor  — { id, ad, soyad }
+ * @param {object} course      — { id, baslik, alt_baslik?, fiyat? }
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendNewCourseNotification(student, instructor, course) {
+    try {
+        if (!student?.eposta) return { ok: false, error: 'Öğrenci e-posta adresi yok.' };
+        if (!course?.id) return { ok: false, error: 'Kurs verisi eksik.' };
+
+        const ogrenciAd = (student.ad || '').trim() || 'Değerli Öğrencimiz';
+        const egitmenAdSoyad = [instructor?.ad, instructor?.soyad].filter(Boolean).join(' ').trim() || 'Eğitmeniniz';
+        const ctaUrl = `${FRONTEND_BASE || ''}/main/course-detail.html?id=${encodeURIComponent(course.id)}`;
+        const fiyatBloku = course.fiyat != null && Number(course.fiyat) > 0
+            ? `<tr>
+                <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:14px;padding-bottom:4px;">Fiyat</td>
+               </tr>
+               <tr>
+                <td style="color:#059669;font-size:18px;font-weight:700;">${_fmtTRY(course.fiyat)}</td>
+               </tr>`
+            : '';
+        const altBaslikBloku = course.alt_baslik
+            ? `<p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 16px;">${_safe(course.alt_baslik).slice(0, 300)}</p>`
+            : '';
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Yeni Kurs</title></head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Takip Ettiğiniz Eğitmenden Yeni Kurs</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 16px;">
+              <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 12px;">Merhaba ${_safe(ogrenciAd)},</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+                Takip ettiğiniz <strong>${_safe(egitmenAdSoyad)}</strong> yeni bir kurs yayınladı.
+                Hemen göz atıp ilk öğrencilerden biri olabilirsiniz.
+              </p>
+              ${altBaslikBloku}
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:6px;">Kurs Başlığı</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:16px;font-weight:600;padding-bottom:14px;border-bottom:1px dashed #cbd5e1;">
+                    ${_safe(course.baslik)}
+                  </td>
+                </tr>
+                ${fiyatBloku}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="${ctaUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                    Kursu İncele
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Bağlantı çalışmıyorsa: <a href="${ctaUrl}" style="color:#1e3a8a;word-break:break-all;">${ctaUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Bu bildirimi takip ettiğiniz eğitmenden aldınız.<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        await transporter.sendMail({
+            from: FROM_ADDRESS,
+            to: student.eposta,
+            subject: `EduNex Academy — ${egitmenAdSoyad} yeni bir kurs yayınladı`,
+            html,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendNewCourseNotification(${student?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Öğrenciye sertifika maili — PDF eki ile birlikte.
+ *
+ * @param {object} student        — { ad, soyad, eposta }
+ * @param {string} courseName     — Tamamlanan kursun başlığı
+ * @param {string} certificateCode — Sertifika UUID kodu
+ * @param {Buffer} pdfBuffer      — Sertifika PDF içeriği (Buffer). Yoksa mail PDF eki olmadan gider.
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendCertificateEmail(student, courseName, certificateCode, pdfBuffer) {
+    try {
+        if (!student?.eposta) return { ok: false, error: 'Öğrenci e-posta adresi yok.' };
+        if (!certificateCode) return { ok: false, error: 'Sertifika kodu yok.' };
+
+        const ogrenciAd = (student.ad || '').trim() || 'Değerli Öğrencimiz';
+        const aliciAdSoyad = [student.ad, student.soyad].filter(Boolean).join(' ').trim() || ogrenciAd;
+        const kursBaslik = String(courseName || 'Kurs').trim() || 'Kurs';
+        const certUrl = `${FRONTEND_BASE || ''}/api/certificates/${encodeURIComponent(certificateCode)}/pdf`;
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Sertifikanız Hazır</title></head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Başarınızı Kutluyoruz!</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 8px;text-align:center;">
+              <div style="font-size:56px;line-height:1;margin-bottom:12px;">&#127891;</div>
+              <h2 style="color:#1e3a8a;font-size:24px;margin:0 0 8px;">Tebrikler, ${_safe(aliciAdSoyad)}!</h2>
+              <p style="color:#374151;font-size:16px;line-height:1.6;margin:0;">
+                <strong>${_safe(kursBaslik)}</strong> kursunu başarıyla tamamladınız.
+                Hak ettiğiniz sertifikanız bu e-postanın <strong>PDF eki</strong> olarak iletilmiştir.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:6px;">Sertifika Kodu</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:14px;font-weight:600;font-family:'Courier New',monospace;word-break:break-all;">
+                    ${_safe(certificateCode)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="color:#9ca3af;font-size:11px;padding-top:8px;line-height:1.5;">
+                    Sertifikanızın geçerliliği bu kodla doğrulanır. İşveren veya kurumlar
+                    bu kodu sistemimizden teyit edebilir.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="${certUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                    Sertifikamı Görüntüle
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Bağlantı çalışmıyorsa: <a href="${certUrl}" style="color:#1e3a8a;word-break:break-all;">${certUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;margin-top:24px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Bu başarınızı LinkedIn'de paylaşmayı unutmayın!<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        const mailOptions = {
+            from: FROM_ADDRESS,
+            to: student.eposta,
+            subject: `EduNex Academy — Tebrikler! "${kursBaslik}" Sertifikanız Hazır`,
+            html,
+        };
+
+        if (pdfBuffer && Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 0) {
+            const safeCode = String(certificateCode).replace(/[^a-zA-Z0-9_-]/g, '');
+            mailOptions.attachments = [{
+                filename: `EduNex_Sertifika_${safeCode}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf',
+            }];
+        }
+
+        await transporter.sendMail(mailOptions);
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendCertificateEmail(${student?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Fire-and-forget wrapper'lar — caller akışı bloklanmaz.
+ * Tüm setImmediate + .then/.catch yapısı diğer Async wrapper'larla bire bir aynı tutuldu.
+ */
+function sendLiveClassNotificationAsync(student, instructor, session) {
+    setImmediate(() => {
+        sendLiveClassNotification(student, instructor, session)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Canli ders maili gonderildi: ${student?.eposta} (session=${session?.id})`);
+                else console.error(`[EMAIL SERVICE] (bg) Canli ders maili basarisiz (${student?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Canli Ders Mail Kuyruk Hatasi:', {
+                to: student?.eposta,
+                session_id: session?.id,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
+function sendNewCourseNotificationAsync(student, instructor, course) {
+    setImmediate(() => {
+        sendNewCourseNotification(student, instructor, course)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Yeni kurs maili gonderildi: ${student?.eposta} (course=${course?.id})`);
+                else console.error(`[EMAIL SERVICE] (bg) Yeni kurs maili basarisiz (${student?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Yeni Kurs Mail Kuyruk Hatasi:', {
+                to: student?.eposta,
+                course_id: course?.id,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
+function sendCertificateEmailAsync(student, courseName, certificateCode, pdfBuffer) {
+    setImmediate(() => {
+        sendCertificateEmail(student, courseName, certificateCode, pdfBuffer)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Sertifika maili gonderildi: ${student?.eposta} (cert=${certificateCode})`);
+                else console.error(`[EMAIL SERVICE] (bg) Sertifika maili basarisiz (${student?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Sertifika Mail Kuyruk Hatasi:', {
+                to: student?.eposta,
+                cert_kodu: certificateCode,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+// EĞİTMEN ODAKLI KURS DURUM MAİLLERİ — Görev 23
+// ──────────────────────────────────────────────────────────────
+//
+// Üç tetikleyici mail:
+//   • sendCourseApprovedEmail — Admin kursu onayladığında (onay_bekliyor / taslak / arsiv -> yayinda)
+//   • sendCourseDraftedEmail  — Admin yayindaki kursu taslağa çektiğinde (yayinda -> taslak, iade_sebebi ile)
+//   • sendCourseRejectedEmail — Admin onay bekleyen kursu reddettiğinde (red_sebebi + ticket ile)
+//
+// Hepsi caller akışını bloklamayan fire-and-forget wrapper'larla kullanılır;
+// admin yüzlerce kursu toplu onaylasa bile SMTP gecikmesi paneli kilitlemez.
+
+/**
+ * Eğitmene: kursunuz yayına alındı.
+ *
+ * @param {object} instructor — { ad, soyad, eposta }
+ * @param {object} course     — { id, baslik }
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendCourseApprovedEmail(instructor, course) {
+    try {
+        if (!instructor?.eposta) return { ok: false, error: 'Eğitmen e-posta adresi yok.' };
+        if (!course?.id) return { ok: false, error: 'Kurs verisi eksik.' };
+
+        const egitmenAd = (instructor.ad || '').trim() || 'Değerli Eğitmenimiz';
+        const kursBaslikSafe = _safe(course.baslik || 'Kursunuz');
+        const ctaUrl = `${FRONTEND_BASE || ''}/main/course-detail.html?id=${encodeURIComponent(course.id)}`;
+        const dashUrl = `${FRONTEND_BASE || ''}/instructor/dashboard.html`;
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Kursunuz Yayında!</title></head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Eğitmen Paneli — Kurs Onay Bildirimi</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 8px;text-align:center;">
+              <div style="font-size:56px;line-height:1;margin-bottom:12px;">&#127881;</div>
+              <h2 style="color:#1e3a8a;font-size:24px;margin:0 0 8px;">Tebrikler, ${_safe(egitmenAd)}!</h2>
+              <p style="color:#374151;font-size:16px;line-height:1.6;margin:0;">
+                Kursunuz <strong>yayına alındı</strong> ve şu an tüm öğrencilerin erişimine açık.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:6px;">Yayına Alınan Kurs</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:16px;font-weight:600;line-height:1.5;">
+                    ${kursBaslikSafe}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="color:#9ca3af;font-size:11px;padding-top:10px;line-height:1.5;">
+                    Kursunuz arama sonuçlarında, kategorinizde ve takipçilerinize bildirim olarak görünmeye başlamıştır.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="${ctaUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                    Kursu Görüntüle
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Eğitmen panelinize gitmek için: <a href="${dashUrl}" style="color:#1e3a8a;word-break:break-all;">${dashUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;margin-top:24px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Bu bildirim admin onay aksiyonunun sonucudur.<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        await transporter.sendMail({
+            from: FROM_ADDRESS,
+            to: instructor.eposta,
+            subject: `EduNex Academy — Tebrikler! "${String(course.baslik || '').slice(0, 80)}" yayına alındı`,
+            html,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendCourseApprovedEmail(${instructor?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Eğitmene: kursunuz taslağa çekildi (admin tarafından iade).
+ *
+ * @param {object} instructor — { ad, soyad, eposta }
+ * @param {object} course     — { id, baslik }
+ * @param {string} reason     — Admin'in iade gerekçesi (iade_sebebi)
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendCourseDraftedEmail(instructor, course, reason) {
+    try {
+        if (!instructor?.eposta) return { ok: false, error: 'Eğitmen e-posta adresi yok.' };
+        if (!course?.id) return { ok: false, error: 'Kurs verisi eksik.' };
+
+        const egitmenAd = (instructor.ad || '').trim() || 'Değerli Eğitmenimiz';
+        const kursBaslikSafe = _safe(course.baslik || 'Kursunuz');
+        const editUrl = `${FRONTEND_BASE || ''}/instructor/edit-course.html?id=${encodeURIComponent(course.id)}`;
+        const sebepMetni = String(reason || '').trim();
+        const sebepBloku = sebepMetni
+            ? `
+            <tr>
+              <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:14px;padding-bottom:6px;">Admin Notu</td>
+            </tr>
+            <tr>
+              <td style="color:#0f172a;font-size:14px;line-height:1.6;white-space:pre-wrap;">
+                ${_safe(sebepMetni).slice(0, 1500)}
+              </td>
+            </tr>`
+            : '';
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Kursunuz Taslağa Alındı</title></head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Eğitmen Paneli — Kurs Durum Güncellemesi</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 16px;">
+              <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 12px;">Merhaba ${_safe(egitmenAd)},</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+                Kursunuz <strong>yayından kaldırılarak taslak durumuna</strong> alındı.
+                Aşağıdaki notu inceleyerek eksiklikleri giderebilir, kursunuzu güncelleyip yeniden onaya gönderebilirsiniz.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:6px;">Etkilenen Kurs</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:16px;font-weight:600;line-height:1.5;${sebepBloku ? 'padding-bottom:14px;border-bottom:1px dashed #cbd5e1;' : ''}">
+                    ${kursBaslikSafe}
+                  </td>
+                </tr>
+                ${sebepBloku}
+              </table>
+              <div style="margin-top:18px;padding:14px 16px;background:#fef3c7;border-left:4px solid #c9a84c;border-radius:4px;">
+                <p style="color:#78350f;font-size:13px;line-height:1.6;margin:0;">
+                  <strong>Not:</strong> Bu süre boyunca öğrenciler kursu satın alamaz; kursunuz arama sonuçlarında görünmez.
+                  Mevcut öğrencilerin erişimi etkilenmez.
+                </p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="${editUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                    Kursu Düzenle
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                Bağlantı çalışmıyorsa: <a href="${editUrl}" style="color:#1e3a8a;word-break:break-all;">${editUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;margin-top:24px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Sorularınız için: destek@edunex.com<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        await transporter.sendMail({
+            from: FROM_ADDRESS,
+            to: instructor.eposta,
+            subject: `EduNex Academy — "${String(course.baslik || '').slice(0, 80)}" kursunuz taslağa alındı`,
+            html,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendCourseDraftedEmail(${instructor?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Eğitmene: kursunuz reddedildi (onay bekleyen kurs, red_sebebi ile).
+ *
+ * @param {object} instructor — { ad, soyad, eposta }
+ * @param {object} course     — { id, baslik }
+ * @param {string} reason     — Admin'in red gerekçesi (red_sebebi)
+ * @param {string|number} [ticketId] — İlgili destek bileti id (varsa CTA buraya gider)
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function sendCourseRejectedEmail(instructor, course, reason, ticketId) {
+    try {
+        if (!instructor?.eposta) return { ok: false, error: 'Eğitmen e-posta adresi yok.' };
+        if (!course?.id) return { ok: false, error: 'Kurs verisi eksik.' };
+
+        const egitmenAd = (instructor.ad || '').trim() || 'Değerli Eğitmenimiz';
+        const kursBaslikSafe = _safe(course.baslik || 'Kursunuz');
+        const ticketUrl = ticketId
+            ? `${FRONTEND_BASE || ''}/main/contact.html?ticket=${encodeURIComponent(ticketId)}`
+            : `${FRONTEND_BASE || ''}/main/contact.html`;
+        const editUrl = `${FRONTEND_BASE || ''}/instructor/edit-course.html?id=${encodeURIComponent(course.id)}`;
+        const sebepMetni = String(reason || '').trim();
+        const sebepBloku = sebepMetni
+            ? `
+            <tr>
+              <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-top:14px;padding-bottom:6px;">Red Gerekçesi</td>
+            </tr>
+            <tr>
+              <td style="color:#0f172a;font-size:14px;line-height:1.6;white-space:pre-wrap;">
+                ${_safe(sebepMetni).slice(0, 1500)}
+              </td>
+            </tr>`
+            : '';
+
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Kurs Onay Sonucu</title></head>
+<body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#c9a84c;font-size:28px;letter-spacing:1px;font-weight:700;">EduNex Academy</h1>
+              <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">Eğitmen Paneli — Kurs Onay Sonucu</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 16px;">
+              <h2 style="color:#1e3a8a;font-size:22px;margin:0 0 12px;">Merhaba ${_safe(egitmenAd)},</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+                Onaya gönderdiğiniz kursunuz, inceleme sonucunda <strong>reddedildi</strong>.
+                Kursunuz şu an taslak durumundadır; aşağıdaki gerekçeyi inceleyerek gerekli düzenlemeleri
+                yapıp tekrar onaya gönderebilirsiniz.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;">
+                <tr>
+                  <td style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:6px;">Etkilenen Kurs</td>
+                </tr>
+                <tr>
+                  <td style="color:#0f172a;font-size:16px;font-weight:600;line-height:1.5;${sebepBloku ? 'padding-bottom:14px;border-bottom:1px dashed #cbd5e1;' : ''}">
+                    ${kursBaslikSafe}
+                  </td>
+                </tr>
+                ${sebepBloku}
+              </table>
+              ${ticketId ? `
+              <div style="margin-top:18px;padding:14px 16px;background:#fef3c7;border-left:4px solid #c9a84c;border-radius:4px;">
+                <p style="color:#78350f;font-size:13px;line-height:1.6;margin:0;">
+                  <strong>Destek Bileti:</strong> Bu red için sizin adınıza otomatik bir destek talebi oluşturuldu.
+                  Aşağıdaki butonla bilet üzerinden admine doğrudan yanıt yazabilirsiniz.
+                </p>
+              </div>` : ''}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center">
+                  <a href="${ticketId ? ticketUrl : editUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c 0%,#b8943f 100%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 4px 12px rgba(201,168,76,0.4);">
+                    ${ticketId ? 'Destek Biletini Aç' : 'Kursu Düzenle'}
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
+                ${ticketId ? `Kursu düzenlemek için: <a href="${editUrl}" style="color:#1e3a8a;word-break:break-all;">${editUrl}</a>` : `Bağlantı çalışmıyorsa: <a href="${editUrl}" style="color:#1e3a8a;word-break:break-all;">${editUrl}</a>`}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;margin-top:24px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;line-height:1.6;">
+                Sorularınız için: destek@edunex.com<br />
+                &copy; 2026 EduNex Academy. Tüm hakları saklıdır.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+        await transporter.sendMail({
+            from: FROM_ADDRESS,
+            to: instructor.eposta,
+            subject: `EduNex Academy — "${String(course.baslik || '').slice(0, 80)}" kursunuz reddedildi`,
+            html,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error(`[EMAIL SERVICE] sendCourseRejectedEmail(${instructor?.eposta}) hatasi:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Fire-and-forget wrapper'lar — admin yüzlerce kursu toplu yönetse bile
+ * SMTP gecikmesi response süresini şişirmez. setImmediate + .then/.catch
+ * yapısı diğer Async wrapper'larla bire bir aynı.
+ */
+function sendCourseApprovedEmailAsync(instructor, course) {
+    setImmediate(() => {
+        sendCourseApprovedEmail(instructor, course)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Kurs onay maili gonderildi: ${instructor?.eposta} (course=${course?.id})`);
+                else console.error(`[EMAIL SERVICE] (bg) Kurs onay maili basarisiz (${instructor?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Kurs Onay Mail Kuyruk Hatasi:', {
+                to: instructor?.eposta,
+                course_id: course?.id,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
+function sendCourseDraftedEmailAsync(instructor, course, reason) {
+    setImmediate(() => {
+        sendCourseDraftedEmail(instructor, course, reason)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Kurs taslak maili gonderildi: ${instructor?.eposta} (course=${course?.id})`);
+                else console.error(`[EMAIL SERVICE] (bg) Kurs taslak maili basarisiz (${instructor?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Kurs Taslak Mail Kuyruk Hatasi:', {
+                to: instructor?.eposta,
+                course_id: course?.id,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
+function sendCourseRejectedEmailAsync(instructor, course, reason, ticketId) {
+    setImmediate(() => {
+        sendCourseRejectedEmail(instructor, course, reason, ticketId)
+            .then(result => {
+                if (result.ok) console.log(`[EMAIL SERVICE] (bg) Kurs red maili gonderildi: ${instructor?.eposta} (course=${course?.id}, ticket=${ticketId})`);
+                else console.error(`[EMAIL SERVICE] (bg) Kurs red maili basarisiz (${instructor?.eposta}): ${result.error}`);
+            })
+            .catch(err => console.error('Kurs Red Mail Kuyruk Hatasi:', {
+                to: instructor?.eposta,
+                course_id: course?.id,
+                ticket_id: ticketId,
+                name: err && err.name,
+                code: err && err.code,
+                message: err && err.message,
+            }));
+    });
+}
+
 module.exports = {
   sendVerificationEmail,
   sendVerificationEmailAsync,
@@ -745,4 +1579,18 @@ module.exports = {
   sendStudentOrderConfirmationAsync,
   sendInstructorSaleNotification,
   sendInstructorSaleNotificationAsync,
+  // Görev 22 — Öğrenci etkileşim tetikleyicileri
+  sendLiveClassNotification,
+  sendLiveClassNotificationAsync,
+  sendNewCourseNotification,
+  sendNewCourseNotificationAsync,
+  sendCertificateEmail,
+  sendCertificateEmailAsync,
+  // Görev 23 — Eğitmen odaklı kurs durum mailleri
+  sendCourseApprovedEmail,
+  sendCourseApprovedEmailAsync,
+  sendCourseDraftedEmail,
+  sendCourseDraftedEmailAsync,
+  sendCourseRejectedEmail,
+  sendCourseRejectedEmailAsync,
 };
