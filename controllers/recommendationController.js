@@ -13,6 +13,17 @@ const {
 const { Op, literal, QueryTypes } = require('sequelize');
 const jwt = require('jsonwebtoken');
 
+// --- GIZLILIK GUARDI: marketplace ve oneri modulleri icin kullanilir -------
+// Sahip egitmenin iki bayragi da true olmali; aksi takdirde kurs hicbir public
+// listede gorunmemeli. ORM include'larinda required:true ile INNER JOIN olur;
+// ham SQL'lerde asagidaki PUBLIC_INSTRUCTOR_SQL ile birlikte gelir.
+const PUBLIC_INSTRUCTOR_WHERE = {
+    profil_herkese_acik_mi: true,
+    alinan_kurslari_goster: true,
+};
+// Ham SQL JOIN icin gizlilik filtresi (profiller tablosu p alias'i ile).
+const PUBLIC_INSTRUCTOR_SQL = `p.profil_herkese_acik_mi = 1 AND p.alinan_kurslari_goster = 1`;
+
 /**
  * Opsiyonel JWT decode: ana sayfa endpoint'i public, ancak token gelirse
  * giris yapmis kullaniciya ozel veri (takip edilen egitmen kurslari) eklenir.
@@ -87,7 +98,8 @@ async function _enPopulerKurslariGetir(sinir = 8) {
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
         ],
         include: [
-            { model: Profile,   as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] },
+            { model: Profile,   as: 'Egitmen', attributes: ['id', 'ad', 'soyad'],
+              required: true, where: PUBLIC_INSTRUCTOR_WHERE },
             { model: Category,  attributes: ['id', 'ad'] }
         ],
         order: [
@@ -142,7 +154,8 @@ async function _populerKategorileriGetir(sinir = 6) {
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
         ],
-        include: [{ model: Profile, as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] }],
+        include: [{ model: Profile, as: 'Egitmen', attributes: ['id', 'ad', 'soyad'],
+            required: true, where: PUBLIC_INSTRUCTOR_WHERE }],
         order: [[literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC']],
         subQuery: false
     });
@@ -200,6 +213,7 @@ async function _birlikteAlinanKurslariGetir(tohumKursId, sinir = 8) {
              AND kk2.kurs_id   != :tohumKursId
          INNER JOIN kurslar     k   ON kk2.kurs_id    = k.id   AND k.durum = 'yayinda'
          INNER JOIN profiller   p   ON k.egitmen_id   = p.id
+                                    AND ${PUBLIC_INSTRUCTOR_SQL}
          INNER JOIN kategoriler kat ON k.kategori_id  = kat.id
          WHERE kk1.kurs_id = :tohumKursId
          GROUP BY
@@ -253,7 +267,8 @@ async function _kategoriCarprazGetir(tohumKategoriId, sinir = 5) {
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan'],
             [literal('(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'toplam_yorum']
         ],
-        include: [{ model: Profile, as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] }],
+        include: [{ model: Profile, as: 'Egitmen', attributes: ['id', 'ad', 'soyad'],
+            required: true, where: PUBLIC_INSTRUCTOR_WHERE }],
         order: [[literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'DESC']],
         subQuery: false
     });
@@ -289,7 +304,8 @@ async function _enCokBegenilenGetir(sinir = 8, minYorum = 5) {
             [literal('(SELECT COUNT(*) FROM kurs_kayitlari WHERE kurs_kayitlari.kurs_id = Course.id)'), 'toplam_ogrenci']
         ],
         include: [
-            { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad'] },
+            { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad'],
+              required: true, where: PUBLIC_INSTRUCTOR_WHERE },
             { model: Category, attributes: ['id', 'ad'] }
         ],
         having: literal(`(SELECT COUNT(*) FROM yorumlar WHERE yorumlar.kurs_id = Course.id) >= ${parseInt(minYorum)}`),
@@ -325,6 +341,7 @@ async function _populerEgitmenleriGetir(sinir = 6) {
          LEFT JOIN yorumlar y        ON y.kurs_id  = k.id
          LEFT JOIN egitmen_detaylari ed ON ed.kullanici_id = p.id
          WHERE p.rol = 'egitmen'
+           AND p.profil_herkese_acik_mi = 1
          GROUP BY p.id, p.ad, p.soyad, p.profil_fotografi, ed.unvan
          HAVING COUNT(DISTINCT k.id) >= 1
          ORDER BY COUNT(DISTINCT kk.ogrenci_id) DESC, ROUND(AVG(y.puan), 1) DESC
@@ -590,7 +607,10 @@ async function _takipEdilenEgitmenKurslariniGetir(ogrenciId, sinir = 12) {
             [literal('(SELECT ROUND(AVG(puan), 2) FROM yorumlar WHERE yorumlar.kurs_id = Course.id)'), 'ortalama_puan']
         ],
         include: [
-            { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad', 'profil_fotografi'] },
+            // Egitmen takipten sonra profilini gizlediyse feed'den de cikar:
+            // listeleme tutarliligi diger marketplace endpoint'leriyle korunur.
+            { model: Profile,  as: 'Egitmen', attributes: ['id', 'ad', 'soyad', 'profil_fotografi'],
+              required: true, where: PUBLIC_INSTRUCTOR_WHERE },
             { model: Category, attributes: ['id', 'ad'] }
         ],
         order: [['olusturulma_tarihi', 'DESC']],

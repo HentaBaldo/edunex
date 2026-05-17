@@ -365,6 +365,39 @@ exports.adminUpdateStatus = async (req, res, next) => {
     }
 };
 
+/**
+ * Admin: ticket'i ve TUM mesajlarini kalici olarak siler.
+ * Mesajlar CASCADE ile destek_mesajlari tablosundan otomatik dusurulur
+ * (models/index.js'te SupportTicket.hasMany(...,{onDelete:'CASCADE'})).
+ *
+ * Tipik kullanim: spam / test amacli acilmis veya cozulup gereksiz yer kaplayan
+ * destek talepleri icin.
+ * @route DELETE /api/admin/support/tickets/:id
+ */
+exports.adminDeleteTicket = async (req, res, next) => {
+    try {
+        const ticket = await SupportTicket.findByPk(req.params.id);
+        if (!ticket) {
+            return res.status(404).json({ success: false, message: 'Destek talebi bulunamadi.' });
+        }
+
+        // Defansif manuel mesaj silme — eger DB tarafinda FK CASCADE aktif degilse
+        // mesajlar yetim kalmasin. CASCADE varsa bu cagri zaten 0 satir etkiler.
+        await SupportMessage.destroy({ where: { talep_id: ticket.id } });
+        await ticket.destroy();
+
+        console.log(`[SUPPORT] Ticket silindi: ${ticket.id} (admin=${req.user?.id})`);
+        return res.status(200).json({
+            success: true,
+            message: 'Destek talebi ve tum mesajlari silindi.',
+            data: { id: ticket.id },
+        });
+    } catch (error) {
+        console.error('[SUPPORT] adminDeleteTicket hatasi:', error.message);
+        next(error);
+    }
+};
+
 // Otomasyon icin diger modullerin (rejectCourse) cagiracagi yardimci.
 // HTTP katmaninda DEGIL — controller'larin server-side cagrisi icin export edildi.
 exports._internal = {

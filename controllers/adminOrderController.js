@@ -15,9 +15,17 @@ const {
 } = require('../models');
 
 /**
- * Siparişleri listeler. Filtreler: durum, arama (öğrenci adı/eposta/sipariş id),
- * tarih aralığı; sayfalama destekler.
+ * Siparişleri listeler. Filtreler: durum, arama (sipariş id / iyzico id /
+ * öğrenci adı-soyadı-e-postası / kurs başlığı), tarih aralığı; sayfalama destekler.
  * @route GET /api/admin/orders
+ *
+ * Arama stratejisi:
+ *  - q UUID formatinda ise: id/islem_id/conversation_id ile birebir eslesme.
+ *  - Aksi halde: Profile (ad/soyad/eposta) VEYA OrderItem -> Course (baslik) LIKE
+ *    eslesmesi yapan order id'leri pre-query ile toplanir, ana sorguda
+ *    where.id: { [Op.in]: ids } olarak uygulanir. Boylece LEFT JOIN required:false
+ *    semantiginin filtre bozuklugu (eslesmeyen alici/kurs olsa bile satir donmesi)
+ *    ortadan kalkar — kullanici "ahmet" yazdiginda gercekten ahmet'in siparisleri donulur.
  */
 exports.listOrders = async (req, res, next) => {
     try {
@@ -37,23 +45,76 @@ exports.listOrders = async (req, res, next) => {
             if (from) where.olusturulma_tarihi[Op.gte] = new Date(from);
             if (to) where.olusturulma_tarihi[Op.lte] = new Date(to);
         }
-        if (q) {
-            // siparis id ile birebir eslesme
-            where[Op.or] = [
-                { id: q },
-                { islem_id: q },
-                { conversation_id: q },
-            ];
+
+        const trimmedQ = (typeof q === 'string' ? q.trim() : '');
+        if (trimmedQ) {
+            const isUuid = /^[0-9a-f-]{36}$/i.test(trimmedQ);
+            if (isUuid) {
+                // UUID ise: id/islem_id/conversation_id ile birebir eslesme.
+                where[Op.or] = [
+                    { id: trimmedQ },
+                    { islem_id: trimmedQ },
+                    { conversation_id: trimmedQ },
+                ];
+            } else {
+                // Serbest metin: alici (ad/soyad/eposta) VEYA kurs basligi LIKE eslesmesi.
+                // Iki ayri sorgu — sonuc id'lerini birlestirip ana where'e ekliyoruz.
+                const likePattern = `%${trimmedQ}%`;
+                const [profileMatches, courseMatches] = await Promise.all([
+                    Order.findAll({
+                        attributes: ['id'],
+                        include: [{
+                            model: Profile,
+                            attributes: [],
+                            required: true,
+                            where: {
+                                [Op.or]: [
+                                    { ad: { [Op.like]: likePattern } },
+                                    { soyad: { [Op.like]: likePattern } },
+                                    { eposta: { [Op.like]: likePattern } },
+                                ],
+                            },
+                        }],
+                        raw: true,
+                    }),
+                    Order.findAll({
+                        attributes: ['id'],
+                        include: [{
+                            model: OrderItem,
+                            attributes: [],
+                            required: true,
+                            include: [{
+                                model: Course,
+                                attributes: [],
+                                required: true,
+                                where: { baslik: { [Op.like]: likePattern } },
+                            }],
+                        }],
+                        raw: true,
+                    }),
+                ]);
+                const matchedIds = Array.from(new Set([
+                    ...profileMatches.map(r => r.id),
+                    ...courseMatches.map(r => r.id),
+                ]));
+
+                if (matchedIds.length === 0) {
+                    // Eslesme yok: erken don, bos sayfa.
+                    return res.status(200).json({
+                        status: 'success',
+                        data: {
+                            items: [],
+                            pagination: { total: 0, page: 1, limit: Number(limit) || 20, pages: 0 },
+                        },
+                    });
+                }
+                where.id = { [Op.in]: matchedIds };
+            }
         }
 
         const pageNum = Math.max(1, parseInt(page, 10) || 1);
         const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
         const offset = (pageNum - 1) * limitNum;
-
-        const userWhere = {};
-        if (q && !where[Op.or]) {
-            // eposta/ad arayisi (id aramasiyla degil)
-        }
 
         const { rows, count } = await Order.findAndCountAll({
             where,
@@ -62,13 +123,6 @@ exports.listOrders = async (req, res, next) => {
                     model: Profile,
                     attributes: ['id', 'ad', 'soyad', 'eposta'],
                     required: false,
-                    where: q && !/^[0-9a-f-]{36}$/i.test(q) ? {
-                        [Op.or]: [
-                            { eposta: { [Op.like]: `%${q}%` } },
-                            { ad: { [Op.like]: `%${q}%` } },
-                            { soyad: { [Op.like]: `%${q}%` } },
-                        ],
-                    } : undefined,
                 },
                 {
                     model: OrderItem,

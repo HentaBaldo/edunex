@@ -511,10 +511,19 @@
 
         // ── Eğitmenler ──
         // Iki kaynak birlestirilir:
-        //  (a) /instructor/list — kursu OLMAYANLAR dahil tum egitmenler (otorite kaynak)
-        //  (b) /courses/published.Egitmen — geriye uyumluluk (endpoint dusse de calismaya devam)
+        //  (a) /instructor/list — kursu OLMAYANLAR dahil tum acik egitmenler (otorite kaynak).
+        //      Backend bu listeyi `profil_herkese_acik_mi=true` filtresiyle doner,
+        //      yani burada gorulen herkes "public goruntulemeye acik" demektir.
+        //  (b) /courses/published.Egitmen — geriye uyumluluk (endpoint dusse de calismaya devam).
         // Dedup id uzerinden yapilir; (a) once isleniyor ki tam profil bilgisi (avatar/sehir) korunsun.
         const egitmenMap = new Map();
+
+        // PRIVACY WHITELIST: /instructor/list backend tarafinda zaten gizlilik filtreli
+        // doner. Asagidaki Set'i otorite kaynak olarak kullanip kurs-kaynakli ekleyiciyi
+        // bu sete kisitliyoruz; boylece bir gun kurs endpoint'inde regresyon olsa veya
+        // cache nedeniyle gizli egitmenin kursu navbar'a sizsa bile autocomplete'te
+        // ismi/avatari gorunmez.
+        const acikEgitmenIdleri = new Set();
 
         aramaEgitmenler.forEach(e => {
             if (!e || !e.id) return;
@@ -522,6 +531,7 @@
             // 'ogrenci' rolundeki bir kaydin sizmasini onlemek icin client-side
             // ikinci bir kapi.
             if (e.rol && e.rol !== 'egitmen') return;
+            acikEgitmenIdleri.add(e.id);
             const tam = (e.tam_ad || `${e.ad || ''} ${e.soyad || ''}`).trim();
             if (!tam) return;
             const hay = `${tam} ${e.sehir || ''} ${e.unvan || ''} ${e.baslik || ''}`.toLowerCase();
@@ -537,6 +547,9 @@
         aramaKurslari.forEach(k => {
             if (!k.Egitmen || !k.Egitmen.id) return;
             if (egitmenMap.has(k.Egitmen.id)) return;
+            // PRIVACY GUARD: Egitmen acik listede yoksa profilini gizlemis demektir.
+            // O zaman kurs Egitmen alaninda gelse bile autocomplete eklenmemeli.
+            if (!acikEgitmenIdleri.has(k.Egitmen.id)) return;
             // Egitmen rolu kursdan gelmeyebilir; bu kaynaktan eklenenler icin de
             // rol = ogrenci olmasin diye ek kontrol (verilmisse).
             if (k.Egitmen.rol && k.Egitmen.rol !== 'egitmen') return;

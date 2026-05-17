@@ -916,6 +916,73 @@ exports.uploadSessionRecording = async (req, res, next) => {
 };
 
 /**
+ * PATCH /api/live-sessions/:id/recording
+ * Eğitmen daha önce yüklediği kaydı (dosya veya dış link) günceller / kaldırır.
+ * Body (JSON): { kayit_video_url: string | null }
+ *  - String verildiyse: Bunny iframe veya https URL bekleniyor (basit format dogrulamasi).
+ *  - null verildiyse:   kayit kaldirilir (tekrar yukleme/giris bekler).
+ *
+ * Yeni DOSYA yuklemek icin POST /:id/upload-recording mevcut endpoint kullanilir;
+ * o endpoint zaten session.kayit_video_url'yi overwrite ediyor — boylece bu PATCH
+ * sadece "link ile degistir" veya "kaydi temizle" kullanım durumlarini karsiliyor.
+ */
+exports.updateSessionRecording = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const session = await LiveSession.findByPk(id);
+        if (!session) {
+            const err = new Error('Oturum bulunamadı.');
+            err.statusCode = 404;
+            throw err;
+        }
+        if (session.egitmen_id !== req.user.id) {
+            const err = new Error('Bu oturum üzerinde yetkiniz yok.');
+            err.statusCode = 403;
+            throw err;
+        }
+        if (session.durum !== 'tamamlandi') {
+            const err = new Error('Kayıt sadece tamamlanmış oturumlar için güncellenebilir.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        // null/bos -> temizle. String -> https zorunlu, max 500 karakter (model siniri).
+        const raw = req.body?.kayit_video_url;
+        let yeni;
+        if (raw === null || raw === '' || typeof raw === 'undefined') {
+            yeni = null;
+        } else if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            if (!/^https:\/\/[\w.-]+/i.test(trimmed)) {
+                const err = new Error('Geçersiz video linki. Sadece https:// ile başlayan adresler kabul edilir.');
+                err.statusCode = 400;
+                throw err;
+            }
+            if (trimmed.length > 500) {
+                const err = new Error('Video linki çok uzun (max 500 karakter).');
+                err.statusCode = 400;
+                throw err;
+            }
+            yeni = trimmed;
+        } else {
+            const err = new Error('kayit_video_url string veya null olmalıdır.');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        session.kayit_video_url = yeni;
+        await session.save();
+
+        return res.status(200).json({
+            success: true,
+            data: { id: session.id, kayit_video_url: session.kayit_video_url },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * GET /api/live-sessions/active
  * Öğrenci ana sayfası için aktif dersleri listele.
  * Mantık:
